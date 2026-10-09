@@ -1,0 +1,23 @@
+# Normalize text files and keep Unix line endings across macOS and Linux.
+* text=auto eol=lf
+
+# Windows launchers require Windows line endings.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Binary files must never be line-ending normalized.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.jar binary
+*.zip binary
+*.pdf binary
+*.keystore binary
+*.jks binary
+*.ttf binary
+*.otf binary
+*.mp3 binary
+*.mp4 binary
