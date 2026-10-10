@@ -20,11 +20,14 @@ import dagger.Binds
 import dagger.Module
 import dagger.hilt.components.SingletonComponent
 import dagger.hilt.testing.TestInstallIn
+import com.miguelrodriguez19.stayleafy.data.CareEventRepository
+import com.miguelrodriguez19.stayleafy.data.EpochMillisProvider
 import com.miguelrodriguez19.stayleafy.data.PlantRepository
 import com.miguelrodriguez19.stayleafy.data.PlantNoteRepository
 import com.miguelrodriguez19.stayleafy.data.photo.PlantPhotoRepository
 import com.miguelrodriguez19.stayleafy.data.di.DataModule
 import javax.inject.Singleton
+import javax.inject.Inject
 
 @Module
 @TestInstallIn(
@@ -50,4 +53,21 @@ interface FakeDataModule {
     abstract fun bindPhotoRepository(
         fakeRepository: FakePlantPhotoRepository,
     ): PlantPhotoRepository
+
+    @Singleton
+    @Binds
+    abstract fun bindCareEventRepository(
+        fakeRepository: FakeCareEventRepository,
+    ): CareEventRepository
+
+    @Singleton
+    @Binds
+    abstract fun bindEpochMillisProvider(
+        provider: FakeEpochMillisProvider,
+    ): EpochMillisProvider
+}
+
+@Singleton
+class FakeEpochMillisProvider @Inject constructor() : EpochMillisProvider {
+    override fun now(): Long = System.currentTimeMillis()
 }

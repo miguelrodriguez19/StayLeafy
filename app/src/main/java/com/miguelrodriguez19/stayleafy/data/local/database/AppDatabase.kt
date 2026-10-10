@@ -19,9 +19,15 @@ package com.miguelrodriguez19.stayleafy.data.local.database
 import androidx.room.Database
 import androidx.room.RoomDatabase
 
-@Database(entities = [PlantEntity::class, PlantNoteEntity::class], version = 4, exportSchema = true)
+@Database(
+    entities = [PlantEntity::class, PlantNoteEntity::class, CareEventEntity::class],
+    version = 5,
+    exportSchema = true,
+)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun plantDao(): PlantDao
 
     abstract fun plantNoteDao(): PlantNoteDao
+
+    abstract fun careEventDao(): CareEventDao
 }

@@ -16,12 +16,14 @@ import androidx.compose.ui.test.performTextReplacement
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.miguelrodriguez19.stayleafy.R
 import com.miguelrodriguez19.stayleafy.model.PlantNote
+import com.miguelrodriguez19.stayleafy.testdi.FakeCareEventRepository
 import com.miguelrodriguez19.stayleafy.testdi.FakePlantNoteRepository
 import com.miguelrodriguez19.stayleafy.testdi.FakePlantRepository
 import com.miguelrodriguez19.stayleafy.testdi.fakePlant
 import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
 import javax.inject.Inject
+import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -43,11 +45,15 @@ class NavigationTest {
     @Inject
     lateinit var noteRepository: FakePlantNoteRepository
 
+    @Inject
+    lateinit var careRepository: FakeCareEventRepository
+
     @Before
     fun setUp() {
         hiltRule.inject()
         repository.reset()
         noteRepository.reset()
+        careRepository.reset()
         repository.replacePlants(
             listOf(
                 fakePlant(
@@ -149,6 +155,29 @@ class NavigationTest {
 
         composeTestRule.onNodeWithText("Updated note").performScrollTo().assertIsDisplayed()
         composeTestRule.onNodeWithText("Old note").assertDoesNotExist()
+    }
+
+    @Test
+    fun detailCreateAndEditCareSave_returnsToDetail() {
+        clickListPlant("Monstera")
+        composeTestRule.onNodeWithText(string(R.string.add_watering)).performScrollTo().performClick()
+        composeTestRule.onNodeWithText(string(R.string.add_care_event)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(string(R.string.care_type)).assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription(string(R.string.save)).performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText("Monstera deliciosa").assertIsDisplayed()
+        assertEquals(1, careRepository.currentEvents.size)
+
+        composeTestRule.onNodeWithText(string(R.string.edit_care_event)).performScrollTo().performClick()
+        composeTestRule.onNodeWithText(string(R.string.edit_care_event)).assertIsDisplayed()
+        composeTestRule.onNode(hasSetTextAction()).performTextReplacement("Evening watering")
+        composeTestRule.onNodeWithContentDescription(string(R.string.save)).performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText("Monstera deliciosa").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Evening watering").performScrollTo().assertIsDisplayed()
+        assertEquals("Evening watering", careRepository.currentEvents.single().note)
     }
 
     private fun clickListPlant(name: String) {

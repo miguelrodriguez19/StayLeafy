@@ -2,11 +2,11 @@
 
 ## Implementation status
 
-The implemented database is Room schema version 4. Phase 1 persists the `Plant` entity, Phase 2 adds `PlantNote` and one primary photo, and the independent correction pass unifies the plant screen and removes the redundant common-name fields. The database filename remains `Plant` for compatibility with the template's schema version 1 and its migration path.
+The implemented baseline is Room schema version 5. Phase 1 persists the `Plant` entity, Phase 2 adds `PlantNote` and one primary photo, the independent correction pass unifies the plant screen and removes the redundant common-name fields, and Phase 3 adds `CareEvent`. The database filename remains `Plant` for compatibility with the template's schema version 1 and its migration path.
 
-The explicit migration chain is `1→2→3→4`. Migration `3→4` preserves plant, note, photo, favorite, and timestamp data, discards stored common-name values, and leaves one required `name` field plus the scientific-name field for search.
+The complete registered migration chain is `1→2→3→4→5`. The non-destructive `4→5` migration preserves all existing rows and adds an empty care-event table for existing plants.
 
-`CareEvent` and `ReminderRule` remain planned future tables. They are not part of schema version 4. Care-event cleanup belongs to Phase 3 and reminder-rule cleanup belongs to Phase 4.
+`CareEvent` is implemented in schema v5. `ReminderRule` remains a planned Phase 4 table and is not part of schema v5. Care-event cleanup belongs to Phase 3; reminder-rule cleanup belongs to Phase 4.
 
 ## Principles
 
@@ -21,16 +21,16 @@ The explicit migration chain is `1→2→3→4`. Migration `3→4` preserves pla
 ## Relationships
 
 ```text
-Implemented in schema v4: Plant 1 ─── 0..* PlantNote
-Planned: Plant 1 ─── 0..* CareEvent
+Implemented in schema v5: Plant 1 ─── 0..* PlantNote
+Implemented in schema v5: Plant 1 ─── 0..* CareEvent
 Planned: Plant 1 ─── 0..* ReminderRule
 ```
 
-Phase 1 deletion removed only the `Plant` row. Phase 2 adds the notes cascade and primary-photo cleanup. Care-event cascades remain planned for Phase 3 and reminder-rule cascades remain planned for Phase 4.
+Phase 1 deletion removed only the `Plant` row. Phase 2 adds the notes cascade and primary-photo cleanup. Phase 3 adds the care-event cascade; Phase 4 will add the reminder-rule cascade.
 
 ## Plant
 
-Represents one physical household plant. This is the implemented schema-v4 entity.
+Represents one physical household plant. This entity is retained in implemented schema v5.
 
 | Field | Type | Required | Notes |
 |---|---|---:|---|
@@ -77,21 +77,23 @@ Camera capture uses `TakePicture` with a temporary app-owned `FileProvider` URI.
 
 The repository writes the new original bytes before committing the new Room reference. It deletes the previous stable file only after the reference is committed, deletes the new file when the database update fails, removes the plant photo after plant deletion, and runs an IO-bound startup reconciliation that removes stable files not referenced by any Plant row. Photo mutations and reconciliation are serialized to protect the file-before-Room compensation window. Temporary capture files are removed on cancellation or failed import.
 
-## CareEvent
+## CareEvent — Phase 3 / schema v5
 
-Represents completed care and forms the historical record.
+Represents completed care and forms the historical record. The immutable model, repository, Room v5 entity, `4→5` migration, UI, and test coverage are implemented.
 
 | Field | Type | Required | Notes |
 |---|---|---:|---|
 | `id` | String UUID | Yes | Primary key |
 | `plantId` | String UUID | Yes | Foreign key to Plant |
 | `careType` | String enum | Yes | `WATERING`, `PRUNING`, or `FERTILIZING` |
-| `performedAt` | Long | Yes | UTC epoch milliseconds |
-| `note` | String? | No | Optional event-specific observation |
-| `createdAt` | Long | Yes | Audit timestamp |
-| `updatedAt` | Long | Yes | Audit timestamp |
+| `performedAt` | Long | Yes | Completion date and time as UTC epoch milliseconds; future values are rejected against the injected clock |
+| `note` | String? | No | Optional event-specific observation; trim before storage and use `NULL` when blank |
+| `createdAt` | Long | Yes | UTC epoch milliseconds; stable after correction |
+| `updatedAt` | Long | Yes | UTC epoch milliseconds; changes when the event is corrected |
 
-Recommended index: `(plantId, careType, performedAt)`.
+The foreign key references `Plant.id` with `ON DELETE CASCADE`. Required indexes are `(plantId, performedAt)` for history reads and `(plantId, careType, performedAt)` for per-type summaries and future care queries. Repository reads order by `performedAt DESC, id DESC`, giving deterministic newest-first history even when events share a timestamp.
+
+Supported `careType` values are `WATERING`, `PRUNING`, and `FERTILIZING`. Plant detail quick actions open a prefilled editor with the selected type and current local date/time; saving is required before insertion. The editor can correct date, time, type, and note. Phase 3 does not calculate reminder due dates or schedule notifications.
 
 ## ReminderRule
 
@@ -133,13 +135,12 @@ Persisting the last notified key makes reminder checks idempotent.
 
 ## Planned future transaction boundaries
 
-The correction pass keeps plant, staged-note, and favorite creation within the shared plant-save boundary. The following boundaries apply when their owning phases add the corresponding data:
+The correction pass keeps plant, staged-note, and favorite creation within the shared plant-save boundary. The following operations must be transactional:
 
-The following operations must be transactional:
+1. Recording, correcting, or deleting care events once reminder rules exist in Phase 4; Phase 3 persists the event itself without reminder recalculation.
+2. Deleting a plant and its structured child data. Room cascades notes and care events; file cleanup happens immediately after the database transaction and is safe to retry.
 
-1. Recording a care event and recalculating the matching interval rule.
-2. Editing or deleting the latest matching care event and recomputing its next due date.
-3. Deleting a plant and its structured child data. File cleanup happens immediately after the database transaction and is safe to retry.
+Reminder-rule recalculation, next-due dates, and notification scheduling remain Phase 4 responsibilities.
 
 For Phase 2, deleting a plant cascades `PlantNote` rows inside Room; deleting the associated primary-photo file is a compensating file operation after the Room transaction. Reconciliation is the recovery path for a failed or interrupted file cleanup.
 

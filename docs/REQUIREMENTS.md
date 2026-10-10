@@ -10,7 +10,7 @@
 
 ## Functional requirements
 
-Phase delivery note: Phase 1 implements the Plant inventory. Phase 2 implements notes plus one app-managed primary photo. The independent correction pass raises Room to schema v4, removes the redundant common-name field, and unifies plant creation, viewing, and editing. Care events belong to Phase 3, and reminder rules plus care-status filtering belong to Phase 4.
+Phase delivery note: Phase 1 implements the Plant inventory. Phase 2 implements notes plus one app-managed primary photo. The independent correction pass raises Room to schema v4, removes the redundant common-name field, and unifies plant creation, viewing, and editing. Phase 3 implements Room v5 care events, their history, UI, tests, and cascade. Reminder rules, due-date calculations, notifications, and care-status filtering remain planned for Phase 4.
 
 ### Plant inventory
 
@@ -56,6 +56,10 @@ Phase delivery note: Phase 1 implements the Plant inventory. Phase 2 implements 
 - **FR-CARE-003** — A care event records the care type, completion time, and an optional note.
 - **FR-CARE-004** — The user can review a plant's care history in reverse chronological order.
 - **FR-CARE-005** — The user can correct or delete an incorrectly recorded event.
+- **FR-CARE-006** — Plant-detail quick actions for watering, pruning, and fertilizing open a prefilled editor with the selected type and the current local date and time; the action is not persisted until the user saves.
+- **FR-CARE-007** — The user can correct both the local date and time of a care event. The repository rejects a completion timestamp later than the injected current time.
+- **FR-CARE-008** — Plant detail shows the latest recorded event for each supported care type and the complete reverse-chronological history.
+- **FR-CARE-009** — Care-event notes are optional, trimmed, and stored as `NULL` when blank. Supported care types are limited to watering, pruning, and fertilizing.
 
 ### Interval reminders
 
@@ -111,6 +115,14 @@ Phase delivery note: Phase 1 implements the Plant inventory. Phase 2 implements 
 - Existing common-name values are deliberately discarded during `3→4`; plant names, scientific names, location, dates, descriptions, favorites, timestamps, photo paths, and notes are preserved.
 - Reads and writes continue to work after migration, and searches use only name and scientific name.
 
+## Schema v4-to-v5 migration requirements
+
+- The database filename remains `Plant`, and the complete explicit migration chain becomes `1→2→3→4→5`.
+- Room v5 adds `care_events` with UUID `id`, Plant foreign key `plantId`, `careType`, `performedAt`, nullable `note`, `createdAt`, and `updatedAt`.
+- The foreign key uses `ON DELETE CASCADE`. The table indexes `(plantId, performedAt)` and `(plantId, careType, performedAt)`.
+- Reads order events by `performedAt DESC, id DESC`, and all timestamps use UTC epoch milliseconds.
+- The migration is non-destructive for existing plants, notes, favorites, photos, and timestamps; existing rows simply receive no care events.
+
 ## Phase 2 and correction acceptance scenarios
 
 1. The user creates a plant named `Ficus Living Room`, captures or selects one photo, and later sees the original image after restarting the application.
@@ -125,6 +137,16 @@ Phase delivery note: Phase 1 implements the Plant inventory. Phase 2 implements 
 10. The v3-to-v4 migration discards common-name values while preserving the remaining plant, note, and photo data.
 
 ## Later-phase acceptance scenarios
+
+### Phase 3 care history
+
+1. From plant detail, tapping watering, pruning, or fertilizing opens an editor prefilled with that type and the current date and time.
+2. Saving a care event stores its type, date and time, optional trimmed note, and audit timestamps; blank notes are stored as `NULL`.
+3. Editing can change the type, date, time, and note, but a future completion timestamp is rejected and the previous event remains intact.
+4. Plant detail shows the latest event for each type and all events newest first, with localized date and time.
+5. Deleting an event requires confirmation; deleting a plant cascades its care events and leaves no child rows.
+
+### Phase 4 reminders
 
 1. The user configures watering every 15 days, records watering, and sees the calculated next due date.
 2. A due interval rule produces one local notification and does not duplicate it during subsequent checks.

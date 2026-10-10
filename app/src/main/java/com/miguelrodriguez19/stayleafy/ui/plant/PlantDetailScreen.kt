@@ -49,6 +49,8 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.miguelrodriguez19.stayleafy.R
 import com.miguelrodriguez19.stayleafy.model.PlantNote
+import com.miguelrodriguez19.stayleafy.model.CareEvent
+import com.miguelrodriguez19.stayleafy.model.CareType
 import com.miguelrodriguez19.stayleafy.ui.theme.StayLeafyTheme
 import java.io.File
 
@@ -62,6 +64,8 @@ fun PlantDetailRoute(
     modifier: Modifier = Modifier,
     onAddNote: () -> Unit = {},
     onEditNote: (String) -> Unit = {},
+    onAddCare: (CareType) -> Unit = {},
+    onEditCare: (String) -> Unit = {},
 ) {
     val viewModel: PlantDetailViewModel = hiltViewModel(
         creationCallback = { factory: PlantDetailViewModel.Factory -> factory.create(plantId) },
@@ -81,6 +85,11 @@ fun PlantDetailRoute(
     var notesMutating = false
     var retryNotes: () -> Unit = {}
     var deleteNote: (String) -> Unit = {}
+    var careState: CareEventsUiState = CareEventsUiState.Empty
+    var careMutationError: UiErrorCategory? = null
+    var careMutating = false
+    var retryCare: () -> Unit = {}
+    var deleteCare: (String) -> Unit = {}
 
     if (plantId != null) {
         val notesViewModel: PlantNotesViewModel = hiltViewModel(
@@ -94,6 +103,17 @@ fun PlantDetailRoute(
         notesMutating = observedNotesMutating
         retryNotes = notesViewModel::retry
         deleteNote = notesViewModel::delete
+        val careViewModel: PlantCareViewModel = hiltViewModel(
+            creationCallback = { factory: PlantCareViewModel.Factory -> factory.create(plantId) },
+        )
+        val observedCare by careViewModel.uiState.collectAsStateWithLifecycle()
+        val observedCareError by careViewModel.mutationError.collectAsStateWithLifecycle()
+        val observedCareMutating by careViewModel.isMutating.collectAsStateWithLifecycle()
+        careState = observedCare
+        careMutationError = observedCareError
+        careMutating = observedCareMutating
+        retryCare = careViewModel::retry
+        deleteCare = careViewModel::delete
     }
 
     val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
@@ -137,6 +157,13 @@ fun PlantDetailRoute(
         onEditNote = onEditNote,
         onDeleteNote = deleteNote,
         onRetryNotes = retryNotes,
+        careState = careState,
+        careMutationError = careMutationError,
+        careMutating = careMutating,
+        onRetryCare = retryCare,
+        onDeleteCare = deleteCare,
+        onAddCare = onAddCare,
+        onEditCare = onEditCare,
         onAddStagedNote = viewModel::addStagedNote,
         onUpdateStagedNote = viewModel::updateStagedNote,
         onRemoveStagedNote = viewModel::removeStagedNote,
@@ -190,6 +217,13 @@ fun PlantDetailScreen(
     onEditNote: (String) -> Unit,
     onDeleteNote: (String) -> Unit,
     onRetryNotes: () -> Unit,
+    careState: CareEventsUiState = CareEventsUiState.Empty,
+    careMutationError: UiErrorCategory? = null,
+    careMutating: Boolean = false,
+    onRetryCare: () -> Unit = {},
+    onDeleteCare: (String) -> Unit = {},
+    onAddCare: (CareType) -> Unit = {},
+    onEditCare: (String) -> Unit = {},
     onAddStagedNote: (String) -> Unit,
     onUpdateStagedNote: (String, String) -> Unit,
     onRemoveStagedNote: (String) -> Unit,
@@ -215,6 +249,7 @@ fun PlantDetailScreen(
     val navigationLabel = stringResource(
         if (content?.mode == PlantDetailMode.View) R.string.back else R.string.cancel,
     )
+    val saveLabel = stringResource(R.string.save)
     val requestBack = {
         when {
             content?.mode == PlantDetailMode.Edit -> onCancelEdit()
@@ -238,7 +273,11 @@ fun PlantDetailScreen(
                 },
                 actions = {
                     if (content?.mode == PlantDetailMode.Create || content?.mode == PlantDetailMode.Edit) {
-                        TextButton(onClick = onSave, enabled = !content.isSaving) {
+                        TextButton(
+                            onClick = onSave,
+                            enabled = !content.isSaving,
+                            modifier = Modifier.semantics { contentDescription = saveLabel },
+                        ) {
                             Text(stringResource(if (content.isSaving) R.string.saving else R.string.save))
                         }
                     }
@@ -275,6 +314,13 @@ fun PlantDetailScreen(
                     onEditNote = onEditNote,
                     onDeleteNote = onDeleteNote,
                     onRetryNotes = onRetryNotes,
+                    careState = careState,
+                    careMutationError = careMutationError,
+                    careMutating = careMutating,
+                    onRetryCare = onRetryCare,
+                    onDeleteCare = onDeleteCare,
+                    onAddCare = onAddCare,
+                    onEditCare = onEditCare,
                     onAddStagedNote = onAddStagedNote,
                     onUpdateStagedNote = onUpdateStagedNote,
                     onRemoveStagedNote = onRemoveStagedNote,
@@ -354,6 +400,13 @@ private fun PlantDetailContent(
     onEditNote: (String) -> Unit,
     onDeleteNote: (String) -> Unit,
     onRetryNotes: () -> Unit,
+    careState: CareEventsUiState,
+    careMutationError: UiErrorCategory?,
+    careMutating: Boolean,
+    onRetryCare: () -> Unit,
+    onDeleteCare: (String) -> Unit,
+    onAddCare: (CareType) -> Unit,
+    onEditCare: (String) -> Unit,
     onAddStagedNote: (String) -> Unit,
     onUpdateStagedNote: (String, String) -> Unit,
     onRemoveStagedNote: (String) -> Unit,
@@ -373,6 +426,7 @@ private fun PlantDetailContent(
     var noteError by rememberSaveable { mutableStateOf(false) }
     var showDatePicker by rememberSaveable { mutableStateOf(false) }
     var pendingNoteDeleteId by rememberSaveable { mutableStateOf<String?>(null) }
+    var pendingCareDeleteId by rememberSaveable { mutableStateOf<String?>(null) }
     val editable = state.mode != PlantDetailMode.View
     val plant = state.plant
     val favorite = if (state.mode == PlantDetailMode.Create) state.stagedFavorite else plant?.isFavorite == true
@@ -450,6 +504,15 @@ private fun PlantDetailContent(
                 onRemove = onRemoveStagedNote,
             )
         } else {
+            CareSection(
+                state = careState,
+                mutationError = careMutationError,
+                mutating = careMutating,
+                onAddCare = onAddCare,
+                onEditCare = onEditCare,
+                onDeleteRequest = { pendingCareDeleteId = it },
+                onRetry = onRetryCare,
+            )
             NotesSection(
                 notesState,
                 notesMutationError,
@@ -522,6 +585,27 @@ private fun PlantDetailContent(
                     },
                     enabled = !notesMutating,
                 ) { Text(stringResource(R.string.delete_note)) }
+            },
+        )
+    }
+    pendingCareDeleteId?.let { eventId ->
+        AlertDialog(
+            onDismissRequest = { if (!careMutating) pendingCareDeleteId = null },
+            title = { Text(stringResource(R.string.delete_care_event_title)) },
+            text = { Text(stringResource(R.string.delete_care_event_message)) },
+            dismissButton = {
+                TextButton(onClick = { pendingCareDeleteId = null }, enabled = !careMutating) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        onDeleteCare(eventId)
+                        pendingCareDeleteId = null
+                    },
+                    enabled = !careMutating,
+                ) { Text(stringResource(R.string.delete_care_event)) }
             },
         )
     }
@@ -620,6 +704,109 @@ private fun StagedNotesSection(
 
 private val PlantDetailUiState.Content.hasUnsavedCreation: Boolean
     get() = form != PlantForm() || stagedFavorite || stagedNotes.isNotEmpty() || stagedPhoto != null
+
+@Composable
+private fun CareSection(
+    state: CareEventsUiState,
+    mutationError: UiErrorCategory?,
+    mutating: Boolean,
+    onAddCare: (CareType) -> Unit,
+    onEditCare: (String) -> Unit,
+    onDeleteRequest: (String) -> Unit,
+    onRetry: () -> Unit,
+) {
+    val events = (state as? CareEventsUiState.Content)?.events.orEmpty()
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text(stringResource(R.string.care_history), style = MaterialTheme.typography.titleMedium)
+            if (state is CareEventsUiState.Empty || state is CareEventsUiState.Content) {
+                CareType.values().forEach { type ->
+                    val latest = events.firstOrNull { it.careType == type }
+                    CareSummaryRow(
+                        type = type,
+                        latest = latest,
+                        onAdd = { onAddCare(type) },
+                        enabled = !mutating,
+                    )
+                }
+            }
+            when (state) {
+                CareEventsUiState.Loading -> CircularProgressIndicator()
+                is CareEventsUiState.Error -> Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(stringResource(R.string.load_care_error), Modifier.weight(1f), color = MaterialTheme.colorScheme.error)
+                    TextButton(onClick = onRetry) { Text(stringResource(R.string.retry)) }
+                }
+                CareEventsUiState.Empty -> Text(stringResource(R.string.no_care_events))
+                is CareEventsUiState.Content -> events.forEach { event ->
+                    CareEventRow(event, mutating, onEditCare, onDeleteRequest)
+                }
+            }
+            if (mutationError != null) {
+                Text(stringResource(R.string.delete_care_error), color = MaterialTheme.colorScheme.error)
+            }
+        }
+    }
+}
+
+@Composable
+private fun CareSummaryRow(
+    type: CareType,
+    latest: CareEvent?,
+    onAdd: () -> Unit,
+    enabled: Boolean,
+) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f)) {
+            Text(type.summaryLabel(), style = MaterialTheme.typography.labelLarge)
+            Text(
+                latest?.let { formatTimestamp(it.performedAt) } ?: stringResource(R.string.care_never),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        }
+        OutlinedButton(onClick = onAdd, enabled = enabled) { Text(type.actionLabel()) }
+    }
+}
+
+@Composable
+private fun CareEventRow(
+    event: CareEvent,
+    mutating: Boolean,
+    onEdit: (String) -> Unit,
+    onDelete: (String) -> Unit,
+) {
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(event.careType.historyLabel(), style = MaterialTheme.typography.titleSmall)
+            Text(formatTimestamp(event.performedAt), style = MaterialTheme.typography.bodyMedium)
+            event.note?.let { Text(it) }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                TextButton(onClick = { onEdit(event.id) }, enabled = !mutating) { Text(stringResource(R.string.edit_care_event)) }
+                TextButton(onClick = { onDelete(event.id) }, enabled = !mutating) { Text(stringResource(R.string.delete_care_event)) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CareType.summaryLabel(): String = when (this) {
+    CareType.WATERING -> stringResource(R.string.care_last_watering)
+    CareType.PRUNING -> stringResource(R.string.care_last_pruning)
+    CareType.FERTILIZING -> stringResource(R.string.care_last_fertilizing)
+}
+
+@Composable
+private fun CareType.actionLabel(): String = when (this) {
+    CareType.WATERING -> stringResource(R.string.add_watering)
+    CareType.PRUNING -> stringResource(R.string.add_pruning)
+    CareType.FERTILIZING -> stringResource(R.string.add_fertilizing)
+}
+
+@Composable
+private fun CareType.historyLabel(): String = when (this) {
+    CareType.WATERING -> stringResource(R.string.care_watering)
+    CareType.PRUNING -> stringResource(R.string.care_pruning)
+    CareType.FERTILIZING -> stringResource(R.string.care_fertilizing)
+}
 
 @Composable
 private fun NotesSection(

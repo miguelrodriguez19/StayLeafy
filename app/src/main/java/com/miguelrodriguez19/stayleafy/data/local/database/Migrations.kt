@@ -108,14 +108,13 @@ val MIGRATION_3_4 = object : Migration(3, 4) {
         )
         db.execSQL(
             """
-            CREATE TABLE `plant_notes_new` (
+            CREATE TABLE `plant_notes_backup` (
                 `id` TEXT NOT NULL,
                 `plantId` TEXT NOT NULL,
                 `body` TEXT NOT NULL,
                 `createdAt` INTEGER NOT NULL,
                 `updatedAt` INTEGER NOT NULL,
-                PRIMARY KEY(`id`),
-                FOREIGN KEY(`plantId`) REFERENCES `plants_new`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE
+                PRIMARY KEY(`id`)
             )
             """.trimIndent(),
         )
@@ -135,7 +134,7 @@ val MIGRATION_3_4 = object : Migration(3, 4) {
         )
         db.execSQL(
             """
-            INSERT INTO `plant_notes_new`(`id`, `plantId`, `body`, `createdAt`, `updatedAt`)
+            INSERT INTO `plant_notes_backup`(`id`, `plantId`, `body`, `createdAt`, `updatedAt`)
             SELECT `id`, `plantId`, `body`, `createdAt`, `updatedAt`
             FROM `plant_notes`
             """.trimIndent(),
@@ -143,12 +142,60 @@ val MIGRATION_3_4 = object : Migration(3, 4) {
         db.execSQL("DROP TABLE `plant_notes`")
         db.execSQL("DROP TABLE `plants`")
         db.execSQL("ALTER TABLE `plants_new` RENAME TO `plants`")
-        db.execSQL("ALTER TABLE `plant_notes_new` RENAME TO `plant_notes`")
+        db.execSQL(
+            """
+            CREATE TABLE `plant_notes` (
+                `id` TEXT NOT NULL,
+                `plantId` TEXT NOT NULL,
+                `body` TEXT NOT NULL,
+                `createdAt` INTEGER NOT NULL,
+                `updatedAt` INTEGER NOT NULL,
+                PRIMARY KEY(`id`),
+                FOREIGN KEY(`plantId`) REFERENCES `plants`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE
+            )
+            """.trimIndent(),
+        )
+        db.execSQL(
+            """
+            INSERT INTO `plant_notes`(`id`, `plantId`, `body`, `createdAt`, `updatedAt`)
+            SELECT `id`, `plantId`, `body`, `createdAt`, `updatedAt`
+            FROM `plant_notes_backup`
+            """.trimIndent(),
+        )
+        db.execSQL("DROP TABLE `plant_notes_backup`")
         db.execSQL("CREATE INDEX `index_plants_name` ON `plants` (`name`)")
         db.execSQL("CREATE INDEX `index_plants_isFavorite` ON `plants` (`isFavorite`)")
         db.execSQL(
             "CREATE INDEX `index_plant_notes_plantId_createdAt` " +
                 "ON `plant_notes` (`plantId`, `createdAt`)",
+        )
+    }
+}
+
+val MIGRATION_4_5 = object : Migration(4, 5) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `care_events` (
+                `id` TEXT NOT NULL,
+                `plantId` TEXT NOT NULL,
+                `careType` TEXT NOT NULL,
+                `performedAt` INTEGER NOT NULL,
+                `note` TEXT,
+                `createdAt` INTEGER NOT NULL,
+                `updatedAt` INTEGER NOT NULL,
+                PRIMARY KEY(`id`),
+                FOREIGN KEY(`plantId`) REFERENCES `plants`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE
+            )
+            """.trimIndent(),
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_care_events_plantId_performedAt` " +
+                "ON `care_events` (`plantId`, `performedAt`)",
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_care_events_plantId_careType_performedAt` " +
+                "ON `care_events` (`plantId`, `careType`, `performedAt`)",
         )
     }
 }

@@ -61,16 +61,24 @@ This correction is a separate completed change before Phase 3. It does not add c
 
 ## Phase 3 — Care history
 
-- [ ] Add watering, pruning, and fertilizing event models.
-- [ ] Add quick actions from plant detail.
-- [ ] Display reverse-chronological care history.
-- [ ] Support correcting and deleting care events.
-- [ ] Add the care-event cascade when a Plant is deleted.
-- [ ] Add tests around event ordering and transactional updates.
+- [x] Raise Room from schema v4 to schema v5 with an explicit `4→5` migration and preserve the complete `1→2→3→4→5` chain.
+- [x] Add `CareEvent` rows for watering, pruning, and fertilizing with UUID, Plant foreign key, completion timestamp, optional note, and audit timestamps.
+- [x] Normalize optional notes to trimmed `NULL` values, reject future completion timestamps using the injected clock, and keep `createdAt` stable when an event is corrected.
+- [x] Add indexes on `(plantId, performedAt)` and `(plantId, careType, performedAt)` and read events by `performedAt DESC, id DESC`.
+- [x] Add quick actions from plant detail that open a date-and-time editor prefilled with the selected care type and the current time.
+- [x] Display per-type last-care summaries and the complete reverse-chronological care history.
+- [x] Support correcting care type, date, time, and optional note, plus deletion with confirmation and repeated-action protection.
+- [x] Add the `ON DELETE CASCADE` from Plant to care events and verify it together with plant deletion.
+- [x] Add localized English and Spanish UI states, editor/confirmation screens, previews, and loading/error/empty/content states.
+- [x] Add migration, Room, repository, ViewModel, Compose, navigation, and connected-flow tests.
 
-Exit condition: the user can reliably answer when each care action last occurred.
+Phase 3 status: complete. Room v5, the full migration chain, care history, localized UI, and local and connected-device verification are implemented.
+
+Exit condition: the user can reliably answer when each care action last occurred, correct an event's date and time, and delete it without leaving child rows.
 
 ## Phase 4 — Interval reminders
+
+Phase 4 remains planned. It owns reminder rules, next-due calculations, the care-status filter, WorkManager evaluation, notifications, and reminder-rule cleanup; Phase 3 does not schedule reminders or recompute due dates.
 
 - [ ] Add interval reminder rules.
 - [ ] Calculate the next due date after completion.

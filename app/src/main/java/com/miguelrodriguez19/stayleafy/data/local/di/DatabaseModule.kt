@@ -27,6 +27,8 @@ import com.miguelrodriguez19.stayleafy.data.local.database.AppDatabase
 import com.miguelrodriguez19.stayleafy.data.local.database.MIGRATION_1_2
 import com.miguelrodriguez19.stayleafy.data.local.database.MIGRATION_2_3
 import com.miguelrodriguez19.stayleafy.data.local.database.MIGRATION_3_4
+import com.miguelrodriguez19.stayleafy.data.local.database.MIGRATION_4_5
+import com.miguelrodriguez19.stayleafy.data.local.database.CareEventDao
 import com.miguelrodriguez19.stayleafy.data.local.database.PlantDao
 import com.miguelrodriguez19.stayleafy.data.local.database.PlantNoteDao
 import javax.inject.Singleton
@@ -46,12 +48,22 @@ class DatabaseModule {
     }
 
     @Provides
+    fun provideCareEventDao(appDatabase: AppDatabase): CareEventDao {
+        return appDatabase.careEventDao()
+    }
+
+    @Provides
     @Singleton
     fun provideAppDatabase(@ApplicationContext appContext: Context): AppDatabase {
         return Room.databaseBuilder(
             appContext,
             AppDatabase::class.java,
             "Plant"
-        ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4).build()
+        ).addMigrations(
+            MIGRATION_1_2,
+            MIGRATION_2_3,
+            MIGRATION_3_4,
+            MIGRATION_4_5,
+        ).build()
     }
 }

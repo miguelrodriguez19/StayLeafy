@@ -171,3 +171,16 @@ Search is literal, partial, and case-insensitive across `name` and `scientificNa
 Plant creation, viewing, and editing use one shared screen so the information shown in detail is also available during creation. A new plant stages its favorite state, primary photo, and notes before the first save. The final operation writes the plant and staged notes in one Room transaction; file materialization occurs with compensating cleanup if Room persistence fails, and a failed save must not leave partial rows or an orphaned stable file.
 
 This correction is intentionally separate from Phase 3. Care-event tables, care history, and their cascade remain planned and are not part of this decision.
+
+## D-020 — Room v5 dated care events and correction workflow
+
+- **Date:** 2026-10-10
+- **Status:** Accepted
+
+Phase 3 adds `CareEvent` as an independent Room table in schema v5. The complete migration chain becomes `1→2→3→4→5`, while the database filename remains `Plant`. A care event has a UUID, Plant foreign key with `ON DELETE CASCADE`, one of `WATERING`, `PRUNING`, or `FERTILIZING`, a completion date and time stored as UTC epoch milliseconds, an optional trimmed note, and `createdAt`/`updatedAt` audit timestamps. `createdAt` remains stable when an event is corrected.
+
+The table is indexed by `(plantId, performedAt)` and `(plantId, careType, performedAt)`. Reads use `performedAt DESC, id DESC` so the history is deterministic, including ties. Optional blank notes become `NULL`, and a completion timestamp later than the injected current time is rejected by the repository.
+
+Plant-detail quick actions open a prefilled editor with the selected care type and current local date and time. The event is not persisted until the user saves. The editor can correct type, date, time, and note; deletion requires confirmation. Plant detail presents the latest event for each care type and the complete reverse-chronological history.
+
+Phase 3 does not create reminder rules, calculate next-due dates, reschedule notifications, or implement the care-status filter. Those behaviors remain owned by Phase 4. Room v5 registration, migration, UI, tests, and local/device verification are complete.

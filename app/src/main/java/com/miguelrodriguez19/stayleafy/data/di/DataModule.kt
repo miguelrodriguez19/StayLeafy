@@ -24,6 +24,8 @@ import com.miguelrodriguez19.stayleafy.data.PlantRepository
 import com.miguelrodriguez19.stayleafy.data.DefaultPlantRepository
 import com.miguelrodriguez19.stayleafy.data.DefaultPlantNoteRepository
 import com.miguelrodriguez19.stayleafy.data.PlantNoteRepository
+import com.miguelrodriguez19.stayleafy.data.CareEventRepository
+import com.miguelrodriguez19.stayleafy.data.DefaultCareEventRepository
 import com.miguelrodriguez19.stayleafy.data.EpochMillisProvider
 import com.miguelrodriguez19.stayleafy.data.SystemEpochMillisProvider
 import com.miguelrodriguez19.stayleafy.data.RandomUuidProvider
@@ -53,6 +55,12 @@ abstract class DataModule {
     abstract fun bindsPlantNoteRepository(
         repository: DefaultPlantNoteRepository,
     ): PlantNoteRepository
+
+    @Singleton
+    @Binds
+    abstract fun bindsCareEventRepository(
+        repository: DefaultCareEventRepository,
+    ): CareEventRepository
 
     @Singleton
     @Binds

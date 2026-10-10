@@ -17,6 +17,7 @@
 package com.miguelrodriguez19.stayleafy.ui
 
 import androidx.navigation3.runtime.NavKey
+import com.miguelrodriguez19.stayleafy.model.CareType
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -27,3 +28,10 @@ data class PlantDetail(val plantId: String? = null) : NavKey
 
 @Serializable
 data class PlantNoteEditor(val plantId: String, val noteId: String? = null) : NavKey
+
+@Serializable
+data class CareEventEditor(
+    val plantId: String,
+    val careType: CareType? = null,
+    val eventId: String? = null,
+) : NavKey

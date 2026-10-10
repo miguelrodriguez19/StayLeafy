@@ -13,8 +13,19 @@ enum class UiErrorCategory {
     NoteLoad,
     NoteSave,
     NoteDelete,
+    CareLoad,
+    CareSave,
+    CareDelete,
+    CareFuture,
     PhotoImport,
     PhotoDelete,
+}
+
+sealed interface CareEventsUiState {
+    data object Loading : CareEventsUiState
+    data class Error(val category: UiErrorCategory = UiErrorCategory.CareLoad) : CareEventsUiState
+    data object Empty : CareEventsUiState
+    data class Content(val events: List<com.miguelrodriguez19.stayleafy.model.CareEvent>) : CareEventsUiState
 }
 
 sealed interface PlantListUiState {

@@ -5,16 +5,21 @@ import androidx.activity.ComponentActivity
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.hasProgressBarRangeInfo
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onLast
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.miguelrodriguez19.stayleafy.R
+import com.miguelrodriguez19.stayleafy.model.CareEvent
+import com.miguelrodriguez19.stayleafy.model.CareType
 import com.miguelrodriguez19.stayleafy.model.Plant
 import com.miguelrodriguez19.stayleafy.model.PlantNote
 import com.miguelrodriguez19.stayleafy.ui.theme.StayLeafyTheme
@@ -46,7 +51,7 @@ class PlantDetailScreenTest {
         composeTestRule.onNodeWithText(string(R.string.location)).assertIsDisplayed()
         composeTestRule.onNodeWithText(string(R.string.acquisition_date)).assertIsDisplayed()
         composeTestRule.onNodeWithText(string(R.string.description)).assertIsDisplayed()
-        composeTestRule.onNodeWithText(string(R.string.notes)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(string(R.string.notes)).performScrollTo().assertIsDisplayed()
         composeTestRule.onNodeWithText(string(R.string.take_photo)).assertIsDisplayed()
     }
 
@@ -76,8 +81,8 @@ class PlantDetailScreenTest {
         composeTestRule.onNodeWithText(string(R.string.scientific_name)).assertIsDisplayed()
         composeTestRule.onNodeWithText(string(R.string.location)).assertIsDisplayed()
         composeTestRule.onNodeWithText(string(R.string.description)).assertIsDisplayed()
-        composeTestRule.onAllNodesWithText(string(R.string.save)).onFirst().performClick()
-        composeTestRule.onNodeWithText(string(R.string.cancel)).performClick()
+        composeTestRule.onNodeWithContentDescription(string(R.string.save)).performClick()
+        composeTestRule.onAllNodesWithText(string(R.string.cancel)).onLast().performClick()
 
         assertEquals(1, saveClicks)
         assertEquals(1, cancelClicks)
@@ -104,7 +109,7 @@ class PlantDetailScreenTest {
             onBeginEdit = { editClicks++ },
         )
 
-        composeTestRule.onNodeWithText("Monstera").assertIsDisplayed()
+        composeTestRule.onAllNodesWithText("Monstera").onFirst().assertIsDisplayed()
         composeTestRule.onNodeWithText("Monstera deliciosa").assertIsDisplayed()
         composeTestRule.onNodeWithText("Living room").assertIsDisplayed()
         composeTestRule.onNodeWithText(formatEpochDay(0L)).assertIsDisplayed()
@@ -231,6 +236,88 @@ class PlantDetailScreenTest {
     }
 
     @Test
+    fun careSummary_displaysLatestAndNeverStates() {
+        val event = careEvent(
+            id = "watering-id",
+            careType = CareType.WATERING,
+            performedAt = 1_700_000_000_000L,
+            note = "Watered today",
+        )
+        setScreen(
+            state = viewState(detailPlant(name = "Monstera")),
+            careState = CareEventsUiState.Content(listOf(event)),
+        )
+
+        composeTestRule.onNodeWithText(string(R.string.care_last_watering)).performScrollTo().assertIsDisplayed()
+        composeTestRule.onAllNodesWithText(formatTimestamp(event.performedAt)).onFirst().performScrollTo().assertIsDisplayed()
+        composeTestRule.onNodeWithText(string(R.string.care_last_pruning)).performScrollTo().assertIsDisplayed()
+        composeTestRule.onAllNodesWithText(string(R.string.care_never)).onFirst().assertIsDisplayed()
+        composeTestRule.onNodeWithText("Watered today").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun careLoadingState_isDisplayed() {
+        setScreen(
+            state = viewState(detailPlant(name = "Monstera")),
+            careState = CareEventsUiState.Loading,
+        )
+        composeTestRule.onNodeWithText(string(R.string.care_history)).performScrollTo().assertIsDisplayed()
+        composeTestRule.onNode(hasProgressBarRangeInfo(ProgressBarRangeInfo.Indeterminate)).performScrollTo().assertIsDisplayed()
+        composeTestRule.onNodeWithText(string(R.string.care_never)).assertDoesNotExist()
+    }
+
+    @Test
+    fun careErrorState_forwardsRetry() {
+        var retryClicks = 0
+        setScreen(
+            state = viewState(detailPlant(name = "Monstera")),
+            careState = CareEventsUiState.Error(),
+            onRetryCare = { retryClicks++ },
+        )
+        composeTestRule.onNodeWithText(string(R.string.load_care_error)).performScrollTo().assertIsDisplayed()
+        composeTestRule.onNodeWithText(string(R.string.care_never)).assertDoesNotExist()
+        composeTestRule.onNodeWithText(string(R.string.retry)).performScrollTo().performClick()
+        assertEquals(1, retryClicks)
+    }
+
+    @Test
+    fun careEmptyState_isDisplayed() {
+        setScreen(
+            state = viewState(detailPlant(name = "Monstera")),
+            careState = CareEventsUiState.Empty,
+        )
+        composeTestRule.onNodeWithText(string(R.string.no_care_events)).performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun careActions_forwardQuickAddEditAndDeleteAfterConfirmation() {
+        val event = careEvent("care-id", CareType.WATERING, 1_700_000_000_000L)
+        var addedType: CareType? = null
+        var editedId: String? = null
+        var deletedId: String? = null
+        setScreen(
+            state = viewState(detailPlant(name = "Monstera")),
+            careState = CareEventsUiState.Content(listOf(event)),
+            onAddCare = { addedType = it },
+            onEditCare = { editedId = it },
+            onDeleteCare = { deletedId = it },
+        )
+
+        composeTestRule.onNodeWithText(string(R.string.add_pruning)).performScrollTo().performClick()
+        composeTestRule.onNodeWithText(string(R.string.edit_care_event)).performScrollTo().performClick()
+        composeTestRule.onNodeWithText(string(R.string.delete_care_event)).performScrollTo().performClick()
+        composeTestRule.onNodeWithText(string(R.string.delete_care_event_title)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(string(R.string.cancel)).performClick()
+        assertEquals(CareType.PRUNING, addedType)
+        assertEquals("care-id", editedId)
+        assertEquals(null, deletedId)
+
+        composeTestRule.onNodeWithText(string(R.string.delete_care_event)).performScrollTo().performClick()
+        composeTestRule.onAllNodesWithText(string(R.string.delete_care_event)).onLast().performClick()
+        assertEquals("care-id", deletedId)
+    }
+
+    @Test
     fun loadingState_isDisplayed() {
         setScreen(state = PlantDetailUiState.Loading)
         composeTestRule.onNodeWithText(string(R.string.loading)).assertIsDisplayed()
@@ -316,7 +403,7 @@ class PlantDetailScreenTest {
 
         composeTestRule.onNodeWithText("Nombre").assertIsDisplayed()
         composeTestRule.onNodeWithText("Editar planta").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Eliminar planta").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Eliminar planta").performScrollTo().assertIsDisplayed()
     }
 
     private fun setScreen(
@@ -324,6 +411,13 @@ class PlantDetailScreenTest {
         notesState: PlantNotesUiState = PlantNotesUiState.Empty,
         notesMutationError: UiErrorCategory? = null,
         notesMutating: Boolean = false,
+        careState: CareEventsUiState = CareEventsUiState.Empty,
+        careMutationError: UiErrorCategory? = null,
+        careMutating: Boolean = false,
+        onRetryCare: () -> Unit = {},
+        onDeleteCare: (String) -> Unit = {},
+        onAddCare: (CareType) -> Unit = {},
+        onEditCare: (String) -> Unit = {},
         photoMutating: Boolean = false,
         photoMutationError: UiErrorCategory? = null,
         photoCleanupRetryEnabled: Boolean = false,
@@ -382,6 +476,13 @@ class PlantDetailScreenTest {
                     onEditNote = onEditNote,
                     onDeleteNote = onDeleteNote,
                     onRetryNotes = onRetryNotes,
+                    careState = careState,
+                    careMutationError = careMutationError,
+                    careMutating = careMutating,
+                    onRetryCare = onRetryCare,
+                    onDeleteCare = onDeleteCare,
+                    onAddCare = onAddCare,
+                    onEditCare = onEditCare,
                     onAddStagedNote = onAddStagedNote,
                     onUpdateStagedNote = onUpdateStagedNote,
                     onRemoveStagedNote = onRemoveStagedNote,
@@ -432,4 +533,19 @@ private fun Plant.toForm(): PlantForm = PlantForm(
     location = location.orEmpty(),
     acquiredEpochDay = acquiredEpochDay,
     description = description.orEmpty(),
+)
+
+private fun careEvent(
+    id: String,
+    careType: CareType,
+    performedAt: Long,
+    note: String? = null,
+): CareEvent = CareEvent(
+    id = id,
+    plantId = "detail-id",
+    careType = careType,
+    performedAt = performedAt,
+    note = note,
+    createdAt = performedAt,
+    updatedAt = performedAt,
 )

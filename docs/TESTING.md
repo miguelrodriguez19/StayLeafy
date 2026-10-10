@@ -2,7 +2,7 @@
 
 ## Goals
 
-Testing should catch regressions in Phase 1 persistence, Phase 2 notes and photo storage, the independent Room v4 and unified-screen correction, and principal plant-management flows without making a personal project expensive to change. These completed flows are covered by local, Room, Compose, navigation, and connected-device checks.
+Testing should catch regressions in Phase 1 persistence, Phase 2 notes and photo storage, the independent Room v4 and unified-screen correction, and Phase 3 care history without making a personal project expensive to change. These flows are covered by local, Room, Compose, navigation, and connected-device checks.
 
 The strategy favors deterministic unit tests and a small number of high-value Android and Compose tests.
 
@@ -20,6 +20,7 @@ Use plain JVM tests for Phase 1 logic without Android dependencies:
 - Note draft trimming, blank-body validation, and fixed UUID/clock behavior.
 - Photo filename/MIME normalization, original-byte copying, replacement compensation, temporary-file cleanup, and orphan reconciliation.
 - Shared-screen staged photo, note, and favorite state, atomic save coordination, and file compensation after a failed Room write.
+- Care-event normalization, optional-note trimming, fixed UUID and timestamp behavior, correction timestamp stability, and rejection of future completion date-times.
 
 Phase 1 does not test interval, seasonal, notification, or WorkManager behavior; those belong to later phases.
 
@@ -66,6 +67,12 @@ The independent correction coverage adds:
 - Shared create/view/edit screen behavior, including staged photo, note, and favorite state.
 - Successful atomic Room save, failed-save compensation, no partial rows, and retryable staged state.
 
+Phase 3 coverage adds:
+
+- Care-event draft validation for the three supported care types, trimmed optional notes, and future timestamp rejection against a fixed clock.
+- Repository create, observe, correct, and delete behavior, including stable `createdAt`, updated `updatedAt`, deterministic ordering, and invalid-plant failures.
+- Explicit migration `4→5` and the complete `1→2→3→4→5` path, exported schema v5, database reopen, care-event indexes, and Plant-delete cascade.
+
 Phase 1 deletion tests verify Plant-row deletion only. Phase 2 deletion tests verify the notes cascade, primary-photo cleanup, replacement cleanup, failed-write compensation, and startup reconciliation.
 
 ### Phase 2 photo-flow tests
@@ -106,6 +113,12 @@ Compose tests use immutable screen state and event lambdas where possible. Cover
 
 Care completion, reminder editor, and next-due-date assertions belong to their later phases.
 
+Phase 3 Compose and navigation coverage adds:
+
+- Watering, pruning, and fertilizing quick actions opening a prefilled editor without persisting until Save.
+- Local date-and-time editing, future-date validation, optional note rendering, save/error/retry states, delete confirmation, and repeated-action protection.
+- Per-type last-care summaries, reverse-chronological history, empty/loading/error/content states, not-found behavior, and English/Spanish strings in light and dark themes.
+
 Phase 2 Compose coverage adds:
 
 - Primary-photo placeholder and image rendering in list and detail.
@@ -123,9 +136,10 @@ Later phases should maintain a small smoke suite for:
 4. Add, edit, and delete a note.
 5. Replace and remove the primary photo.
 6. Restart the application and verify persistence and cleanup.
-7. Continue with interval-reminder checks once those later phases exist.
+7. Record, correct, and delete watering, pruning, and fertilizing events; verify the summary and history.
+8. Continue with interval-reminder checks once those later phases exist.
 
-The current smoke flow covers plant inventory, primary-photo, and dated-note behavior. Care and reminder steps remain future coverage.
+The current smoke flow covers plant inventory, primary-photo, dated-note, and care-event behavior. Reminder steps remain future Phase 4 coverage.
 
 Camera and photo-picker flows may require targeted manual verification because system UI behavior varies by device. The acceptance target is cancellation, handler unavailability, URI failure, and process recreation; a runtime permission-denial test is intentionally not required for the permissionless contracts.
 
@@ -180,6 +194,7 @@ Highest priority:
 - Search/filter query correctness and literal wildcard handling.
 - Plant deletion confirmation and row deletion.
 - Room v2-to-v3 and v3-to-v4 migrations, note cascade, original-byte photo persistence, replacement compensation, staged-create compensation, and orphan cleanup.
+- Room v4-to-v5 and complete v1-to-v5 migrations, care-event cascade, ordering, correction, deletion, summaries, and localized UI.
 
 Medium priority:
 
@@ -190,8 +205,8 @@ Medium priority:
 
 Later-phase priorities:
 
-- Care-event and reminder-rule deletion cleanup.
-- Date and schedule calculations.
+- Reminder-rule deletion cleanup.
+- Date and schedule calculations for Phase 4 reminders.
 - Transactional reminder rescheduling.
 - Notification deduplication.
 
@@ -214,3 +229,4 @@ A change is complete when:
 - Lint has no newly introduced actionable errors.
 - Relevant product, data, reminder, or decision documentation is updated.
 - Phase 2 and correction-pass photo/note checks pass on a connected emulator or device.
+- Phase 3 Room v5, care-event, UI, cascade, and connected-device checks pass before the Phase 3 roadmap item is marked complete.
