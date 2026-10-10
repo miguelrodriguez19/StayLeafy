@@ -17,7 +17,25 @@
 package com.miguelrodriguez19.stayleafy
 
 import android.app.Application
+import com.miguelrodriguez19.stayleafy.data.photo.PlantPhotoRepository
 import dagger.hilt.android.HiltAndroidApp
+import javax.inject.Inject
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 @HiltAndroidApp
-class StayLeafy : Application()
+class StayLeafy : Application() {
+    @Inject
+    lateinit var plantPhotoRepository: PlantPhotoRepository
+
+    private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    override fun onCreate() {
+        super.onCreate()
+        applicationScope.launch {
+            runCatching { plantPhotoRepository.reconcileOrphans() }
+        }
+    }
+}

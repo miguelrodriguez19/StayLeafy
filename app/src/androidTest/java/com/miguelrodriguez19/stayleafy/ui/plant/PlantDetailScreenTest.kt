@@ -12,9 +12,11 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onLast
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.miguelrodriguez19.stayleafy.R
 import com.miguelrodriguez19.stayleafy.model.Plant
+import com.miguelrodriguez19.stayleafy.model.PlantNote
 import com.miguelrodriguez19.stayleafy.ui.theme.StayLeafyTheme
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -51,7 +53,7 @@ class PlantDetailScreenTest {
         composeTestRule.onNodeWithText("Monstera deliciosa").assertIsDisplayed()
         composeTestRule.onNodeWithText("Living room").assertIsDisplayed()
         composeTestRule.onNodeWithText(formatEpochDay(0L)).assertIsDisplayed()
-        composeTestRule.onNodeWithText("Bright indirect light").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Bright indirect light").performScrollTo().assertIsDisplayed()
         composeTestRule.onNodeWithText(string(R.string.add_favorite)).performClick()
         composeTestRule.onNodeWithText(string(R.string.edit_plant)).performClick()
 
@@ -67,19 +69,112 @@ class PlantDetailScreenTest {
             onDelete = { deleteClicks++ },
         )
 
-        composeTestRule.onNodeWithText(string(R.string.delete_plant)).performClick()
+        composeTestRule.onNodeWithText(string(R.string.delete_plant)).performScrollTo().performClick()
         composeTestRule.onNodeWithText(string(R.string.delete_plant_title)).assertIsDisplayed()
         composeTestRule.onNodeWithText(string(R.string.delete_plant_message)).assertIsDisplayed()
         composeTestRule.onNodeWithText(string(R.string.cancel)).performClick()
         assertEquals(0, deleteClicks)
 
-        composeTestRule.onNodeWithText(string(R.string.delete_plant)).performClick()
+        composeTestRule.onNodeWithText(string(R.string.delete_plant)).performScrollTo().performClick()
         composeTestRule
             .onAllNodesWithText(string(R.string.delete_plant))
             .onLast()
             .performClick()
 
         assertEquals(1, deleteClicks)
+    }
+
+    @Test
+    fun photoActions_withoutPhoto_offerDirectSources() {
+        var takeClicks = 0
+        var pickClicks = 0
+        setScreen(
+            state = PlantDetailUiState.Content(detailPlant("Monstera")),
+            onTakePhoto = { takeClicks++ },
+            onPickPhoto = { pickClicks++ },
+        )
+
+        composeTestRule.onNodeWithText(string(R.string.take_photo)).performClick()
+        composeTestRule.onNodeWithText(string(R.string.choose_photo)).performClick()
+
+        assertEquals(1, takeClicks)
+        assertEquals(1, pickClicks)
+    }
+
+    @Test
+    fun photoActions_withPhoto_offerReplacementSourcesAndRemoval() {
+        var takeClicks = 0
+        var pickClicks = 0
+        var removeClicks = 0
+        setScreen(
+            state = PlantDetailUiState.Content(
+                detailPlant("Monstera", mainPhotoPath = "plant_photos/example.jpg"),
+            ),
+            onTakePhoto = { takeClicks++ },
+            onPickPhoto = { pickClicks++ },
+            onRemovePhotoRequest = { removeClicks++ },
+        )
+
+        composeTestRule.onNodeWithText(string(R.string.replace_photo)).performClick()
+        composeTestRule.onNodeWithText(string(R.string.take_photo)).performClick()
+        composeTestRule.onNodeWithText(string(R.string.replace_photo)).performClick()
+        composeTestRule.onNodeWithText(string(R.string.choose_photo)).performClick()
+        composeTestRule.onNodeWithText(string(R.string.remove_photo)).performClick()
+
+        assertEquals(1, takeClicks)
+        assertEquals(1, pickClicks)
+        assertEquals(1, removeClicks)
+    }
+
+    @Test
+    fun failedPendingPhotoCleanup_offersRetry() {
+        var retryClicks = 0
+        setScreen(
+            state = PlantDetailUiState.Content(detailPlant("Monstera")),
+            photoMutationError = UiErrorCategory.PhotoImport,
+            photoCleanupRetryEnabled = true,
+            onRetryPhotoCleanup = { retryClicks++ },
+        )
+
+        composeTestRule.onNodeWithText(string(R.string.photo_import_error)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(string(R.string.retry)).performClick()
+
+        assertEquals(1, retryClicks)
+    }
+
+    @Test
+    fun notesContent_forwardsAddEditAndConfirmedDelete() {
+        val note = PlantNote(
+            id = "note-id",
+            plantId = "detail-id",
+            body = "Watered today",
+            createdAt = 1_700_000_000_000L,
+            updatedAt = 1_700_000_000_000L,
+        )
+        var addClicks = 0
+        var editedId: String? = null
+        var deletedId: String? = null
+        setScreen(
+            state = PlantDetailUiState.Content(detailPlant("Monstera")),
+            notesState = PlantNotesUiState.Content(listOf(note)),
+            onAddNote = { addClicks++ },
+            onEditNote = { editedId = it },
+            onDeleteNote = { deletedId = it },
+        )
+
+        composeTestRule.onNodeWithText(string(R.string.add_note)).performScrollTo().performClick()
+        composeTestRule.onNodeWithText(string(R.string.edit_note)).performScrollTo().performClick()
+        composeTestRule.onNodeWithText(string(R.string.delete_note)).performScrollTo().performClick()
+        composeTestRule.onNodeWithText(string(R.string.delete_note_title)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(string(R.string.cancel)).performClick()
+        assertEquals(null, deletedId)
+
+        composeTestRule.onNodeWithText(string(R.string.delete_note)).performScrollTo().performClick()
+        composeTestRule.onAllNodesWithText(string(R.string.delete_note)).onLast().performClick()
+
+        assertEquals(1, addClicks)
+        assertEquals("note-id", editedId)
+        assertEquals("note-id", deletedId)
     }
 
     @Test
@@ -155,6 +250,16 @@ class PlantDetailScreenTest {
         onEdit: () -> Unit = {},
         onFavoriteClick: (Boolean) -> Unit = {},
         onDelete: () -> Unit = {},
+        notesState: PlantNotesUiState = PlantNotesUiState.Empty,
+        onAddNote: () -> Unit = {},
+        onEditNote: (String) -> Unit = {},
+        onDeleteNote: (String) -> Unit = {},
+        onTakePhoto: () -> Unit = {},
+        onPickPhoto: () -> Unit = {},
+        onRemovePhotoRequest: () -> Unit = {},
+        photoMutationError: UiErrorCategory? = null,
+        photoCleanupRetryEnabled: Boolean = false,
+        onRetryPhotoCleanup: () -> Unit = {},
     ) {
         composeTestRule.setContent {
             StayLeafyTheme(dynamicColor = false) {
@@ -167,6 +272,16 @@ class PlantDetailScreenTest {
                     onEdit = onEdit,
                     onFavoriteClick = onFavoriteClick,
                     onDelete = onDelete,
+                    notesState = notesState,
+                    onAddNote = onAddNote,
+                    onEditNote = onEditNote,
+                    onDeleteNote = onDeleteNote,
+                    onTakePhoto = onTakePhoto,
+                    onPickPhoto = onPickPhoto,
+                    onRemovePhotoRequest = onRemovePhotoRequest,
+                    photoMutationError = photoMutationError,
+                    photoCleanupRetryEnabled = photoCleanupRetryEnabled,
+                    onRetryPhotoCleanup = onRetryPhotoCleanup,
                 )
             }
         }
@@ -183,6 +298,7 @@ private fun detailPlant(
     location: String? = null,
     acquiredEpochDay: Long? = null,
     description: String? = null,
+    mainPhotoPath: String? = null,
 ): Plant = Plant(
     id = "detail-id",
     displayName = displayName,
@@ -191,7 +307,7 @@ private fun detailPlant(
     location = location,
     acquiredEpochDay = acquiredEpochDay,
     description = description,
-    mainPhotoPath = null,
+    mainPhotoPath = mainPhotoPath,
     isFavorite = false,
     createdAt = 1L,
     updatedAt = 1L,

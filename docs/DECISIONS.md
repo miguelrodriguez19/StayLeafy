@@ -48,7 +48,7 @@ Room is the source of truth for structured application data. Hilt remains the de
 - **Date:** 2026-10-09
 - **Status:** Accepted
 
-Phase 2 will add support for one primary photo per plant. The user may capture it with the camera or choose it through the system photo picker. The image will be copied to app-managed storage, and Room will store its relative path.
+Phase 2 adds support for one primary photo per plant. The user may capture it with the camera or choose it through the system photo picker. The image is copied to app-managed storage, and Room stores its relative path.
 
 Multiple photos are postponed to avoid introducing a gallery model before it is needed.
 
@@ -57,7 +57,7 @@ Multiple photos are postponed to avoid introducing a gallery model before it is 
 - **Date:** 2026-10-09
 - **Status:** Accepted
 
-Phase 2 will add plant notes as independent records with creation and update timestamps rather than one mutable text field on Plant. This preserves observations over time.
+Phase 2 adds plant notes as independent records with creation and update timestamps rather than one mutable text field on Plant. This preserves observations over time.
 
 ## D-008 — Two reminder models
 
@@ -120,3 +120,41 @@ This policy protects data already stored by the template and keeps future schema
 Phase 1 deletes the Plant row after confirmation. It does not claim cleanup of photos or child records because those tables and files do not exist yet.
 
 Ownership is incremental: Phase 2 adds photo cleanup and the notes cascade; Phase 3 adds the care-event cascade; Phase 4 adds the reminder-rule cascade and the care-status filter. The final product may provide complete deletion cleanup, but each owning phase must implement and test its own data and file boundaries.
+
+## D-015 — Room schema v3 adds independent notes
+
+- **Date:** 2026-10-10
+- **Status:** Accepted
+
+Phase 2 raises the database from schema version 2 to version 3 with an explicit `2→3` migration. `PlantNote` is an independent table with a UUID primary key, a Plant foreign key, non-blank body, `createdAt`, and `updatedAt`. The foreign key uses `ON DELETE CASCADE`, and `(plantId, createdAt)` is indexed. Notes are read newest first using `createdAt DESC, id DESC`.
+
+The existing database filename remains `Plant`, and the complete migration chain remains explicit and non-destructive: `1→2→3`. Creation timestamps remain stable when a note is edited.
+
+## D-016 — Permissionless primary-photo acquisition
+
+- **Date:** 2026-10-10
+- **Status:** Accepted
+
+The app supports one primary photo per Plant. Camera capture uses `ActivityResultContracts.TakePicture` with an app-owned `FileProvider` URI and does not declare or request the `CAMERA` runtime permission. Image selection uses `PickVisualMedia(ImageOnly)`, with the platform document picker fallback when the Photo Picker is unavailable, and does not request `READ_MEDIA_IMAGES` or legacy broad storage permissions.
+
+This keeps the offline flow least-privilege while still allowing system-owned camera and picker UI. Tests cover cancellation, unavailable handlers, URI failures, and process recreation instead of permission denial.
+
+## D-017 — Original-byte app-managed photo storage
+
+- **Date:** 2026-10-10
+- **Status:** Accepted
+
+Selected or captured image bytes are copied unchanged into the app's internal `plant_photos/` directory under a generated filename. Room stores only the stable relative path in `Plant.mainPhotoPath`; content URIs and bitmap data are not persisted.
+
+Replacement writes the new file before updating Room, removes the previous file after a successful reference update, and removes the new file if the update fails. Plant deletion removes the Room row and notes in a transaction, then deletes the associated file. Photo mutations and the IO-bound startup reconciliation are serialized so reconciliation cannot delete a new file before Room references it. Reconciliation removes stable files that are no longer referenced. Temporary capture files are removed after cancellation or failed import.
+
+Multiple photos, transformations, compression, cropping, captions, and note attachments remain out of scope.
+
+## D-018 — Phase 2 completion gate
+
+- **Date:** 2026-10-10
+- **Status:** Accepted
+
+Phase 2 is complete after Room v3 notes, one app-managed primary photo, list/detail rendering, cleanup/reconciliation, and offline English/Spanish behavior have passed implementation, migration, repository, ViewModel, Compose, and connected-device checks.
+
+Phase 3 remains the owner of care-event data and cleanup. Phase 4 remains the owner of reminder rules, WorkManager evaluation, notification permission, and the care-status filter. No phase may add authentication, network synchronization, analytics, advertising, or a new architectural layer for this work.

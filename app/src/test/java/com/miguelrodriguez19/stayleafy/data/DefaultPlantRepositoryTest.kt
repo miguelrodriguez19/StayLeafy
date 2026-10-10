@@ -2,6 +2,12 @@ package com.miguelrodriguez19.stayleafy.data
 
 import com.miguelrodriguez19.stayleafy.data.local.database.PlantDao
 import com.miguelrodriguez19.stayleafy.data.local.database.PlantEntity
+import com.miguelrodriguez19.stayleafy.data.photo.PendingPhotoCapture
+import com.miguelrodriguez19.stayleafy.data.photo.PhotoFileStore
+import com.miguelrodriguez19.stayleafy.data.photo.PhotoInputSource
+import com.miguelrodriguez19.stayleafy.data.photo.PhotoOrphanReconciliation
+import com.miguelrodriguez19.stayleafy.data.photo.StoredPhoto
+import java.io.File
 import com.miguelrodriguez19.stayleafy.model.PlantDraft
 import com.miguelrodriguez19.stayleafy.model.PlantListFilter
 import kotlinx.coroutines.flow.Flow
@@ -185,6 +191,20 @@ class DefaultPlantRepositoryTest {
     }
 
     @Test
+    fun deletePlant_removesReferencedPhotoAfterDatabaseDelete() = runTest {
+        val dao = RecordingPlantDao(
+            listOf(plantEntity("plant-1", "Ficus", mainPhotoPath = "plant_photos/ficus.jpg")),
+        )
+        val photoStore = RecordingPhotoFileStore()
+        val repository = createRepository(dao, photoStore)
+
+        repository.deletePlant("plant-1")
+
+        assertEquals(listOf("plant_photos/ficus.jpg"), photoStore.removedPaths)
+        assertEquals("plant-1", dao.deletedId)
+    }
+
+    @Test
     fun observePlants_normalizesAccentedSpanishCaseBeforeQueryingRoom() = runTest {
         val dao = RecordingPlantDao()
         val repository = createRepository(dao)
@@ -194,10 +214,14 @@ class DefaultPlantRepositoryTest {
         assertEquals("árbol", dao.lastEscapedQuery)
     }
 
-    private fun createRepository(dao: PlantDao) = DefaultPlantRepository(
+    private fun createRepository(
+        dao: PlantDao,
+        photoFileStore: PhotoFileStore = NoOpPhotoFileStore,
+    ) = DefaultPlantRepository(
         plantDao = dao,
         epochMillisProvider = FixedEpochMillisProvider(fixedNow),
         uuidProvider = FixedUuidProvider(fixedUuid),
+        photoFileStore = photoFileStore,
     )
 }
 
@@ -233,6 +257,9 @@ private class RecordingPlantDao(initialPlants: List<PlantEntity> = emptyList()) 
 
     override fun observePlant(id: String): Flow<PlantEntity?> =
         data.map { plants -> plants.firstOrNull { it.id == id } }
+
+    override suspend fun getPlant(id: String): PlantEntity? =
+        data.value.firstOrNull { it.id == id }
 
     override suspend fun insertPlant(plant: PlantEntity) {
         insertedPlant = plant
@@ -292,10 +319,51 @@ private class RecordingPlantDao(initialPlants: List<PlantEntity> = emptyList()) 
         }
     }
 
+    override suspend fun updateMainPhotoPath(
+        id: String,
+        relativePath: String?,
+        updatedAt: Long,
+    ): Int {
+        val exists = data.value.any { it.id == id }
+        data.value = data.value.map { plant ->
+            if (plant.id == id) plant.copy(mainPhotoPath = relativePath, updatedAt = updatedAt) else plant
+        }
+        return if (exists) 1 else 0
+    }
+
+    override suspend fun getReferencedPhotoPaths(): List<String> =
+        data.value.mapNotNull(PlantEntity::mainPhotoPath)
+
     override suspend fun deletePlant(id: String) {
         deletedId = id
         data.value = data.value.filterNot { it.id == id }
     }
+}
+
+private object NoOpPhotoFileStore : PhotoFileStore {
+    override fun prepareCameraCapture(): PendingPhotoCapture = error("unused")
+    override suspend fun completeCameraCapture(token: String): StoredPhoto = error("unused")
+    override suspend fun discardCameraCapture(token: String): Boolean = false
+    override suspend fun importImage(source: PhotoInputSource): StoredPhoto = error("unused")
+    override suspend fun remove(relativePath: String): Boolean = true
+    override fun resolve(relativePath: String): File? = null
+    override suspend fun reconcileOrphans(referencedPaths: Set<String>) =
+        PhotoOrphanReconciliation(emptySet(), emptySet())
+}
+
+private class RecordingPhotoFileStore : PhotoFileStore {
+    val removedPaths = mutableListOf<String>()
+    override fun prepareCameraCapture(): PendingPhotoCapture = error("unused")
+    override suspend fun completeCameraCapture(token: String): StoredPhoto = error("unused")
+    override suspend fun discardCameraCapture(token: String): Boolean = false
+    override suspend fun importImage(source: PhotoInputSource): StoredPhoto = error("unused")
+    override suspend fun remove(relativePath: String): Boolean {
+        removedPaths += relativePath
+        return true
+    }
+    override fun resolve(relativePath: String): File? = null
+    override suspend fun reconcileOrphans(referencedPaths: Set<String>) =
+        PhotoOrphanReconciliation(emptySet(), emptySet())
 }
 
 private data class UpdateCall(
@@ -318,6 +386,7 @@ private fun plantEntity(
     id: String,
     displayName: String,
     isFavorite: Boolean = false,
+    mainPhotoPath: String? = null,
 ) = PlantEntity(
     id = id,
     displayName = displayName,
@@ -329,7 +398,7 @@ private fun plantEntity(
     location = "Living room",
     acquiredEpochDay = 20_000L,
     description = "Description",
-    mainPhotoPath = null,
+    mainPhotoPath = mainPhotoPath,
     isFavorite = isFavorite,
     createdAt = 1_700_000_000_000L,
     updatedAt = 1_700_000_100_000L,

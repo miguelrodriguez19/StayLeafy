@@ -9,6 +9,12 @@ enum class UiErrorCategory {
     Save,
     Favorite,
     Delete,
+    NotesLoad,
+    NoteLoad,
+    NoteSave,
+    NoteDelete,
+    PhotoImport,
+    PhotoDelete,
 }
 
 sealed interface PlantListUiState {

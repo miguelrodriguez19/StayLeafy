@@ -9,6 +9,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.miguelrodriguez19.stayleafy.data.local.database.AppDatabase
 import com.miguelrodriguez19.stayleafy.data.local.database.MIGRATION_1_2
+import com.miguelrodriguez19.stayleafy.data.local.database.MIGRATION_2_3
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -61,7 +62,7 @@ class PlantDatabaseMigrationTest {
                 context,
                 AppDatabase::class.java,
                 databaseName,
-            ).addMigrations(MIGRATION_1_2).allowMainThreadQueries().build()
+            ).addMigrations(MIGRATION_1_2, MIGRATION_2_3).allowMainThreadQueries().build()
             try {
                 val migratedPlants = database.plantDao()
                     .observePlants(escapedQuery = "", favoritesOnly = false)

@@ -25,21 +25,26 @@ The roadmap orders work by dependency and user value. It is not a commitment to 
 - [x] Add English and Spanish resources.
 - [x] Add light and dark previews.
 
-Phase 1 boundary: child tables and app-managed photo files do not exist yet, so Phase 1 does not provide child-row cascades or photo cleanup. Notes and photo cleanup are owned by Phase 2, care-event cleanup is owned by Phase 3, and reminder-rule cleanup plus the care-status filter are owned by Phase 4.
+Phase 1 boundary: child tables and app-managed photo files are owned by later phases. Phase 2 owns notes and primary-photo cleanup, care-event cleanup is owned by Phase 3, and reminder-rule cleanup plus the care-status filter are owned by Phase 4.
 
 Exit condition: Plant records persist across restarts, the main CRUD flow is covered by focused tests, and the v1-to-v2 migration preserves existing Plant rows.
 
 ## Phase 2 — Primary photo and dated notes
 
-- [ ] Add camera capture with app-managed files.
-- [ ] Add system photo picker selection.
-- [ ] Support replacing and removing the primary photo.
-- [ ] Clean up orphaned image files when a Plant is deleted or its photo is replaced.
-- [ ] Add, edit, list, and delete dated notes.
-- [ ] Add the notes cascade when a Plant is deleted.
-- [ ] Test permission denial and process recreation around photo selection.
+- [x] Add Room schema v3 with `PlantNote`, the `2→3` migration, and an indexed Plant foreign key with delete cascade.
+- [x] Add camera capture through permissionless `TakePicture` and an app-owned `FileProvider` URI.
+- [x] Add `PickVisualMedia(ImageOnly)` with the platform document fallback and no broad media permission.
+- [x] Store original image bytes under app-managed `files/plant_photos/` paths and persist only the relative path in Room.
+- [x] Display the primary photo or a deterministic placeholder in the plant list and detail screens.
+- [x] Support replacing and removing the primary photo with compensation for failed Room updates.
+- [x] Clean up the old photo on replacement and the plant photo on deletion; reconcile unreferenced stable files at startup.
+- [x] Add, edit, list, and delete dated notes in newest-first order.
+- [x] Add the notes cascade when a Plant is deleted.
+- [x] Test cancellation, unavailable capture/picker handlers, URI read/write failures, and process recreation around photo selection.
 
-Exit condition: one stable primary image and multiple independent notes can be managed fully offline.
+Exit condition met: one stable primary image and multiple independent notes can be managed fully offline, with local, instrumented, and migration tests covering the Phase 2 boundaries.
+
+Phase 2 boundary: it intentionally excludes multiple photos, image editing or compression, note attachments, care history, reminder rules, WorkManager, network, and authentication. Phase 3 owns care events and their cascade; Phase 4 owns reminder rules, WorkManager, notifications, and the care-status filter.
 
 ## Phase 3 — Care history
 

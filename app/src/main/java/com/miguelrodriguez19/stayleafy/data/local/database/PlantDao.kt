@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -25,6 +26,9 @@ interface PlantDao {
 
     @Query("SELECT * FROM plants WHERE id = :id")
     fun observePlant(id: String): Flow<PlantEntity?>
+
+    @Query("SELECT * FROM plants WHERE id = :id")
+    suspend fun getPlant(id: String): PlantEntity?
 
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertPlant(plant: PlantEntity)
@@ -62,6 +66,19 @@ interface PlantDao {
     @Query("UPDATE plants SET isFavorite = :favorite, updatedAt = :updatedAt WHERE id = :id")
     suspend fun setFavorite(id: String, favorite: Boolean, updatedAt: Long)
 
+    @Query("UPDATE plants SET mainPhotoPath = :relativePath, updatedAt = :updatedAt WHERE id = :id")
+    suspend fun updateMainPhotoPath(id: String, relativePath: String?, updatedAt: Long): Int
+
+    @Query("SELECT mainPhotoPath FROM plants WHERE mainPhotoPath IS NOT NULL")
+    suspend fun getReferencedPhotoPaths(): List<String>
+
     @Query("DELETE FROM plants WHERE id = :id")
     suspend fun deletePlant(id: String)
+
+    @Transaction
+    suspend fun deletePlantAndReturnPhotoPath(id: String): String? {
+        val photoPath = getPlant(id)?.mainPhotoPath
+        deletePlant(id)
+        return photoPath
+    }
 }

@@ -1,6 +1,7 @@
 package com.miguelrodriguez19.stayleafy.data.room
 
 import android.content.Context
+import android.database.sqlite.SQLiteConstraintException
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -11,6 +12,7 @@ import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertThrows
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -76,7 +78,7 @@ class PlantNoteDaoTest {
         notes.forEach { note -> database.plantNoteDao().insertNote(note) }
 
         assertEquals(
-            listOf(notes[2], notes[1], notes[0]),
+            listOf(notes[1], notes[2], notes[0]),
             database.plantNoteDao().observeNotes(firstPlant.id).first(),
         )
     }
@@ -96,5 +98,16 @@ class PlantNoteDaoTest {
 
         assertNull(database.plantNoteDao().observeNote(deletedPlant.id, deletedNote.id).first())
         assertEquals(retainedNote, database.plantNoteDao().observeNote(retainedPlant.id, retainedNote.id).first())
+    }
+
+    @Test
+    fun insertingNoteForMissingPlant_isRejectedByForeignKey() {
+        assertThrows(SQLiteConstraintException::class.java) {
+            runBlocking {
+                database.plantNoteDao().insertNote(
+                    PlantNoteEntity("orphan", "missing", "Invalid", 1_000L, 1_000L),
+                )
+            }
+        }
     }
 }

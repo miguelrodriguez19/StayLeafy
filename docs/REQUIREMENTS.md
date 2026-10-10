@@ -10,7 +10,7 @@
 
 ## Functional requirements
 
-Phase delivery note: Phase 1 implements the Plant inventory only. Photo cleanup and notes are introduced in Phase 2, care events in Phase 3, and reminder rules plus care-status filtering in Phase 4. The requirements below describe the target product; phase status is recorded here where a requirement spans multiple phases.
+Phase delivery note: Phase 1 implements the Plant inventory. Phase 2 implements Room schema v3 notes plus one app-managed primary photo. Care events belong to Phase 3, and reminder rules plus care-status filtering belong to Phase 4.
 
 ### Plant inventory
 
@@ -29,11 +29,14 @@ Phase delivery note: Phase 1 implements the Plant inventory only. Photo cleanup 
 ### Primary photo
 
 - **FR-PHOTO-001** — Each plant supports at most one primary photo in the initial product.
-- **FR-PHOTO-002** — The user can capture the photo with the camera.
-- **FR-PHOTO-003** — The user can select the photo from the system photo picker.
-- **FR-PHOTO-004** — The selected image is copied into app-managed local storage.
+- **FR-PHOTO-002** — The user can capture the photo with the camera through `ActivityResultContracts.TakePicture` and an app-owned `FileProvider` URI. The app does not request the `CAMERA` runtime permission for this external capture flow.
+- **FR-PHOTO-003** — The user can select an image with `PickVisualMedia(ImageOnly)`, falling back to the platform document picker when necessary. The app does not request broad media-library permissions.
+- **FR-PHOTO-004** — The selected image is copied byte-for-byte into app-managed local storage under a generated stable relative path; Room stores only that relative path.
 - **FR-PHOTO-005** — The user can replace or remove the photo.
 - **FR-PHOTO-006** — The app does not request broad media-library access when the system photo picker is available.
+- **FR-PHOTO-007** — The primary photo is rendered in the plant list and detail screens, with a deterministic placeholder when absent or unavailable.
+- **FR-PHOTO-008** — Replacing a photo removes the previous stable file after the new Room reference is committed; failed updates remove the new file instead.
+- **FR-PHOTO-009** — Deleting a plant removes its primary photo after the database operation, and startup reconciliation removes stable files no longer referenced by Room.
 
 ### Dated notes
 
@@ -41,6 +44,8 @@ Phase delivery note: Phase 1 implements the Plant inventory only. Photo cleanup 
 - **FR-NOTE-002** — Each note records its creation date and time.
 - **FR-NOTE-003** — The user can edit or delete a note.
 - **FR-NOTE-004** — Notes are displayed newest first.
+- **FR-NOTE-005** — Notes are stored in Room schema v3 as independent rows with UUID, Plant foreign key, body, creation timestamp, and update timestamp; deleting a plant cascades to its notes.
+- **FR-NOTE-006** — Note bodies are trimmed and must remain non-blank. Creation timestamps remain stable when a note is edited.
 
 ### Care history
 
@@ -97,15 +102,22 @@ Phase delivery note: Phase 1 implements the Plant inventory only. Photo cleanup 
 - **NFR-008** — Key plant-management flows have focused Compose or instrumented tests.
 - **NFR-009** — The app targets the current device and does not optimize prematurely for broad legacy support.
 
-## MVP acceptance scenarios
+## Phase 2 acceptance scenarios
 
-1. The user creates a plant named `Ficus Living Room`, adds one photo, and later sees both after restarting the application.
-2. The user adds two dated notes and sees both independently in newest-first order.
-3. The user configures watering every 15 days, records watering, and sees the calculated next due date.
-4. A due interval rule produces one local notification and does not duplicate it during subsequent checks.
-5. The user configures an annual pruning season and receives a notification when the window begins.
-6. The user can complete all of the above while the device is offline.
-7. The principal flows work in English and Spanish and remain usable in light and dark themes.
+1. The user creates a plant named `Ficus Living Room`, captures or selects one photo, and later sees the original image after restarting the application.
+2. The user sees the primary photo or placeholder in both the plant list and detail screen.
+3. The user replaces and removes the photo; failed or cancelled imports do not change the stored reference.
+4. The user adds two dated notes, edits one, and sees both independently in newest-first order.
+5. Deleting the plant removes its notes and leaves no referenced primary-photo file; startup reconciliation removes any orphaned stable file.
+6. Cancellation, missing camera/picker handlers, URI read/write failures, and process recreation leave the database and stable files consistent.
+7. The Phase 2 flows work offline in English and Spanish and remain usable in light and dark themes.
+
+## Later-phase acceptance scenarios
+
+1. The user configures watering every 15 days, records watering, and sees the calculated next due date.
+2. A due interval rule produces one local notification and does not duplicate it during subsequent checks.
+3. The user configures an annual pruning season and receives a notification when the window begins.
+4. The user can complete the care and reminder flows while the device is offline.
 
 ## Open product questions
 

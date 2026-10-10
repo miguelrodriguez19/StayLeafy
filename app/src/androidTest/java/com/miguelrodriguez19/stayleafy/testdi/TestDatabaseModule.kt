@@ -21,6 +21,8 @@ import dagger.Module
 import dagger.hilt.components.SingletonComponent
 import dagger.hilt.testing.TestInstallIn
 import com.miguelrodriguez19.stayleafy.data.PlantRepository
+import com.miguelrodriguez19.stayleafy.data.PlantNoteRepository
+import com.miguelrodriguez19.stayleafy.data.photo.PlantPhotoRepository
 import com.miguelrodriguez19.stayleafy.data.di.DataModule
 import javax.inject.Singleton
 
@@ -36,4 +38,16 @@ interface FakeDataModule {
     abstract fun bindRepository(
         fakeRepository: FakePlantRepository
     ): PlantRepository
+
+    @Singleton
+    @Binds
+    abstract fun bindNoteRepository(
+        fakeRepository: FakePlantNoteRepository,
+    ): PlantNoteRepository
+
+    @Singleton
+    @Binds
+    abstract fun bindPhotoRepository(
+        fakeRepository: FakePlantPhotoRepository,
+    ): PlantPhotoRepository
 }

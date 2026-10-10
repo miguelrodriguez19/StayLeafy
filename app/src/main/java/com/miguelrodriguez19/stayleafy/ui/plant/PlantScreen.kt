@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
@@ -259,6 +260,12 @@ private fun PlantListItem(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
+                PlantPhotoBox(
+                    relativePath = plant.mainPhotoPath,
+                    modifier = Modifier
+                        .padding(end = 12.dp)
+                        .size(64.dp),
+                )
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = plant.displayName,
@@ -442,7 +449,7 @@ internal val previewPlants = listOf(
         location = "Living room",
         acquiredEpochDay = null,
         description = null,
-        mainPhotoPath = null,
+        mainPhotoPath = "plant_photos/preview.jpg",
         isFavorite = true,
         createdAt = 0L,
         updatedAt = 0L,

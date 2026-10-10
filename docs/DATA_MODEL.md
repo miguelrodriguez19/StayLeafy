@@ -2,9 +2,9 @@
 
 ## Implementation status
 
-The implemented database is Room schema version 2. Phase 1 persists the `Plant` entity described below. The database filename remains `Plant` for compatibility with the template's schema version 1 and its migration path.
+The implemented database is Room schema version 3. Phase 1 persists the `Plant` entity and Phase 2 adds `PlantNote`. The database filename remains `Plant` for compatibility with the template's schema version 1 and its migration path.
 
-`PlantNote`, `CareEvent`, and `ReminderRule` are planned future tables. They are documented here as the target model, but they are not part of schema version 2 and no child-table cascade is available yet.
+`CareEvent` and `ReminderRule` remain planned future tables. They are not part of schema version 3. Care-event cleanup belongs to Phase 3 and reminder-rule cleanup belongs to Phase 4.
 
 ## Principles
 
@@ -13,18 +13,18 @@ The implemented database is Room schema version 2. Phase 1 persists the `Plant` 
 - Timestamps are stored as UTC epoch milliseconds.
 - Care due dates are stored as local epoch days because the product promises a calendar day, not an exact instant.
 - Annual seasons are stored as explicit month and day values.
-- When photos are introduced, images will remain app-managed files and the database will store only a relative path. Photo storage is not implemented in Phase 1.
+- Images remain app-managed files and the database stores only a stable relative path. Phase 2 preserves original source bytes and does not store bitmaps or content URIs in Room.
 - Entity classes remain persistence details. Repositories expose immutable application models when database and UI needs diverge.
 
 ## Relationships
 
 ```text
-Planned: Plant 1 ─── 0..* PlantNote
+Implemented in schema v3: Plant 1 ─── 0..* PlantNote
 Planned: Plant 1 ─── 0..* CareEvent
 Planned: Plant 1 ─── 0..* ReminderRule
 ```
 
-These relationships are not implemented in Phase 1. Phase 1 deletion removes only the `Plant` row. Photo cleanup and notes cascades are planned for Phase 2, care-event cascades for Phase 3, and reminder-rule cascades for Phase 4.
+Phase 1 deletion removed only the `Plant` row. Phase 2 adds the notes cascade and primary-photo cleanup. Care-event cascades remain planned for Phase 3 and reminder-rule cascades remain planned for Phase 4.
 
 ## Plant
 
@@ -42,7 +42,7 @@ Represents one physical household plant. This is the implemented Phase 1 schema-
 | `location` | String? | No | Room or household location |
 | `acquiredEpochDay` | Long? | No | Local acquisition date |
 | `description` | String? | No | General plant information |
-| `mainPhotoPath` | String? | No | Reserved nullable relative app-storage path; photo management is planned for Phase 2 |
+| `mainPhotoPath` | String? | No | Nullable relative path under app-managed `plant_photos/`; only one primary photo is supported |
 | `isFavorite` | Boolean | Yes | Defaults to `false` |
 | `createdAt` | Long | Yes | UTC epoch milliseconds |
 | `updatedAt` | Long | Yes | UTC epoch milliseconds |
@@ -53,23 +53,27 @@ Implemented indexes and search support:
 - `isFavorite` is indexed for the favorites-only filter.
 - The three normalized search projections support case-insensitive English and Spanish matching; leading-wildcard substring queries intentionally do not rely on an index.
 
-## Planned future tables
-
-The following tables are not present in schema version 2. Their definitions describe the planned model for later phases.
-
 ## PlantNote
 
-Represents one independently dated observation.
+Represents one independently dated observation. It is implemented in Room schema v3.
 
 | Field | Type | Required | Notes |
 |---|---|---:|---|
 | `id` | String UUID | Yes | Primary key |
 | `plantId` | String UUID | Yes | Foreign key to Plant |
-| `body` | String | Yes | Non-blank note content |
+| `body` | String | Yes | Trimmed, non-blank note content |
 | `createdAt` | Long | Yes | UTC epoch milliseconds |
 | `updatedAt` | Long | Yes | UTC epoch milliseconds |
 
-Recommended index: `(plantId, createdAt)`.
+The foreign key references `Plant.id` with `ON DELETE CASCADE`. The table has an index on `(plantId, createdAt)`, and repository reads order by `createdAt DESC, id DESC`.
+
+## Photo storage
+
+The database does not own image bytes. Confirmed images live under the app's internal files directory in `plant_photos/`, with a generated filename and extension derived from the source MIME type. Room stores only the stable relative path in `Plant.mainPhotoPath`.
+
+Camera capture uses `TakePicture` with a temporary app-owned `FileProvider` URI. Image selection uses `PickVisualMedia(ImageOnly)` and its platform document fallback. Neither flow requires `CAMERA`, `READ_MEDIA_IMAGES`, or legacy broad storage permission.
+
+The repository writes the new original bytes before committing the new Room reference. It deletes the previous stable file only after the reference is committed, deletes the new file when the database update fails, removes the plant photo after plant deletion, and runs an IO-bound startup reconciliation that removes stable files not referenced by any Plant row. Photo mutations and reconciliation are serialized to protect the file-before-Room compensation window. Temporary capture files are removed on cancellation or failed import.
 
 ## CareEvent
 
@@ -134,6 +138,8 @@ The following operations must be transactional:
 1. Recording a care event and recalculating the matching interval rule.
 2. Editing or deleting the latest matching care event and recomputing its next due date.
 3. Deleting a plant and its structured child data. File cleanup happens immediately after the database transaction and is safe to retry.
+
+For Phase 2, deleting a plant cascades `PlantNote` rows inside Room; deleting the associated primary-photo file is a compensating file operation after the Room transaction. Reconciliation is the recovery path for a failed or interrupted file cleanup.
 
 ## Future schema candidates
 

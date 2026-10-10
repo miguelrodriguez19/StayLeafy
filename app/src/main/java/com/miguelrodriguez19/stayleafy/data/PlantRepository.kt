@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.map
 import com.miguelrodriguez19.stayleafy.data.local.database.PlantDao
 import com.miguelrodriguez19.stayleafy.data.local.database.PlantEntity
 import com.miguelrodriguez19.stayleafy.data.local.database.normalizeForPlantSearch
+import com.miguelrodriguez19.stayleafy.data.photo.PhotoFileStore
 import com.miguelrodriguez19.stayleafy.model.Plant
 import com.miguelrodriguez19.stayleafy.model.PlantDraft
 import com.miguelrodriguez19.stayleafy.model.PlantListFilter
@@ -45,6 +46,7 @@ class DefaultPlantRepository @Inject constructor(
     private val plantDao: PlantDao,
     private val epochMillisProvider: EpochMillisProvider,
     private val uuidProvider: UuidProvider,
+    private val photoFileStore: PhotoFileStore,
 ) : PlantRepository {
 
     override fun observePlants(filter: PlantListFilter): Flow<List<Plant>> =
@@ -90,7 +92,10 @@ class DefaultPlantRepository @Inject constructor(
     }
 
     override suspend fun deletePlant(id: String) {
-        plantDao.deletePlant(id)
+        val photoPath = plantDao.deletePlantAndReturnPhotoPath(id)
+        if (photoPath != null) {
+            runCatching { photoFileStore.remove(photoPath) }
+        }
     }
 }
 

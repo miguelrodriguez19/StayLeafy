@@ -8,6 +8,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.miguelrodriguez19.stayleafy.data.local.database.AppDatabase
+import com.miguelrodriguez19.stayleafy.data.local.database.MIGRATION_1_2
 import com.miguelrodriguez19.stayleafy.data.local.database.MIGRATION_2_3
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -102,5 +103,37 @@ class PlantNoteDatabaseMigrationTest {
         database!!.plantDao().deletePlant(plant.id)
 
         assertNull(database!!.plantNoteDao().observeNote(plant.id, note.id).first())
+    }
+
+    @Test
+    fun migrate1To3_preservesLegacyPlantAndAllowsNotes() = runBlocking {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        migrationTestHelper.createDatabase(databaseName, 1).use { version1Database ->
+            version1Database.execSQL("INSERT INTO Plant(uid, name) VALUES (7, 'Legacy fern')")
+        }
+
+        migrationTestHelper.runMigrationsAndValidate(
+            databaseName,
+            3,
+            true,
+            MIGRATION_1_2,
+            MIGRATION_2_3,
+        ).close()
+
+        database = Room.databaseBuilder(context, AppDatabase::class.java, databaseName)
+            .allowMainThreadQueries()
+            .build()
+        val plant = database!!.plantDao().observePlants("", false).first().single()
+        assertEquals("Legacy fern", plant.displayName)
+
+        val note = com.miguelrodriguez19.stayleafy.data.local.database.PlantNoteEntity(
+            id = "note-after-chain",
+            plantId = plant.id,
+            body = "Still writable",
+            createdAt = 4_000L,
+            updatedAt = 4_000L,
+        )
+        database!!.plantNoteDao().insertNote(note)
+        assertEquals(note, database!!.plantNoteDao().observeNote(plant.id, note.id).first())
     }
 }
