@@ -1,57 +1,350 @@
-/*
- * Copyright (C) 2022 The Android Open Source Project
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package com.miguelrodriguez19.stayleafy.data
 
-import kotlinx.coroutines.ExperimentalCoroutinesApi
+import com.miguelrodriguez19.stayleafy.data.local.database.PlantDao
+import com.miguelrodriguez19.stayleafy.data.local.database.PlantEntity
+import com.miguelrodriguez19.stayleafy.model.PlantDraft
+import com.miguelrodriguez19.stayleafy.model.PlantListFilter
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
-import com.miguelrodriguez19.stayleafy.data.local.database.Plant
-import com.miguelrodriguez19.stayleafy.data.local.database.PlantDao
 
-/**
- * Unit tests for [DefaultPlantRepository].
- */
-@OptIn(ExperimentalCoroutinesApi::class) // TODO: Remove when stable
 class DefaultPlantRepositoryTest {
 
+    private val fixedNow = 1_725_000_000_000L
+    private val fixedUuid = "123e4567-e89b-12d3-a456-426614174000"
+
     @Test
-    fun plants_newItemSaved_itemIsReturned() = runTest {
-        val repository = DefaultPlantRepository(FakePlantDao())
+    fun createPlant_normalizesFieldsAndUsesFixedTimestamps() = runTest {
+        val dao = RecordingPlantDao()
+        val repository = createRepository(dao)
 
-        repository.add("Repository")
+        val id = repository.createPlant(
+            PlantDraft(
+                displayName = "  Ficus Living Room  ",
+                commonName = "  Ficus  ",
+                scientificName = "  Ficus elastica  ",
+                location = "  South window  ",
+                acquiredEpochDay = 20_000L,
+                description = "  Easy to care for  ",
+            ),
+        )
 
-        assertEquals(repository.plants.first().size, 1)
+        assertEquals(fixedUuid, id)
+        assertEquals(
+            PlantEntity(
+                id = id,
+                displayName = "Ficus Living Room",
+                displayNameSearch = "ficus living room",
+                commonName = "Ficus",
+                commonNameSearch = "ficus",
+                scientificName = "Ficus elastica",
+                scientificNameSearch = "ficus elastica",
+                location = "South window",
+                acquiredEpochDay = 20_000L,
+                description = "Easy to care for",
+                mainPhotoPath = null,
+                isFavorite = false,
+                createdAt = fixedNow,
+                updatedAt = fixedNow,
+            ),
+            dao.insertedPlant,
+        )
     }
 
+    @Test
+    fun createPlant_normalizesBlankOptionalFieldsToNull() = runTest {
+        val dao = RecordingPlantDao()
+        val repository = createRepository(dao)
+
+        repository.createPlant(
+            PlantDraft(
+                displayName = "Ficus",
+                commonName = "   ",
+                scientificName = "\t",
+                location = "",
+                description = "  ",
+            ),
+        )
+
+        assertEquals(null, dao.insertedPlant?.commonName)
+        assertEquals(null, dao.insertedPlant?.scientificName)
+        assertEquals(null, dao.insertedPlant?.location)
+        assertEquals(null, dao.insertedPlant?.description)
+    }
+
+    @Test
+    fun createPlant_blankDisplayName_isRejectedBeforeInsert() = runTest {
+        val dao = RecordingPlantDao()
+        val repository = createRepository(dao)
+
+        val error = runCatching {
+            repository.createPlant(PlantDraft(displayName = "   "))
+        }.exceptionOrNull()
+
+        assertTrue(error is IllegalArgumentException)
+        assertEquals("displayName must not be blank", error?.message)
+        assertEquals(null, dao.insertedPlant)
+    }
+
+    @Test
+    fun updatePlant_normalizesFieldsAndUsesCurrentTimestamp() = runTest {
+        val dao = RecordingPlantDao()
+        val repository = createRepository(dao)
+
+        repository.updatePlant(
+            id = "plant-1",
+            draft = PlantDraft(
+                displayName = "  Updated name ",
+                commonName = "   ",
+                scientificName = null,
+                location = "  Desk  ",
+                acquiredEpochDay = null,
+                description = "  New description  ",
+            ),
+        )
+
+        assertEquals(
+            UpdateCall(
+                id = "plant-1",
+                displayName = "Updated name",
+                displayNameSearch = "updated name",
+                commonName = null,
+                commonNameSearch = "",
+                scientificName = null,
+                scientificNameSearch = "",
+                location = "Desk",
+                acquiredEpochDay = null,
+                description = "New description",
+                updatedAt = fixedNow,
+            ),
+            dao.updateCall,
+        )
+    }
+
+    @Test
+    fun updatePlant_blankDisplayName_isRejectedBeforeUpdate() = runTest {
+        val dao = RecordingPlantDao()
+        val repository = createRepository(dao)
+
+        val error = runCatching {
+            repository.updatePlant("plant-1", PlantDraft(displayName = "\n\t"))
+        }.exceptionOrNull()
+
+        assertTrue(error is IllegalArgumentException)
+        assertEquals(null, dao.updateCall)
+    }
+
+    @Test
+    fun observePlants_trimsAndEscapesLiteralSearchAndMapsEntities() = runTest {
+        val entity = plantEntity(id = "plant-1", displayName = "Ficus_%\\")
+        val dao = RecordingPlantDao(listOf(entity))
+        val repository = createRepository(dao)
+
+        val plants = repository.observePlants(
+            PlantListFilter(query = "  ficus_%\\  ", favoritesOnly = true),
+        ).first()
+
+        assertEquals("ficus\\_\\%\\\\", dao.lastEscapedQuery)
+        assertTrue(dao.lastFavoritesOnly)
+        assertEquals(entity.toModelForTest(), plants.single())
+    }
+
+    @Test
+    fun observePlant_mapsDaoEntity() = runTest {
+        val entity = plantEntity(id = "plant-2", displayName = "Monstera")
+        val dao = RecordingPlantDao(listOf(entity))
+        val repository = createRepository(dao)
+
+        assertEquals(entity.toModelForTest(), repository.observePlant("plant-2").first())
+        assertEquals(null, repository.observePlant("missing").first())
+    }
+
+    @Test
+    fun setFavorite_passesValueAndFixedTimestamp() = runTest {
+        val dao = RecordingPlantDao()
+        val repository = createRepository(dao)
+
+        repository.setFavorite("plant-1", favorite = true)
+
+        assertEquals(FavoriteCall("plant-1", true, fixedNow), dao.favoriteCall)
+    }
+
+    @Test
+    fun deletePlant_deletesRequestedId() = runTest {
+        val dao = RecordingPlantDao()
+        val repository = createRepository(dao)
+
+        repository.deletePlant("plant-1")
+
+        assertEquals("plant-1", dao.deletedId)
+    }
+
+    @Test
+    fun observePlants_normalizesAccentedSpanishCaseBeforeQueryingRoom() = runTest {
+        val dao = RecordingPlantDao()
+        val repository = createRepository(dao)
+
+        repository.observePlants(PlantListFilter(query = "  ÁRBOL  ")).first()
+
+        assertEquals("árbol", dao.lastEscapedQuery)
+    }
+
+    private fun createRepository(dao: PlantDao) = DefaultPlantRepository(
+        plantDao = dao,
+        epochMillisProvider = FixedEpochMillisProvider(fixedNow),
+        uuidProvider = FixedUuidProvider(fixedUuid),
+    )
 }
 
-private class FakePlantDao : PlantDao {
+private class FixedEpochMillisProvider(private val value: Long) : EpochMillisProvider {
+    override fun now(): Long = value
+}
 
-    private val data = mutableListOf<Plant>()
+private class FixedUuidProvider(private val value: String) : UuidProvider {
+    override fun newUuid(): String = value
+}
 
-    override fun getPlants(): Flow<List<Plant>> = flow {
-        emit(data)
+private class RecordingPlantDao(initialPlants: List<PlantEntity> = emptyList()) : PlantDao {
+    private val data = MutableStateFlow(initialPlants)
+
+    var insertedPlant: PlantEntity? = null
+        private set
+    var updateCall: UpdateCall? = null
+        private set
+    var favoriteCall: FavoriteCall? = null
+        private set
+    var deletedId: String? = null
+        private set
+    var lastEscapedQuery: String? = null
+        private set
+    var lastFavoritesOnly: Boolean = false
+        private set
+
+    override fun observePlants(escapedQuery: String, favoritesOnly: Boolean): Flow<List<PlantEntity>> {
+        lastEscapedQuery = escapedQuery
+        lastFavoritesOnly = favoritesOnly
+        return data.map { it.toList() }
     }
 
-    override suspend fun insertPlant(item: Plant) {
-        data.add(0, item)
+    override fun observePlant(id: String): Flow<PlantEntity?> =
+        data.map { plants -> plants.firstOrNull { it.id == id } }
+
+    override suspend fun insertPlant(plant: PlantEntity) {
+        insertedPlant = plant
+        data.value = data.value + plant
+    }
+
+    override suspend fun updatePlant(
+        id: String,
+        displayName: String,
+        displayNameSearch: String,
+        commonName: String?,
+        commonNameSearch: String,
+        scientificName: String?,
+        scientificNameSearch: String,
+        location: String?,
+        acquiredEpochDay: Long?,
+        description: String?,
+        updatedAt: Long,
+    ) {
+        updateCall = UpdateCall(
+            id = id,
+            displayName = displayName,
+            displayNameSearch = displayNameSearch,
+            commonName = commonName,
+            commonNameSearch = commonNameSearch,
+            scientificName = scientificName,
+            scientificNameSearch = scientificNameSearch,
+            location = location,
+            acquiredEpochDay = acquiredEpochDay,
+            description = description,
+            updatedAt = updatedAt,
+        )
+        data.value = data.value.map { plant ->
+            if (plant.id != id) {
+                plant
+            } else {
+                plant.copy(
+                    displayName = displayName,
+                    displayNameSearch = displayNameSearch,
+                    commonName = commonName,
+                    commonNameSearch = commonNameSearch,
+                    scientificName = scientificName,
+                    scientificNameSearch = scientificNameSearch,
+                    location = location,
+                    acquiredEpochDay = acquiredEpochDay,
+                    description = description,
+                    updatedAt = updatedAt,
+                )
+            }
+        }
+    }
+
+    override suspend fun setFavorite(id: String, favorite: Boolean, updatedAt: Long) {
+        favoriteCall = FavoriteCall(id, favorite, updatedAt)
+        data.value = data.value.map { plant ->
+            if (plant.id == id) plant.copy(isFavorite = favorite, updatedAt = updatedAt) else plant
+        }
+    }
+
+    override suspend fun deletePlant(id: String) {
+        deletedId = id
+        data.value = data.value.filterNot { it.id == id }
     }
 }
+
+private data class UpdateCall(
+    val id: String,
+    val displayName: String,
+    val displayNameSearch: String,
+    val commonName: String?,
+    val commonNameSearch: String,
+    val scientificName: String?,
+    val scientificNameSearch: String,
+    val location: String?,
+    val acquiredEpochDay: Long?,
+    val description: String?,
+    val updatedAt: Long,
+)
+
+private data class FavoriteCall(val id: String, val favorite: Boolean, val updatedAt: Long)
+
+private fun plantEntity(
+    id: String,
+    displayName: String,
+    isFavorite: Boolean = false,
+) = PlantEntity(
+    id = id,
+    displayName = displayName,
+    displayNameSearch = displayName.lowercase(),
+    commonName = "Rubber plant",
+    commonNameSearch = "rubber plant",
+    scientificName = "Ficus elastica",
+    scientificNameSearch = "ficus elastica",
+    location = "Living room",
+    acquiredEpochDay = 20_000L,
+    description = "Description",
+    mainPhotoPath = null,
+    isFavorite = isFavorite,
+    createdAt = 1_700_000_000_000L,
+    updatedAt = 1_700_000_100_000L,
+)
+
+private fun PlantEntity.toModelForTest() = com.miguelrodriguez19.stayleafy.model.Plant(
+    id = id,
+    displayName = displayName,
+    commonName = commonName,
+    scientificName = scientificName,
+    location = location,
+    acquiredEpochDay = acquiredEpochDay,
+    description = description,
+    mainPhotoPath = mainPhotoPath,
+    isFavorite = isFavorite,
+    createdAt = createdAt,
+    updatedAt = updatedAt,
+)

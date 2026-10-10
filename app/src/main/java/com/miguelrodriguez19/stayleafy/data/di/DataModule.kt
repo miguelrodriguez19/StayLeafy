@@ -20,30 +20,33 @@ import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flowOf
 import com.miguelrodriguez19.stayleafy.data.PlantRepository
 import com.miguelrodriguez19.stayleafy.data.DefaultPlantRepository
-import javax.inject.Inject
+import com.miguelrodriguez19.stayleafy.data.EpochMillisProvider
+import com.miguelrodriguez19.stayleafy.data.SystemEpochMillisProvider
+import com.miguelrodriguez19.stayleafy.data.RandomUuidProvider
+import com.miguelrodriguez19.stayleafy.data.UuidProvider
 import javax.inject.Singleton
 
 @Module
 @InstallIn(SingletonComponent::class)
-interface DataModule {
+abstract class DataModule {
 
     @Singleton
     @Binds
-    fun bindsPlantRepository(
+    abstract fun bindsPlantRepository(
         plantRepository: DefaultPlantRepository
     ): PlantRepository
+
+    @Singleton
+    @Binds
+    abstract fun bindsEpochMillisProvider(
+        provider: SystemEpochMillisProvider,
+    ): EpochMillisProvider
+
+    @Singleton
+    @Binds
+    abstract fun bindsUuidProvider(
+        provider: RandomUuidProvider,
+    ): UuidProvider
 }
-
-class FakePlantRepository @Inject constructor() : PlantRepository {
-    override val plants: Flow<List<String>> = flowOf(fakePlants)
-
-    override suspend fun add(name: String) {
-        throw NotImplementedError()
-    }
-}
-
-val fakePlants = listOf("One", "Two", "Three")

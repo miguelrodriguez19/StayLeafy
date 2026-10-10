@@ -24,6 +24,7 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import com.miguelrodriguez19.stayleafy.data.local.database.AppDatabase
+import com.miguelrodriguez19.stayleafy.data.local.database.MIGRATION_1_2
 import com.miguelrodriguez19.stayleafy.data.local.database.PlantDao
 import javax.inject.Singleton
 
@@ -43,6 +44,6 @@ class DatabaseModule {
             appContext,
             AppDatabase::class.java,
             "Plant"
-        ).build()
+        ).addMigrations(MIGRATION_1_2).build()
     }
 }

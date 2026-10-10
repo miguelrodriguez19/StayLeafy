@@ -15,24 +15,28 @@ The roadmap orders work by dependency and user value. It is not a commitment to 
 
 ## Phase 1 — Plant inventory
 
-- [ ] Replace the template Plant sample with the real Plant schema.
-- [ ] Implement Room migration policy and schema tests.
-- [ ] Build plant list, empty state, and loading/error states.
-- [ ] Build create and edit flows with validation.
-- [ ] Build plant detail.
-- [ ] Implement deletion confirmation and cascade cleanup.
-- [ ] Add favorites, search, and basic filters.
-- [ ] Add light and dark previews.
+- [x] Replace the template Plant sample with the real Room Plant schema v2.
+- [x] Implement the non-destructive Room migration from schema 1 to schema 2, preserving legacy rows.
+- [x] Build the plant list, empty state, and loading/error states.
+- [x] Build create and edit flows with validation.
+- [x] Build plant detail.
+- [x] Implement deletion confirmation and deletion of the Plant row.
+- [x] Add favorites, literal substring search, and the favorites-only filter.
+- [x] Add English and Spanish resources.
+- [x] Add light and dark previews.
 
-Exit condition: plants persist across restarts and the main CRUD flow is covered by focused tests.
+Phase 1 boundary: child tables and app-managed photo files do not exist yet, so Phase 1 does not provide child-row cascades or photo cleanup. Notes and photo cleanup are owned by Phase 2, care-event cleanup is owned by Phase 3, and reminder-rule cleanup plus the care-status filter are owned by Phase 4.
+
+Exit condition: Plant records persist across restarts, the main CRUD flow is covered by focused tests, and the v1-to-v2 migration preserves existing Plant rows.
 
 ## Phase 2 — Primary photo and dated notes
 
 - [ ] Add camera capture with app-managed files.
 - [ ] Add system photo picker selection.
 - [ ] Support replacing and removing the primary photo.
-- [ ] Clean up orphaned image files.
+- [ ] Clean up orphaned image files when a Plant is deleted or its photo is replaced.
 - [ ] Add, edit, list, and delete dated notes.
+- [ ] Add the notes cascade when a Plant is deleted.
 - [ ] Test permission denial and process recreation around photo selection.
 
 Exit condition: one stable primary image and multiple independent notes can be managed fully offline.
@@ -43,6 +47,7 @@ Exit condition: one stable primary image and multiple independent notes can be m
 - [ ] Add quick actions from plant detail.
 - [ ] Display reverse-chronological care history.
 - [ ] Support correcting and deleting care events.
+- [ ] Add the care-event cascade when a Plant is deleted.
 - [ ] Add tests around event ordering and transactional updates.
 
 Exit condition: the user can reliably answer when each care action last occurred.
@@ -52,6 +57,8 @@ Exit condition: the user can reliably answer when each care action last occurred
 - [ ] Add interval reminder rules.
 - [ ] Calculate the next due date after completion.
 - [ ] Display upcoming and overdue states.
+- [ ] Add the care-status filter to the plant inventory.
+- [ ] Add the reminder-rule cascade when a Plant is deleted.
 - [ ] Add WorkManager reminder evaluation.
 - [ ] Add notification permission education.
 - [ ] Deep link notifications to plant detail.

@@ -2,15 +2,16 @@
 
 Stay Leafy is a personal, offline-first Android application for cataloguing household plants and keeping their care on schedule.
 
-The application is intended for a single user. It stores plant records, one primary photo per plant, dated notes, care history, and local reminders for watering, pruning, and fertilizing. It has no accounts, backend, cloud synchronization, analytics, advertising, or paid services.
+The application is intended for a single user. It currently stores plant inventory records locally. Photos, dated notes, care history, and local reminders for watering, pruning, and fertilizing are planned for later phases. It has no accounts, backend, cloud synchronization, analytics, advertising, or paid services.
 
 ## Project status
 
-Stay Leafy is in its foundation stage. The project was created from the official Android `architecture-templates` single-module template and currently contains the template's sample Plant flow. Product-specific data models and screens are described in the documentation but are not yet fully implemented.
+Phase 1, the offline plant inventory, is implemented. It provides the Room plant schema v2, create/edit/list/detail/delete flows, favorites, literal substring search, a favorites-only filter, English and Spanish resources, and light and dark theme support. Phase 1 deletes Plant rows only; photos, notes, care events, reminder rules, and care-status filtering belong to later phases.
+
+The project was created from the official Android `architecture-templates` single-module template and remains a personal, single-user application with no account, backend, synchronization, analytics, advertising, or paid-service dependency.
 
 ## Planned capabilities
 
-- Create, edit, view, search, filter, favorite, and delete plants.
 - Attach one primary photo from the camera or photo library.
 - Add independent, dated notes to each plant.
 - Record watering, pruning, and fertilizing events.
@@ -18,8 +19,8 @@ Stay Leafy is in its foundation stage. The project was created from the official
 - Recalculate the next due date when care is marked complete.
 - Configure annual seasonal windows, such as the ideal pruning season for hydrangeas.
 - Deliver local notifications without a remote service.
-- Work fully offline in English and Spanish.
-- Follow the system light or dark theme.
+- Extend the implemented offline English and Spanish experience to the later photo, notes, care, and reminder flows.
+- Continue following the system light or dark theme across later flows.
 
 ## Technology
 
@@ -29,8 +30,11 @@ Stay Leafy is in its foundation stage. The project was created from the official
 - Room
 - Hilt
 - Kotlin Coroutines and Flow
-- WorkManager for deferrable local reminder checks
 - JUnit and Compose UI testing
+
+Planned technology:
+
+- WorkManager for deferrable local reminder checks once reminder rules are implemented.
 
 The application uses the package `com.miguelrodriguez19.stayleafy` and remains a single-module Android project until scale provides a concrete reason to split it.
 

@@ -1,5 +1,11 @@
 # Data model
 
+## Implementation status
+
+The implemented database is Room schema version 2. Phase 1 persists the `Plant` entity described below. The database filename remains `Plant` for compatibility with the template's schema version 1 and its migration path.
+
+`PlantNote`, `CareEvent`, and `ReminderRule` are planned future tables. They are documented here as the target model, but they are not part of schema version 2 and no child-table cascade is available yet.
+
 ## Principles
 
 - Room is the source of truth for structured application data.
@@ -7,41 +13,49 @@
 - Timestamps are stored as UTC epoch milliseconds.
 - Care due dates are stored as local epoch days because the product promises a calendar day, not an exact instant.
 - Annual seasons are stored as explicit month and day values.
-- Images remain app-managed files; the database stores a relative path.
+- When photos are introduced, images will remain app-managed files and the database will store only a relative path. Photo storage is not implemented in Phase 1.
 - Entity classes remain persistence details. Repositories expose immutable application models when database and UI needs diverge.
 
 ## Relationships
 
 ```text
-Plant 1 ─── 0..* PlantNote
-Plant 1 ─── 0..* CareEvent
-Plant 1 ─── 0..* ReminderRule
+Planned: Plant 1 ─── 0..* PlantNote
+Planned: Plant 1 ─── 0..* CareEvent
+Planned: Plant 1 ─── 0..* ReminderRule
 ```
 
-Child rows use a foreign key to `Plant` with cascade deletion. Deleting a plant also triggers cleanup of its image file through the repository.
+These relationships are not implemented in Phase 1. Phase 1 deletion removes only the `Plant` row. Photo cleanup and notes cascades are planned for Phase 2, care-event cascades for Phase 3, and reminder-rule cascades for Phase 4.
 
 ## Plant
 
-Represents one physical household plant.
+Represents one physical household plant. This is the implemented Phase 1 schema-v2 entity.
 
 | Field | Type | Required | Notes |
 |---|---|---:|---|
 | `id` | String UUID | Yes | Primary key |
 | `displayName` | String | Yes | User-facing name, for example `Ficus Living Room` |
+| `displayNameSearch` | String | Yes | Internal `Locale.ROOT` lowercase projection used for case-insensitive search in the supported English and Spanish text |
 | `commonName` | String? | No | Common species name |
+| `commonNameSearch` | String | Yes | Internal lowercase projection; empty when `commonName` is absent |
 | `scientificName` | String? | No | Botanical name |
+| `scientificNameSearch` | String | Yes | Internal lowercase projection; empty when `scientificName` is absent |
 | `location` | String? | No | Room or household location |
 | `acquiredEpochDay` | Long? | No | Local acquisition date |
 | `description` | String? | No | General plant information |
-| `mainPhotoPath` | String? | No | Relative app-storage path |
+| `mainPhotoPath` | String? | No | Reserved nullable relative app-storage path; photo management is planned for Phase 2 |
 | `isFavorite` | Boolean | Yes | Defaults to `false` |
 | `createdAt` | Long | Yes | UTC epoch milliseconds |
 | `updatedAt` | Long | Yes | UTC epoch milliseconds |
 
-Recommended indexes:
+Implemented indexes and search support:
 
-- Case-insensitive index or normalized search field for `displayName`.
-- Index on `isFavorite` only if query measurements justify it.
+- `displayName` is indexed for stable list ordering.
+- `isFavorite` is indexed for the favorites-only filter.
+- The three normalized search projections support case-insensitive English and Spanish matching; leading-wildcard substring queries intentionally do not rely on an index.
+
+## Planned future tables
+
+The following tables are not present in schema version 2. Their definitions describe the planned model for later phases.
 
 ## PlantNote
 
@@ -111,7 +125,9 @@ A seasonal occurrence key can be `season:<ruleId>:<seasonStartYear>`.
 
 Persisting the last notified key makes reminder checks idempotent.
 
-## Transaction boundaries
+## Planned future transaction boundaries
+
+Phase 1's delete transaction removes the Plant row only. The following boundaries apply when their owning phases add the corresponding data:
 
 The following operations must be transactional:
 

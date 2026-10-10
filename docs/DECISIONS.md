@@ -48,7 +48,7 @@ Room is the source of truth for structured application data. Hilt remains the de
 - **Date:** 2026-10-09
 - **Status:** Accepted
 
-The initial product supports one primary photo per plant. The user may capture it with the camera or choose it through the system photo picker. The image is copied to app-managed storage, and Room stores its relative path.
+Phase 2 will add support for one primary photo per plant. The user may capture it with the camera or choose it through the system photo picker. The image will be copied to app-managed storage, and Room will store its relative path.
 
 Multiple photos are postponed to avoid introducing a gallery model before it is needed.
 
@@ -57,7 +57,7 @@ Multiple photos are postponed to avoid introducing a gallery model before it is 
 - **Date:** 2026-10-09
 - **Status:** Accepted
 
-Plant notes are independent records with creation and update timestamps rather than one mutable text field on Plant. This preserves observations over time.
+Phase 2 will add plant notes as independent records with creation and update timestamps rather than one mutable text field on Plant. This preserves observations over time.
 
 ## D-008 — Two reminder models
 
@@ -76,7 +76,7 @@ Both rule types are user-configured. The application does not infer botanical re
 - **Date:** 2026-10-09
 - **Status:** Accepted
 
-Notifications are local and evaluated with WorkManager. Delivery is date-oriented and does not promise an exact clock time. Exact alarms and their special permission are excluded until a real need is demonstrated.
+When reminder rules are introduced in Phase 4, notifications will be local and evaluated with WorkManager. Delivery will be date-oriented and will not promise an exact clock time. Exact alarms and their special permission are excluded until a real need is demonstrated.
 
 ## D-010 — Language policy
 
@@ -98,3 +98,25 @@ Testing is risk-based rather than exhaustive. Date calculations, persistence, tr
 - **Status:** Accepted
 
 Stay Leafy is open source under Apache License 2.0. Existing Android Open Source Project file headers remain intact. New code may use the project copyright holder where headers are useful, but per-file headers are not required.
+
+## D-013 — Room schema v2 migration preserves the template database
+
+- **Date:** 2026-10-10
+- **Status:** Accepted
+
+Phase 1 uses Room schema version 2 while keeping the existing database filename `Plant`. The migration from version 1 to version 2 is explicit and non-destructive; destructive migration fallback is not allowed.
+
+Legacy rows are preserved. The legacy `name` value is copied to `displayName`; a blank or whitespace-only legacy name becomes `Plant <uid>`. Each migrated row receives a new UUID string identifier, and `createdAt` and `updatedAt` are initialized to the migration timestamp. Optional fields are `NULL`, and `isFavorite` is `false`.
+
+Schema v2 also stores internal `Locale.ROOT` lowercase projections of the display, common, and scientific names. Room searches those projections so accented English and Spanish names match case-insensitively rather than relying on SQLite `NOCASE`, which is ASCII-only by default.
+
+This policy protects data already stored by the template and keeps future schema changes reviewable through exported Room schemas and migration tests.
+
+## D-014 — Plant deletion and care-status filtering are phased
+
+- **Date:** 2026-10-10
+- **Status:** Accepted
+
+Phase 1 deletes the Plant row after confirmation. It does not claim cleanup of photos or child records because those tables and files do not exist yet.
+
+Ownership is incremental: Phase 2 adds photo cleanup and the notes cascade; Phase 3 adds the care-event cascade; Phase 4 adds the reminder-rule cascade and the care-status filter. The final product may provide complete deletion cleanup, but each owning phase must implement and test its own data and file boundaries.

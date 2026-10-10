@@ -10,6 +10,8 @@
 
 ## Functional requirements
 
+Phase delivery note: Phase 1 implements the Plant inventory only. Photo cleanup and notes are introduced in Phase 2, care events in Phase 3, and reminder rules plus care-status filtering in Phase 4. The requirements below describe the target product; phase status is recorded here where a requirement spans multiple phases.
+
 ### Plant inventory
 
 - **FR-PLANT-001** — The user can create a plant.
@@ -19,10 +21,10 @@
 - **FR-PLANT-005** — The user can open a plant detail screen.
 - **FR-PLANT-006** — The user can edit plant information.
 - **FR-PLANT-007** — The user can delete a plant after confirmation.
-- **FR-PLANT-008** — Deleting a plant also removes its notes, care events, reminder rules, and app-managed photo.
+- **FR-PLANT-008** — Deleting a plant ultimately removes its notes, care events, reminder rules, and app-managed photo. Delivery is incremental: Phase 1 removes the Plant row, Phase 2 adds photo cleanup and the notes cascade, Phase 3 adds the care-event cascade, and Phase 4 adds the reminder-rule cascade.
 - **FR-PLANT-009** — The user can mark or unmark a plant as a favorite.
 - **FR-PLANT-010** — The user can search plants by display, common, or scientific name.
-- **FR-PLANT-011** — The user can filter plants by favorites and care status.
+- **FR-PLANT-011** — The user can filter plants by favorites and care status. Phase 1 implements the favorites-only filter; the care-status filter is delivered with care and reminder data in Phase 4.
 
 ### Primary photo
 

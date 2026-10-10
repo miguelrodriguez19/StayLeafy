@@ -20,4 +20,10 @@ import androidx.navigation3.runtime.NavKey
 import kotlinx.serialization.Serializable
 
 @Serializable
-data object Main : NavKey
+data object PlantList : NavKey
+
+@Serializable
+data class PlantDetail(val plantId: String) : NavKey
+
+@Serializable
+data class PlantEditor(val plantId: String? = null) : NavKey

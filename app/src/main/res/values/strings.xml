@@ -1,22 +1,46 @@
-<!--
-  ~ Copyright (C) 2022 The Android Open Source Project
-  ~
-  ~ Licensed under the Apache License, Version 2.0 (the "License");
-  ~ you may not use this file except in compliance with the License.
-  ~ You may obtain a copy of the License at
-  ~
-  ~      http://www.apache.org/licenses/LICENSE-2.0
-  ~
-  ~ Unless required by applicable law or agreed to in writing, software
-  ~ distributed under the License is distributed on an "AS IS" BASIS,
-  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-  ~ See the License for the specific language governing permissions and
-  ~ limitations under the License.
-  -->
-
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Stay Leafy</string>
-    <string name="plant_name">Plant name</string>
+    <string name="plants_title">My plants</string>
+    <string name="plant_details">Plant details</string>
+    <string name="add_plant">Add plant</string>
+    <string name="edit_plant">Edit plant</string>
     <string name="save">Save</string>
-    <string name="saved_item">Saved item: %1$s</string>
+    <string name="saving">Saving…</string>
+    <string name="cancel">Cancel</string>
+    <string name="back">Back</string>
+    <string name="back_to_plants">Back to plants</string>
+    <string name="retry">Retry</string>
+    <string name="dismiss">Dismiss</string>
+    <string name="loading">Loading…</string>
+    <string name="search_plants">Search plants</string>
+    <string name="favorites_only">Favorites only</string>
+    <string name="clear_filters">Clear filters</string>
+    <string name="no_plants_yet">No plants yet</string>
+    <string name="add_first_plant_hint">Add your first plant to start your collection.</string>
+    <string name="no_matching_plants">No matching plants</string>
+    <string name="try_different_filter">Try a different search or filter.</string>
+    <string name="load_plants_error">We couldn’t load your plants.</string>
+    <string name="load_plant_error">We couldn’t load this plant.</string>
+    <string name="save_plant_error">We couldn’t save this plant. Your changes are still here.</string>
+    <string name="favorite_update_error">We couldn’t update the favorite.</string>
+    <string name="delete_plant_error">We couldn’t delete this plant.</string>
+    <string name="display_name">Name</string>
+    <string name="display_name_required">Enter a plant name.</string>
+    <string name="common_name">Common name</string>
+    <string name="scientific_name">Scientific name</string>
+    <string name="location">Location</string>
+    <string name="acquisition_date">Acquisition date</string>
+    <string name="select_date_hint">Select a date</string>
+    <string name="select_date">Select date</string>
+    <string name="clear_date">Clear date</string>
+    <string name="description">Description</string>
+    <string name="add_favorite">Add to favorites</string>
+    <string name="remove_favorite">Remove from favorites</string>
+    <string name="favorite_marker_on">★</string>
+    <string name="favorite_marker_off">☆</string>
+    <string name="plant_not_found">This plant no longer exists.</string>
+    <string name="delete_plant">Delete plant</string>
+    <string name="delete_plant_title">Delete this plant?</string>
+    <string name="delete_plant_message">This action cannot be undone.</string>
 </resources>
