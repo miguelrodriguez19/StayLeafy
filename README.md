@@ -6,7 +6,9 @@ The application is intended for a single user. It stores plant inventory records
 
 ## Project status
 
-Phases 1 and 2 are implemented. The app provides the complete offline plant inventory, Room schema v3 with dated notes, and one app-managed primary photo per plant. It includes create/edit/list/detail/delete flows, favorites, literal substring search, a favorites-only filter, English and Spanish resources, and light and dark theme support.
+Phases 1 and 2 and the independent plant-screen correction are implemented. The app provides the complete offline plant inventory, Room schema v4 with dated notes, and one app-managed primary photo per plant. The v3-to-v4 migration removes the redundant common-name fields and discards their stored values. The current model has one `name` field, and search covers `name` and scientific name.
+
+Plant creation, viewing, and editing use one shared screen. A new plant can stage its photo, notes, and favorite state before saving; the final Room write is atomic, with file compensation when persistence fails. Care history and local reminders for watering, pruning, and fertilizing remain planned for later phases.
 
 The project was created from the official Android `architecture-templates` single-module template and remains a personal, single-user application with no account, backend, synchronization, analytics, advertising, or paid-service dependency.
 
@@ -15,7 +17,8 @@ The project was created from the official Android `architecture-templates` singl
 - Manage one primary photo per plant from permissionless camera capture or the system photo picker.
 - Store original selected bytes in app-managed local storage and render the photo in plant list and detail surfaces.
 - Replace or remove the primary photo, clean old files, and reconcile unreferenced files after restarts.
-- Add, edit, list, and delete independent dated notes in Room schema v3, with a cascade when their plant is deleted.
+- Add, edit, list, and delete independent dated notes in Room schema v4, with a cascade when their plant is deleted.
+- Create, view, and edit plants through the shared plant screen, including staged photo, note, and favorite changes with atomic Room persistence and compensating cleanup.
 
 ## Planned capabilities
 
@@ -44,7 +47,7 @@ Planned technology:
 
 - WorkManager for deferrable local reminder checks once reminder rules are implemented.
 
-The application uses the package `com.miguelrodriguez19.stayleafy` and remains a single-module Android project until scale provides a concrete reason to split it. Phase 2 does not request `CAMERA`, `READ_MEDIA_IMAGES`, or legacy broad storage permissions: capture is delegated through `TakePicture`, and selection uses `PickVisualMedia` with the platform document fallback where required.
+The application uses the package `com.miguelrodriguez19.stayleafy` and remains a single-module Android project until scale provides a concrete reason to split it. The plant and photo flows do not request `CAMERA`, `READ_MEDIA_IMAGES`, or legacy broad storage permissions: capture is delegated through `TakePicture`, and selection uses `PickVisualMedia` with the platform document fallback where required.
 
 ## Requirements
 

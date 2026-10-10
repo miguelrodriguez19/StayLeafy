@@ -66,12 +66,11 @@ class FakePlantRepository @Inject constructor() : PlantRepository {
                 .filter { item -> !filter.favoritesOnly || item.isFavorite }
                 .filter { item ->
                     query.isBlank() || listOf(
-                        item.displayName,
-                        item.commonName,
+                        item.name,
                         item.scientificName,
                     ).any { value -> value?.lowercase(Locale.ROOT)?.contains(query) == true }
                 }
-                .sortedWith(compareBy<Plant> { it.displayName.lowercase(Locale.ROOT) }.thenBy { it.id })
+                .sortedWith(compareBy<Plant> { it.name.lowercase(Locale.ROOT) }.thenBy { it.id })
                 .toList()
         }
 
@@ -88,8 +87,7 @@ class FakePlantRepository @Inject constructor() : PlantRepository {
         plants.update { items ->
             items + Plant(
                 id = id,
-                displayName = draft.displayName,
-                commonName = draft.commonName,
+                name = draft.name,
                 scientificName = draft.scientificName,
                 location = draft.location,
                 acquiredEpochDay = draft.acquiredEpochDay,
@@ -111,8 +109,7 @@ class FakePlantRepository @Inject constructor() : PlantRepository {
                     item
                 } else {
                     item.copy(
-                        displayName = draft.displayName,
-                        commonName = draft.commonName,
+                        name = draft.name,
                         scientificName = draft.scientificName,
                         location = draft.location,
                         acquiredEpochDay = draft.acquiredEpochDay,
@@ -139,8 +136,7 @@ class FakePlantRepository @Inject constructor() : PlantRepository {
 
 fun fakePlant(
     id: String,
-    displayName: String,
-    commonName: String? = null,
+    name: String,
     scientificName: String? = null,
     location: String? = null,
     acquiredEpochDay: Long? = null,
@@ -148,8 +144,7 @@ fun fakePlant(
     isFavorite: Boolean = false,
 ): Plant = Plant(
     id = id,
-    displayName = displayName,
-    commonName = commonName,
+    name = name,
     scientificName = scientificName,
     location = location,
     acquiredEpochDay = acquiredEpochDay,

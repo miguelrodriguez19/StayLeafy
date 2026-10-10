@@ -2,6 +2,7 @@ package com.miguelrodriguez19.stayleafy.data
 
 import com.miguelrodriguez19.stayleafy.data.local.database.PlantDao
 import com.miguelrodriguez19.stayleafy.data.local.database.PlantEntity
+import com.miguelrodriguez19.stayleafy.data.local.database.PlantNoteEntity
 import com.miguelrodriguez19.stayleafy.data.photo.PendingPhotoCapture
 import com.miguelrodriguez19.stayleafy.data.photo.PhotoFileStore
 import com.miguelrodriguez19.stayleafy.data.photo.PhotoInputSource
@@ -10,6 +11,7 @@ import com.miguelrodriguez19.stayleafy.data.photo.StoredPhoto
 import java.io.File
 import com.miguelrodriguez19.stayleafy.model.PlantDraft
 import com.miguelrodriguez19.stayleafy.model.PlantListFilter
+import com.miguelrodriguez19.stayleafy.model.PlantNoteDraft
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
@@ -31,8 +33,7 @@ class DefaultPlantRepositoryTest {
 
         val id = repository.createPlant(
             PlantDraft(
-                displayName = "  Ficus Living Room  ",
-                commonName = "  Ficus  ",
+                name = "  Ficus Living Room  ",
                 scientificName = "  Ficus elastica  ",
                 location = "  South window  ",
                 acquiredEpochDay = 20_000L,
@@ -44,10 +45,8 @@ class DefaultPlantRepositoryTest {
         assertEquals(
             PlantEntity(
                 id = id,
-                displayName = "Ficus Living Room",
-                displayNameSearch = "ficus living room",
-                commonName = "Ficus",
-                commonNameSearch = "ficus",
+                name = "Ficus Living Room",
+                nameSearch = "ficus living room",
                 scientificName = "Ficus elastica",
                 scientificNameSearch = "ficus elastica",
                 location = "South window",
@@ -69,31 +68,67 @@ class DefaultPlantRepositoryTest {
 
         repository.createPlant(
             PlantDraft(
-                displayName = "Ficus",
-                commonName = "   ",
+                name = "Ficus",
                 scientificName = "\t",
                 location = "",
                 description = "  ",
             ),
         )
 
-        assertEquals(null, dao.insertedPlant?.commonName)
         assertEquals(null, dao.insertedPlant?.scientificName)
         assertEquals(null, dao.insertedPlant?.location)
         assertEquals(null, dao.insertedPlant?.description)
     }
 
     @Test
-    fun createPlant_blankDisplayName_isRejectedBeforeInsert() = runTest {
+    fun createPlant_persistsFavoritePhotoAndInitialNotesInOneDaoCall() = runTest {
+        val dao = RecordingPlantDao()
+        val photoStore = RecordingPhotoFileStore().apply {
+            stagedPhoto = StoredPhoto("plant_photos/atomic.jpg", File("/tmp/atomic.jpg"))
+        }
+        val repository = createRepository(
+            dao = dao,
+            photoFileStore = photoStore,
+            uuidProvider = SequenceUuidProvider(listOf("plant-atomic", "note-1")),
+        )
+
+        val id = repository.createPlant(
+            draft = PlantDraft(name = "  Ficus  "),
+            favorite = true,
+            stagedPhotoToken = "pending-photo",
+            notes = listOf(PlantNoteDraft("  New leaf appeared.  ")),
+        )
+
+        assertEquals("plant-atomic", id)
+        assertEquals(true, dao.insertedPlant?.isFavorite)
+        assertEquals("plant_photos/atomic.jpg", dao.insertedPlant?.mainPhotoPath)
+        assertEquals(
+            listOf(
+                PlantNoteEntity(
+                    id = "note-1",
+                    plantId = "plant-atomic",
+                    body = "New leaf appeared.",
+                    createdAt = fixedNow,
+                    updatedAt = fixedNow,
+                ),
+            ),
+            dao.insertedNotes,
+        )
+        assertEquals(listOf("pending-photo"), photoStore.committedTokens)
+        assertEquals(listOf("pending-photo"), photoStore.discardedTokens)
+    }
+
+    @Test
+    fun createPlant_blankName_isRejectedBeforeInsert() = runTest {
         val dao = RecordingPlantDao()
         val repository = createRepository(dao)
 
         val error = runCatching {
-            repository.createPlant(PlantDraft(displayName = "   "))
+            repository.createPlant(PlantDraft(name = "   "))
         }.exceptionOrNull()
 
         assertTrue(error is IllegalArgumentException)
-        assertEquals("displayName must not be blank", error?.message)
+        assertEquals("name must not be blank", error?.message)
         assertEquals(null, dao.insertedPlant)
     }
 
@@ -105,8 +140,7 @@ class DefaultPlantRepositoryTest {
         repository.updatePlant(
             id = "plant-1",
             draft = PlantDraft(
-                displayName = "  Updated name ",
-                commonName = "   ",
+                name = "  Updated name ",
                 scientificName = null,
                 location = "  Desk  ",
                 acquiredEpochDay = null,
@@ -117,10 +151,8 @@ class DefaultPlantRepositoryTest {
         assertEquals(
             UpdateCall(
                 id = "plant-1",
-                displayName = "Updated name",
-                displayNameSearch = "updated name",
-                commonName = null,
-                commonNameSearch = "",
+                name = "Updated name",
+                nameSearch = "updated name",
                 scientificName = null,
                 scientificNameSearch = "",
                 location = "Desk",
@@ -133,12 +165,12 @@ class DefaultPlantRepositoryTest {
     }
 
     @Test
-    fun updatePlant_blankDisplayName_isRejectedBeforeUpdate() = runTest {
+    fun updatePlant_blankName_isRejectedBeforeUpdate() = runTest {
         val dao = RecordingPlantDao()
         val repository = createRepository(dao)
 
         val error = runCatching {
-            repository.updatePlant("plant-1", PlantDraft(displayName = "\n\t"))
+            repository.updatePlant("plant-1", PlantDraft(name = "\n\t"))
         }.exceptionOrNull()
 
         assertTrue(error is IllegalArgumentException)
@@ -147,7 +179,7 @@ class DefaultPlantRepositoryTest {
 
     @Test
     fun observePlants_trimsAndEscapesLiteralSearchAndMapsEntities() = runTest {
-        val entity = plantEntity(id = "plant-1", displayName = "Ficus_%\\")
+        val entity = plantEntity(id = "plant-1", name = "Ficus_%\\")
         val dao = RecordingPlantDao(listOf(entity))
         val repository = createRepository(dao)
 
@@ -162,7 +194,7 @@ class DefaultPlantRepositoryTest {
 
     @Test
     fun observePlant_mapsDaoEntity() = runTest {
-        val entity = plantEntity(id = "plant-2", displayName = "Monstera")
+        val entity = plantEntity(id = "plant-2", name = "Monstera")
         val dao = RecordingPlantDao(listOf(entity))
         val repository = createRepository(dao)
 
@@ -217,10 +249,11 @@ class DefaultPlantRepositoryTest {
     private fun createRepository(
         dao: PlantDao,
         photoFileStore: PhotoFileStore = NoOpPhotoFileStore,
+        uuidProvider: UuidProvider = FixedUuidProvider(fixedUuid),
     ) = DefaultPlantRepository(
         plantDao = dao,
         epochMillisProvider = FixedEpochMillisProvider(fixedNow),
-        uuidProvider = FixedUuidProvider(fixedUuid),
+        uuidProvider = uuidProvider,
         photoFileStore = photoFileStore,
     )
 }
@@ -233,10 +266,18 @@ private class FixedUuidProvider(private val value: String) : UuidProvider {
     override fun newUuid(): String = value
 }
 
+private class SequenceUuidProvider(values: List<String>) : UuidProvider {
+    private val remaining = values.toMutableList()
+
+    override fun newUuid(): String = remaining.removeAt(0)
+}
+
 private class RecordingPlantDao(initialPlants: List<PlantEntity> = emptyList()) : PlantDao {
     private val data = MutableStateFlow(initialPlants)
 
     var insertedPlant: PlantEntity? = null
+        private set
+    var insertedNotes: List<PlantNoteEntity> = emptyList()
         private set
     var updateCall: UpdateCall? = null
         private set
@@ -266,12 +307,14 @@ private class RecordingPlantDao(initialPlants: List<PlantEntity> = emptyList()) 
         data.value = data.value + plant
     }
 
+    override suspend fun insertInitialNotes(notes: List<PlantNoteEntity>) {
+        insertedNotes = notes
+    }
+
     override suspend fun updatePlant(
         id: String,
-        displayName: String,
-        displayNameSearch: String,
-        commonName: String?,
-        commonNameSearch: String,
+        name: String,
+        nameSearch: String,
         scientificName: String?,
         scientificNameSearch: String,
         location: String?,
@@ -281,10 +324,8 @@ private class RecordingPlantDao(initialPlants: List<PlantEntity> = emptyList()) 
     ) {
         updateCall = UpdateCall(
             id = id,
-            displayName = displayName,
-            displayNameSearch = displayNameSearch,
-            commonName = commonName,
-            commonNameSearch = commonNameSearch,
+            name = name,
+            nameSearch = nameSearch,
             scientificName = scientificName,
             scientificNameSearch = scientificNameSearch,
             location = location,
@@ -297,10 +338,8 @@ private class RecordingPlantDao(initialPlants: List<PlantEntity> = emptyList()) 
                 plant
             } else {
                 plant.copy(
-                    displayName = displayName,
-                    displayNameSearch = displayNameSearch,
-                    commonName = commonName,
-                    commonNameSearch = commonNameSearch,
+                    name = name,
+                    nameSearch = nameSearch,
                     scientificName = scientificName,
                     scientificNameSearch = scientificNameSearch,
                     location = location,
@@ -353,10 +392,21 @@ private object NoOpPhotoFileStore : PhotoFileStore {
 
 private class RecordingPhotoFileStore : PhotoFileStore {
     val removedPaths = mutableListOf<String>()
+    val committedTokens = mutableListOf<String>()
+    val discardedTokens = mutableListOf<String>()
+    var stagedPhoto = StoredPhoto("plant_photos/staged.jpg", File("/tmp/staged.jpg"))
     override fun prepareCameraCapture(): PendingPhotoCapture = error("unused")
     override suspend fun completeCameraCapture(token: String): StoredPhoto = error("unused")
     override suspend fun discardCameraCapture(token: String): Boolean = false
     override suspend fun importImage(source: PhotoInputSource): StoredPhoto = error("unused")
+    override suspend fun commitStagedPhoto(token: String): StoredPhoto {
+        committedTokens += token
+        return stagedPhoto
+    }
+    override suspend fun discardStagedPhoto(token: String): Boolean {
+        discardedTokens += token
+        return true
+    }
     override suspend fun remove(relativePath: String): Boolean {
         removedPaths += relativePath
         return true
@@ -368,10 +418,8 @@ private class RecordingPhotoFileStore : PhotoFileStore {
 
 private data class UpdateCall(
     val id: String,
-    val displayName: String,
-    val displayNameSearch: String,
-    val commonName: String?,
-    val commonNameSearch: String,
+    val name: String,
+    val nameSearch: String,
     val scientificName: String?,
     val scientificNameSearch: String,
     val location: String?,
@@ -384,15 +432,13 @@ private data class FavoriteCall(val id: String, val favorite: Boolean, val updat
 
 private fun plantEntity(
     id: String,
-    displayName: String,
+    name: String,
     isFavorite: Boolean = false,
     mainPhotoPath: String? = null,
 ) = PlantEntity(
     id = id,
-    displayName = displayName,
-    displayNameSearch = displayName.lowercase(),
-    commonName = "Rubber plant",
-    commonNameSearch = "rubber plant",
+    name = name,
+    nameSearch = name.lowercase(),
     scientificName = "Ficus elastica",
     scientificNameSearch = "ficus elastica",
     location = "Living room",
@@ -406,8 +452,7 @@ private fun plantEntity(
 
 private fun PlantEntity.toModelForTest() = com.miguelrodriguez19.stayleafy.model.Plant(
     id = id,
-    displayName = displayName,
-    commonName = commonName,
+    name = name,
     scientificName = scientificName,
     location = location,
     acquiredEpochDay = acquiredEpochDay,

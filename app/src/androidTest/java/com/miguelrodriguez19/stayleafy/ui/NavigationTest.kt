@@ -52,15 +52,14 @@ class NavigationTest {
             listOf(
                 fakePlant(
                     id = "monstera-id",
-                    displayName = "Monstera",
-                    commonName = "Swiss cheese plant",
+                    name = "Monstera",
                     scientificName = "Monstera deliciosa",
                     location = "Living room",
                     description = "Bright indirect light",
                 ),
                 fakePlant(
                     id = "fern-id",
-                    displayName = "Fern",
+                    name = "Fern",
                     isFavorite = true,
                 ),
             ),
@@ -84,7 +83,6 @@ class NavigationTest {
     fun listPlantClick_opensDetail() {
         clickListPlant("Monstera")
 
-        composeTestRule.onNodeWithText("Swiss cheese plant").assertIsDisplayed()
         composeTestRule.onNodeWithText("Monstera deliciosa").assertIsDisplayed()
         composeTestRule.onNodeWithText("Living room").assertIsDisplayed()
     }
@@ -97,7 +95,7 @@ class NavigationTest {
 
         composeTestRule.onNodeWithContentDescription(string(R.string.cancel)).performClick()
 
-        composeTestRule.onNodeWithText("Swiss cheese plant").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Monstera deliciosa").assertIsDisplayed()
     }
 
     @Test
@@ -105,7 +103,7 @@ class NavigationTest {
         clickListPlant("Monstera")
         composeTestRule.onNodeWithText(string(R.string.delete_plant)).performScrollTo().performClick()
         composeTestRule.onNodeWithText(string(R.string.cancel)).performClick()
-        composeTestRule.onNodeWithText("Swiss cheese plant").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Monstera deliciosa").assertIsDisplayed()
 
         composeTestRule.onNodeWithText(string(R.string.delete_plant)).performScrollTo().performClick()
         composeTestRule
@@ -127,7 +125,7 @@ class NavigationTest {
         composeTestRule.waitForIdle()
 
         composeTestRule.onNodeWithText("Watered today").performScrollTo().assertIsDisplayed()
-        composeTestRule.onNodeWithText("Swiss cheese plant").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Monstera deliciosa").assertIsDisplayed()
     }
 
     @Test

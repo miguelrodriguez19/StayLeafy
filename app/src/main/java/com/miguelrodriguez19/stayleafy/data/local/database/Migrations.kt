@@ -84,3 +84,71 @@ val MIGRATION_2_3 = object : Migration(2, 3) {
         )
     }
 }
+
+val MIGRATION_3_4 = object : Migration(3, 4) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE `plants_new` (
+                `id` TEXT NOT NULL,
+                `name` TEXT NOT NULL,
+                `nameSearch` TEXT NOT NULL,
+                `scientificName` TEXT,
+                `scientificNameSearch` TEXT NOT NULL,
+                `location` TEXT,
+                `acquiredEpochDay` INTEGER,
+                `description` TEXT,
+                `mainPhotoPath` TEXT,
+                `isFavorite` INTEGER NOT NULL,
+                `createdAt` INTEGER NOT NULL,
+                `updatedAt` INTEGER NOT NULL,
+                PRIMARY KEY(`id`)
+            )
+            """.trimIndent(),
+        )
+        db.execSQL(
+            """
+            CREATE TABLE `plant_notes_new` (
+                `id` TEXT NOT NULL,
+                `plantId` TEXT NOT NULL,
+                `body` TEXT NOT NULL,
+                `createdAt` INTEGER NOT NULL,
+                `updatedAt` INTEGER NOT NULL,
+                PRIMARY KEY(`id`),
+                FOREIGN KEY(`plantId`) REFERENCES `plants_new`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE
+            )
+            """.trimIndent(),
+        )
+        db.execSQL(
+            """
+            INSERT INTO `plants_new`(
+                `id`, `name`, `nameSearch`, `scientificName`, `scientificNameSearch`,
+                `location`, `acquiredEpochDay`, `description`, `mainPhotoPath`,
+                `isFavorite`, `createdAt`, `updatedAt`
+            )
+            SELECT
+                `id`, `displayName`, `displayNameSearch`, `scientificName`, `scientificNameSearch`,
+                `location`, `acquiredEpochDay`, `description`, `mainPhotoPath`,
+                `isFavorite`, `createdAt`, `updatedAt`
+            FROM `plants`
+            """.trimIndent(),
+        )
+        db.execSQL(
+            """
+            INSERT INTO `plant_notes_new`(`id`, `plantId`, `body`, `createdAt`, `updatedAt`)
+            SELECT `id`, `plantId`, `body`, `createdAt`, `updatedAt`
+            FROM `plant_notes`
+            """.trimIndent(),
+        )
+        db.execSQL("DROP TABLE `plant_notes`")
+        db.execSQL("DROP TABLE `plants`")
+        db.execSQL("ALTER TABLE `plants_new` RENAME TO `plants`")
+        db.execSQL("ALTER TABLE `plant_notes_new` RENAME TO `plant_notes`")
+        db.execSQL("CREATE INDEX `index_plants_name` ON `plants` (`name`)")
+        db.execSQL("CREATE INDEX `index_plants_isFavorite` ON `plants` (`isFavorite`)")
+        db.execSQL(
+            "CREATE INDEX `index_plant_notes_plantId_createdAt` " +
+                "ON `plant_notes` (`plantId`, `createdAt`)",
+        )
+    }
+}

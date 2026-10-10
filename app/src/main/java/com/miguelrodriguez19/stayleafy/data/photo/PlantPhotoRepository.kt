@@ -38,6 +38,19 @@ interface PlantPhotoRepository {
 
     suspend fun replacePhoto(plantId: String, sourceUri: Uri): StoredPhoto
 
+    suspend fun stageCameraCapture(token: String): StagedPhoto =
+        throw UnsupportedOperationException("Photo staging is not supported")
+
+    suspend fun stageImage(sourceUri: Uri): StagedPhoto =
+        throw UnsupportedOperationException("Photo staging is not supported")
+
+    suspend fun commitStagedPhoto(token: String): StoredPhoto =
+        throw UnsupportedOperationException("Photo staging is not supported")
+
+    suspend fun discardStagedPhoto(token: String): Boolean = discardCameraCapture(token)
+
+    fun resolveStagedPhoto(token: String): File? = null
+
     suspend fun removePhoto(plantId: String): Boolean
 
     fun resolvePhoto(relativePath: String): File?
@@ -76,6 +89,24 @@ class DefaultPlantPhotoRepository @Inject constructor(
 
     override suspend fun replacePhoto(plantId: String, sourceUri: Uri): StoredPhoto =
         operationMutex.withLock { replaceWithSource(plantId, sourceUri) }
+
+    override suspend fun stageCameraCapture(token: String): StagedPhoto = operationMutex.withLock {
+        photoFileStore.stageCameraCapture(token)
+    }
+
+    override suspend fun stageImage(sourceUri: Uri): StagedPhoto = operationMutex.withLock {
+        photoFileStore.stageImage(inputResolver.resolve(sourceUri))
+    }
+
+    override suspend fun commitStagedPhoto(token: String): StoredPhoto = operationMutex.withLock {
+        photoFileStore.commitStagedPhoto(token)
+    }
+
+    override suspend fun discardStagedPhoto(token: String): Boolean = operationMutex.withLock {
+        photoFileStore.discardStagedPhoto(token)
+    }
+
+    override fun resolveStagedPhoto(token: String): File? = photoFileStore.resolveStagedPhoto(token)
 
     internal suspend fun importSourceForTest(
         plantId: String,

@@ -158,3 +158,16 @@ Multiple photos, transformations, compression, cropping, captions, and note atta
 Phase 2 is complete after Room v3 notes, one app-managed primary photo, list/detail rendering, cleanup/reconciliation, and offline English/Spanish behavior have passed implementation, migration, repository, ViewModel, Compose, and connected-device checks.
 
 Phase 3 remains the owner of care-event data and cleanup. Phase 4 remains the owner of reminder rules, WorkManager evaluation, notification permission, and the care-status filter. No phase may add authentication, network synchronization, analytics, advertising, or a new architectural layer for this work.
+
+## D-019 — Room v4 removes common name and unifies plant creation
+
+- **Date:** 2026-10-10
+- **Status:** Accepted
+
+The current plant model has one required user-facing `name` field. The redundant `commonName` and `commonNameSearch` fields are removed in the explicit Room `3→4` migration. Existing common-name values are deliberately discarded; plant names, scientific names, location, acquisition date, description, favorite state, timestamps, primary-photo paths, and `PlantNote` rows are preserved. The complete migration chain is `1→2→3→4` and the database filename remains `Plant`.
+
+Search is literal, partial, and case-insensitive across `name` and `scientificName` only. The old common-name search surface is not retained as hidden legacy data or a compatibility alias.
+
+Plant creation, viewing, and editing use one shared screen so the information shown in detail is also available during creation. A new plant stages its favorite state, primary photo, and notes before the first save. The final operation writes the plant and staged notes in one Room transaction; file materialization occurs with compensating cleanup if Room persistence fails, and a failed save must not leave partial rows or an orphaned stable file.
+
+This correction is intentionally separate from Phase 3. Care-event tables, care history, and their cascade remain planned and are not part of this decision.

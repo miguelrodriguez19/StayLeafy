@@ -25,9 +25,8 @@
     <string name="save_plant_error">No se ha podido guardar la planta. Tus cambios siguen aquí.</string>
     <string name="favorite_update_error">No se ha podido actualizar el favorito.</string>
     <string name="delete_plant_error">No se ha podido eliminar esta planta.</string>
-    <string name="display_name">Nombre</string>
-    <string name="display_name_required">Escribe el nombre de la planta.</string>
-    <string name="common_name">Nombre común</string>
+    <string name="plant_name">Nombre</string>
+    <string name="plant_name_required">Escribe el nombre de la planta.</string>
     <string name="scientific_name">Nombre científico</string>
     <string name="location">Ubicación</string>
     <string name="acquisition_date">Fecha de adquisición</string>
@@ -43,6 +42,10 @@
     <string name="delete_plant">Eliminar planta</string>
     <string name="delete_plant_title">¿Eliminar esta planta?</string>
     <string name="delete_plant_message">Esta acción no se puede deshacer.</string>
+    <string name="discard_plant_title">¿Descartar esta planta?</string>
+    <string name="discard_plant_message">La planta, su foto preparada y sus notas no se guardarán.</string>
+    <string name="discard">Descartar</string>
+    <string name="keep_editing">Seguir editando</string>
     <string name="take_photo">Hacer foto</string>
     <string name="choose_photo">Elegir foto</string>
     <string name="replace_photo">Reemplazar foto</string>
@@ -57,6 +60,7 @@
     <string name="photo_delete_error">No se ha podido quitar esta foto.</string>
     <string name="notes">Notas</string>
     <string name="add_note">Añadir nota</string>
+    <string name="remove_note">Quitar nota</string>
     <string name="edit_note">Editar nota</string>
     <string name="delete_note">Eliminar nota</string>
     <string name="delete_note_title">¿Eliminar esta nota?</string>

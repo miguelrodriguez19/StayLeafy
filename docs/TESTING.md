@@ -2,7 +2,7 @@
 
 ## Goals
 
-Testing should catch regressions in Phase 1 persistence, Phase 2 notes and photo storage, and principal plant-management flows without making a personal project expensive to change. Phase 2 is covered by local, Room, Compose, navigation, and connected-device checks.
+Testing should catch regressions in Phase 1 persistence, Phase 2 notes and photo storage, the independent Room v4 and unified-screen correction, and principal plant-management flows without making a personal project expensive to change. These completed flows are covered by local, Room, Compose, navigation, and connected-device checks.
 
 The strategy favors deterministic unit tests and a small number of high-value Android and Compose tests.
 
@@ -12,13 +12,14 @@ The strategy favors deterministic unit tests and a small number of high-value An
 
 Use plain JVM tests for Phase 1 logic without Android dependencies:
 
-- Plant draft normalization: trimming the required display name and converting blank optional fields to `null`.
-- Required display-name validation, including whitespace-only input.
+- Plant draft normalization: trimming the required name and converting blank optional fields to `null`.
+- Required-name validation, including whitespace-only input.
 - Fixed UUID and clock behavior for deterministic create/update tests.
 - Search/filter state transformations, including loading, empty, filtered-empty, content, and error states.
 - ViewModels using fake repositories and test dispatchers.
 - Note draft trimming, blank-body validation, and fixed UUID/clock behavior.
 - Photo filename/MIME normalization, original-byte copying, replacement compensation, temporary-file cleanup, and orphan reconciliation.
+- Shared-screen staged photo, note, and favorite state, atomic save coordination, and file compensation after a failed Room write.
 
 Phase 1 does not test interval, seasonal, notification, or WorkManager behavior; those belong to later phases.
 
@@ -31,8 +32,8 @@ Test repository behavior with fakes for narrow tests and an in-memory Room datab
 - Plant create, read, update, and delete.
 - Required-name validation and optional-field normalization.
 - Favorite updates and persistence.
-- Literal, case-insensitive substring search across display, common, and scientific names, including accented Spanish text.
-- Favorites-only filtering and deterministic display-name ordering.
+- Literal, case-insensitive substring search across name and scientific name only, including accented Spanish text.
+- Favorites-only filtering and deterministic name ordering.
 - Persistence after closing and reopening the database.
 
 Avoid mocking Room DAOs when the SQL query itself is the behavior under test.
@@ -56,6 +57,14 @@ Phase 2 coverage adds:
 - `PlantNote` CRUD, newest-first ordering, stable creation timestamps, update timestamps, and invalid-plant foreign-key behavior.
 - Notes cascading when a Plant row is deleted.
 - Database reopen with notes and nullable `mainPhotoPath` values preserved.
+
+The independent correction coverage adds:
+
+- Explicit migration from schema 3 to schema 4 and the complete 1→2→3→4 path.
+- Removal of common-name columns and deliberate discard of their values while preserving the remaining plant, note, favorite, photo, and timestamp data.
+- Name/scientific-name search correctness, including `%` and `_` as literal characters.
+- Shared create/view/edit screen behavior, including staged photo, note, and favorite state.
+- Successful atomic Room save, failed-save compensation, no partial rows, and retryable staged state.
 
 Phase 1 deletion tests verify Plant-row deletion only. Phase 2 deletion tests verify the notes cascade, primary-photo cleanup, replacement cleanup, failed-write compensation, and startup reconciliation.
 
@@ -87,7 +96,7 @@ Do not write tests that wait for real wall-clock background execution.
 Compose tests use immutable screen state and event lambdas where possible. Cover:
 
 - Loading, empty, filtered-empty, populated, and error list states.
-- Plant form validation, create callbacks, and edit callbacks.
+- Shared plant-screen validation, staged create callbacks, edit callbacks, and save/cancel behavior.
 - Plant detail rendering and not-found behavior.
 - Delete confirmation, cancellation, and confirmation callbacks.
 - Favorite toggles and favorites-only filtering.
@@ -102,6 +111,7 @@ Phase 2 Compose coverage adds:
 - Primary-photo placeholder and image rendering in list and detail.
 - Capture/picker callbacks, replacement/removal actions, disabled repeated actions, and photo-delete confirmation.
 - Notes loading, error/retry, empty, content, editor validation, save, edit, delete confirmation, and localized date text.
+- Staged photo, note, and favorite rendering before the first save, atomic-save errors, retry, and localized name-only labels.
 
 ### Later-phase end-to-end device tests
 
@@ -165,11 +175,11 @@ Run the standard local verification set:
 
 Highest priority:
 
-- Data loss prevention during the v1-to-v2 migration.
+- Data loss prevention during the v1-to-v2 migration and explicit v3-to-v4 preservation rules.
 - Plant CRUD and persistence across database reopen.
 - Search/filter query correctness and literal wildcard handling.
 - Plant deletion confirmation and row deletion.
-- Room v2-to-v3 migration, note cascade, original-byte photo persistence, replacement compensation, and orphan cleanup.
+- Room v2-to-v3 and v3-to-v4 migrations, note cascade, original-byte photo persistence, replacement compensation, staged-create compensation, and orphan cleanup.
 
 Medium priority:
 
@@ -203,4 +213,4 @@ A change is complete when:
 - The debug build succeeds.
 - Lint has no newly introduced actionable errors.
 - Relevant product, data, reminder, or decision documentation is updated.
-- Phase 2 narrow and instrumented photo/note checks pass on a connected emulator or device.
+- Phase 2 and correction-pass photo/note checks pass on a connected emulator or device.

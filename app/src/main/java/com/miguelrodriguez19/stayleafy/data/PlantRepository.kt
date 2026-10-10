@@ -20,11 +20,16 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import com.miguelrodriguez19.stayleafy.data.local.database.PlantDao
 import com.miguelrodriguez19.stayleafy.data.local.database.PlantEntity
+import com.miguelrodriguez19.stayleafy.data.local.database.PlantNoteEntity
 import com.miguelrodriguez19.stayleafy.data.local.database.normalizeForPlantSearch
 import com.miguelrodriguez19.stayleafy.data.photo.PhotoFileStore
 import com.miguelrodriguez19.stayleafy.model.Plant
 import com.miguelrodriguez19.stayleafy.model.PlantDraft
 import com.miguelrodriguez19.stayleafy.model.PlantListFilter
+import com.miguelrodriguez19.stayleafy.model.PlantNoteDraft
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import java.util.UUID
 
@@ -34,6 +39,17 @@ interface PlantRepository {
     fun observePlant(id: String): Flow<Plant?>
 
     suspend fun createPlant(draft: PlantDraft): String
+
+    suspend fun createPlant(
+        draft: PlantDraft,
+        favorite: Boolean,
+        stagedPhotoToken: String?,
+        notes: List<PlantNoteDraft>,
+    ): String {
+        require(stagedPhotoToken == null) { "This repository does not support staged photos" }
+        require(notes.isEmpty()) { "This repository does not support initial notes" }
+        return createPlant(draft).also { id -> if (favorite) setFavorite(id, true) }
+    }
 
     suspend fun updatePlant(id: String, draft: PlantDraft)
 
@@ -58,26 +74,71 @@ class DefaultPlantRepository @Inject constructor(
     override fun observePlant(id: String): Flow<Plant?> =
         plantDao.observePlant(id).map { item -> item?.toModel() }
 
-    override suspend fun createPlant(draft: PlantDraft): String {
+    override suspend fun createPlant(draft: PlantDraft): String =
+        createPlant(draft, favorite = false, stagedPhotoToken = null, notes = emptyList())
+
+    override suspend fun createPlant(
+        draft: PlantDraft,
+        favorite: Boolean,
+        stagedPhotoToken: String?,
+        notes: List<PlantNoteDraft>,
+    ): String {
         val normalizedDraft = draft.normalized()
-        require(normalizedDraft.displayName.isNotBlank()) { "displayName must not be blank" }
+        require(normalizedDraft.name.isNotBlank()) { "name must not be blank" }
+        val normalizedNotes = notes.map { note ->
+            PlantNoteDraft(note.body.trim().also { require(it.isNotBlank()) { "body must not be blank" } })
+        }
 
         val id = uuidProvider.newUuid()
         val now = epochMillisProvider.now()
-        plantDao.insertPlant(normalizedDraft.toEntity(id = id, createdAt = now, updatedAt = now))
-        return id
+        var storedPhotoPath: String? = null
+        try {
+            storedPhotoPath = stagedPhotoToken?.let { photoFileStore.commitStagedPhoto(it).relativePath }
+            val plant = normalizedDraft.toEntity(
+                id = id,
+                favorite = favorite,
+                mainPhotoPath = storedPhotoPath,
+                createdAt = now,
+                updatedAt = now,
+            )
+            val noteEntities = normalizedNotes.map { note ->
+                val noteNow = epochMillisProvider.now()
+                PlantNoteEntity(
+                    id = uuidProvider.newUuid(),
+                    plantId = id,
+                    body = note.body,
+                    createdAt = noteNow,
+                    updatedAt = noteNow,
+                )
+            }
+            plantDao.insertPlantWithNotes(plant, noteEntities)
+            if (stagedPhotoToken != null) {
+                withContext(NonCancellable) {
+                    runCatching { photoFileStore.discardStagedPhoto(stagedPhotoToken) }
+                }
+            }
+            return id
+        } catch (error: CancellationException) {
+            storedPhotoPath?.let { path ->
+                withContext(NonCancellable) { runCatching { photoFileStore.remove(path) } }
+            }
+            throw error
+        } catch (error: Throwable) {
+            storedPhotoPath?.let { path ->
+                withContext(NonCancellable) { runCatching { photoFileStore.remove(path) } }
+            }
+            throw error
+        }
     }
 
     override suspend fun updatePlant(id: String, draft: PlantDraft) {
         val normalizedDraft = draft.normalized()
-        require(normalizedDraft.displayName.isNotBlank()) { "displayName must not be blank" }
+        require(normalizedDraft.name.isNotBlank()) { "name must not be blank" }
 
         plantDao.updatePlant(
             id = id,
-            displayName = normalizedDraft.displayName,
-            displayNameSearch = normalizedDraft.displayName.normalizeForPlantSearch(),
-            commonName = normalizedDraft.commonName,
-            commonNameSearch = normalizedDraft.commonName.normalizeForPlantSearch(),
+            name = normalizedDraft.name,
+            nameSearch = normalizedDraft.name.normalizeForPlantSearch(),
             scientificName = normalizedDraft.scientificName,
             scientificNameSearch = normalizedDraft.scientificName.normalizeForPlantSearch(),
             location = normalizedDraft.location,
@@ -116,8 +177,7 @@ class RandomUuidProvider @Inject constructor() : UuidProvider {
 }
 
 private fun PlantDraft.normalized(): PlantDraft = copy(
-    displayName = displayName.trim(),
-    commonName = commonName.normalizeNullable(),
+    name = name.trim(),
     scientificName = scientificName.normalizeNullable(),
     location = location.normalizeNullable(),
     description = description.normalizeNullable(),
@@ -125,20 +185,24 @@ private fun PlantDraft.normalized(): PlantDraft = copy(
 
 private fun String?.normalizeNullable(): String? = this?.trim()?.takeIf { it.isNotEmpty() }
 
-private fun PlantDraft.toEntity(id: String, createdAt: Long, updatedAt: Long): PlantEntity =
+private fun PlantDraft.toEntity(
+    id: String,
+    favorite: Boolean,
+    mainPhotoPath: String?,
+    createdAt: Long,
+    updatedAt: Long,
+): PlantEntity =
     PlantEntity(
         id = id,
-        displayName = displayName,
-        displayNameSearch = displayName.normalizeForPlantSearch(),
-        commonName = commonName,
-        commonNameSearch = commonName.normalizeForPlantSearch(),
+        name = name,
+        nameSearch = name.normalizeForPlantSearch(),
         scientificName = scientificName,
         scientificNameSearch = scientificName.normalizeForPlantSearch(),
         location = location,
         acquiredEpochDay = acquiredEpochDay,
         description = description,
-        mainPhotoPath = null,
-        isFavorite = false,
+        mainPhotoPath = mainPhotoPath,
+        isFavorite = favorite,
         createdAt = createdAt,
         updatedAt = updatedAt,
     )
@@ -146,8 +210,7 @@ private fun PlantDraft.toEntity(id: String, createdAt: Long, updatedAt: Long): P
 private fun PlantEntity.toModel(): Plant =
     Plant(
         id = id,
-        displayName = displayName,
-        commonName = commonName,
+        name = name,
         scientificName = scientificName,
         location = location,
         acquiredEpochDay = acquiredEpochDay,

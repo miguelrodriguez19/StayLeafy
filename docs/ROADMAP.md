@@ -46,6 +46,19 @@ Exit condition met: one stable primary image and multiple independent notes can 
 
 Phase 2 boundary: it intentionally excludes multiple photos, image editing or compression, note attachments, care history, reminder rules, WorkManager, network, and authentication. Phase 3 owns care events and their cascade; Phase 4 owns reminder rules, WorkManager, notifications, and the care-status filter.
 
+## Independent correction — Plant identity and unified plant screen
+
+- [x] Raise Room from schema v3 to schema v4 while preserving plants, notes, photos, favorites, and timestamps.
+- [x] Replace the redundant display/common-name pair with one required `name` field and one normalized name-search projection.
+- [x] Discard stored common-name values during the explicit `3→4` migration; scientific names and all other supported data remain preserved.
+- [x] Search literally and case-insensitively across `name` and scientific name only.
+- [x] Use one shared create/view/edit plant screen rather than a separate creation form and detail form.
+- [x] Stage a new plant's photo, notes, and favorite state before saving, then persist the Room rows atomically with compensating file cleanup on failure.
+
+Exit condition met: the current plant model and creation flow are coherent with the detail experience, and the v3-to-v4 migration is explicit and tested.
+
+This correction is a separate completed change before Phase 3. It does not add care history, reminders, WorkManager, or the care-status filter.
+
 ## Phase 3 — Care history
 
 - [ ] Add watering, pruning, and fertilizing event models.

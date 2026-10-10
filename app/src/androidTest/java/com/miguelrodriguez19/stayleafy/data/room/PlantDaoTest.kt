@@ -42,8 +42,7 @@ class PlantDaoTest {
     fun crud_insertsReadsUpdatesFavoritesAndDeletesPlant() = runBlocking {
         val inserted = testPlant(
             id = "plant-1",
-            displayName = "Monstera",
-            commonName = "Swiss cheese plant",
+            name = "Monstera",
             scientificName = "Monstera deliciosa",
         )
 
@@ -52,10 +51,8 @@ class PlantDaoTest {
 
         dao.updatePlant(
             id = inserted.id,
-            displayName = "Updated Monstera",
-            displayNameSearch = "updated monstera",
-            commonName = "Updated common name",
-            commonNameSearch = "updated common name",
+            name = "Updated Monstera",
+            nameSearch = "updated monstera",
             scientificName = "Monstera adansonii",
             scientificNameSearch = "monstera adansonii",
             location = "Kitchen",
@@ -64,10 +61,8 @@ class PlantDaoTest {
             updatedAt = 3_000L,
         )
         val updated = inserted.copy(
-            displayName = "Updated Monstera",
-            displayNameSearch = "updated monstera",
-            commonName = "Updated common name",
-            commonNameSearch = "updated common name",
+            name = "Updated Monstera",
+            nameSearch = "updated monstera",
             scientificName = "Monstera adansonii",
             scientificNameSearch = "monstera adansonii",
             location = "Kitchen",
@@ -90,19 +85,19 @@ class PlantDaoTest {
     @Test
     fun observePlants_returnsAllRowsInStableCaseInsensitiveDisplayNameOrder() = runBlocking {
         val plants = buildList {
-            add(testPlant(id = "z-id", displayName = "fern"))
-            add(testPlant(id = "a-id", displayName = "Fern"))
-            add(testPlant(id = "banana", displayName = "banana"))
-            add(testPlant(id = "aloe", displayName = "Aloe"))
+            add(testPlant(id = "z-id", name = "fern"))
+            add(testPlant(id = "a-id", name = "Fern"))
+            add(testPlant(id = "banana", name = "banana"))
+            add(testPlant(id = "aloe", name = "Aloe"))
             repeat(128) { index ->
-                add(testPlant(id = "bulk-$index", displayName = "Bulk ${index.toString().padStart(3, '0')}"))
+                add(testPlant(id = "bulk-$index", name = "Bulk ${index.toString().padStart(3, '0')}"))
             }
         }
         plants.forEach { dao.insertPlant(it) }
 
         val actual = dao.observePlants(escapedQuery = "", favoritesOnly = false).first()
         val expected = plants.sortedWith(
-            compareBy<PlantEntity> { it.displayName.lowercase(Locale.ROOT) }
+            compareBy<PlantEntity> { it.name.lowercase(Locale.ROOT) }
                 .thenBy { it.id },
         )
 
@@ -112,8 +107,8 @@ class PlantDaoTest {
 
     @Test
     fun observePlants_filtersFavoritesOnly() = runBlocking {
-        val favorite = testPlant(id = "favorite", displayName = "Favorite", isFavorite = true)
-        val regular = testPlant(id = "regular", displayName = "Regular")
+        val favorite = testPlant(id = "favorite", name = "Favorite", isFavorite = true)
+        val regular = testPlant(id = "regular", name = "Regular")
         dao.insertPlant(favorite)
         dao.insertPlant(regular)
 
@@ -129,28 +124,19 @@ class PlantDaoTest {
 
     @Test
     fun observePlants_searchesNamesCaseInsensitively() = runBlocking {
-        val displayNameMatch = testPlant(id = "display", displayName = "Monstera Deliciosa")
-        val commonNameMatch = testPlant(
-            id = "common",
-            displayName = "Office plant",
-            commonName = "Snake Plant",
-        )
+        val nameMatch = testPlant(id = "name", name = "Monstera Deliciosa")
         val scientificNameMatch = testPlant(
             id = "scientific",
-            displayName = "Rare plant",
+            name = "Rare plant",
             scientificName = "Calathea Orbifolia",
         )
-        val noMatch = testPlant(id = "other", displayName = "Cactus")
-        listOf(displayNameMatch, commonNameMatch, scientificNameMatch, noMatch)
+        val noMatch = testPlant(id = "other", name = "Cactus")
+        listOf(nameMatch, scientificNameMatch, noMatch)
             .forEach { dao.insertPlant(it) }
 
         assertEquals(
-            listOf(displayNameMatch),
+            listOf(nameMatch),
             dao.observePlants(escapedQuery = "mOnStErA", favoritesOnly = false).first(),
-        )
-        assertEquals(
-            listOf(commonNameMatch),
-            dao.observePlants(escapedQuery = "sNaKe pLaNt", favoritesOnly = false).first(),
         )
         assertEquals(
             listOf(scientificNameMatch),
@@ -160,27 +146,18 @@ class PlantDaoTest {
 
     @Test
     fun observePlants_searchesAccentedSpanishNamesCaseInsensitively() = runBlocking {
-        val displayNameMatch = testPlant(id = "tree", displayName = "ÁRBOL del salón")
-        val commonNameMatch = testPlant(
-            id = "coleus",
-            displayName = "Maceta roja",
-            commonName = "CÓLEO",
-        )
+        val nameMatch = testPlant(id = "tree", name = "ÁRBOL del salón")
         val scientificNameMatch = testPlant(
             id = "anthurium",
-            displayName = "Planta tropical",
+            name = "Planta tropical",
             scientificName = "ANTHÚRIUM andraeanum",
         )
-        listOf(displayNameMatch, commonNameMatch, scientificNameMatch)
+        listOf(nameMatch, scientificNameMatch)
             .forEach { dao.insertPlant(it) }
 
         assertEquals(
-            listOf(displayNameMatch),
+            listOf(nameMatch),
             dao.observePlants(escapedQuery = "árbol", favoritesOnly = false).first(),
-        )
-        assertEquals(
-            listOf(commonNameMatch),
-            dao.observePlants(escapedQuery = "cóleo", favoritesOnly = false).first(),
         )
         assertEquals(
             listOf(scientificNameMatch),
@@ -190,10 +167,10 @@ class PlantDaoTest {
 
     @Test
     fun observePlants_treatsPercentUnderscoreAndBackslashAsLiteralSearchText() = runBlocking {
-        val percent = testPlant(id = "percent", displayName = "Ficus 100% Green")
-        val underscore = testPlant(id = "underscore", displayName = "Ficus _Corner")
-        val backslash = testPlant(id = "backslash", displayName = "Ficus \\ Shelf")
-        val unrelated = testPlant(id = "unrelated", displayName = "Ficus Greenhouse")
+        val percent = testPlant(id = "percent", name = "Ficus 100% Green")
+        val underscore = testPlant(id = "underscore", name = "Ficus _Corner")
+        val backslash = testPlant(id = "backslash", name = "Ficus \\ Shelf")
+        val unrelated = testPlant(id = "unrelated", name = "Ficus Greenhouse")
         listOf(percent, underscore, backslash, unrelated).forEach { dao.insertPlant(it) }
 
         assertEquals(
@@ -213,8 +190,8 @@ class PlantDaoTest {
     @Test
     fun observePlants_blankQuery_returnsEveryPlant() = runBlocking {
         val plants = listOf(
-            testPlant(id = "one", displayName = "One"),
-            testPlant(id = "two", displayName = "Two"),
+            testPlant(id = "one", name = "One"),
+            testPlant(id = "two", name = "Two"),
         )
         plants.forEach { dao.insertPlant(it) }
 
@@ -226,8 +203,8 @@ class PlantDaoTest {
 
     @Test
     fun deletePlant_removesOnlyTheRequestedRow() = runBlocking {
-        val deleted = testPlant(id = "deleted", displayName = "Deleted")
-        val retained = testPlant(id = "retained", displayName = "Retained")
+        val deleted = testPlant(id = "deleted", name = "Deleted")
+        val retained = testPlant(id = "retained", name = "Retained")
         dao.insertPlant(deleted)
         dao.insertPlant(retained)
 

@@ -4,6 +4,7 @@ import com.miguelrodriguez19.stayleafy.data.PlantRepository
 import com.miguelrodriguez19.stayleafy.model.Plant
 import com.miguelrodriguez19.stayleafy.model.PlantDraft
 import com.miguelrodriguez19.stayleafy.model.PlantListFilter
+import com.miguelrodriguez19.stayleafy.model.PlantNoteDraft
 import com.miguelrodriguez19.stayleafy.test.MainDispatcherRule
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -160,6 +161,7 @@ internal class FakePlantRepository(
     val favoriteCalls = mutableListOf<FavoriteCall>()
     val deletedIds = mutableListOf<String>()
     val createdDrafts = mutableListOf<PlantDraft>()
+    val createCalls = mutableListOf<CreatePlantCall>()
     val updatedDrafts = mutableListOf<Pair<String, PlantDraft>>()
     val failingObserveCalls = mutableSetOf<Int>()
     var observePlantsCalls: Int = 0
@@ -199,6 +201,17 @@ internal class FakePlantRepository(
         return createdId
     }
 
+    override suspend fun createPlant(
+        draft: PlantDraft,
+        favorite: Boolean,
+        stagedPhotoToken: String?,
+        notes: List<PlantNoteDraft>,
+    ): String {
+        createError?.let { throw it }
+        createCalls += CreatePlantCall(draft, favorite, stagedPhotoToken, notes)
+        return createdId
+    }
+
     override suspend fun updatePlant(id: String, draft: PlantDraft) {
         updateError?.let { throw it }
         updatedDrafts += id to draft
@@ -217,14 +230,20 @@ internal class FakePlantRepository(
 
 internal data class FavoriteCall(val id: String, val favorite: Boolean)
 
+internal data class CreatePlantCall(
+    val draft: PlantDraft,
+    val favorite: Boolean,
+    val stagedPhotoToken: String?,
+    val notes: List<PlantNoteDraft>,
+)
+
 internal fun testPlant(
     id: String = "plant-1",
-    displayName: String = "Ficus",
+    name: String = "Ficus",
     isFavorite: Boolean = false,
 ) = Plant(
     id = id,
-    displayName = displayName,
-    commonName = "Rubber plant",
+    name = name,
     scientificName = "Ficus elastica",
     location = "Living room",
     acquiredEpochDay = 20_000L,

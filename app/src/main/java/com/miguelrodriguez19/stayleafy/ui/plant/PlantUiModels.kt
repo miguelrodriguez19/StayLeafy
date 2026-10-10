@@ -34,18 +34,29 @@ sealed interface PlantDetailUiState {
 
     data object NotFound : PlantDetailUiState
 
-    data class Content(val plant: Plant) : PlantDetailUiState
+    data class Content(
+        val mode: PlantDetailMode,
+        val plant: Plant?,
+        val form: PlantForm,
+        val nameError: Boolean = false,
+        val saveError: UiErrorCategory? = null,
+        val isSaving: Boolean = false,
+        val stagedFavorite: Boolean = false,
+        val stagedNotes: List<StagedPlantNote> = emptyList(),
+        val stagedPhoto: StagedPhoto? = null,
+        val savedPlantId: String? = null,
+    ) : PlantDetailUiState
 }
 
-enum class PlantEditorMode {
+enum class PlantDetailMode {
     Create,
+    View,
     Edit,
 }
 
 @Immutable
-data class PlantEditorForm(
-    val displayName: String = "",
-    val commonName: String = "",
+data class PlantForm(
+    val name: String = "",
     val scientificName: String = "",
     val location: String = "",
     val acquiredEpochDay: Long? = null,
@@ -53,21 +64,16 @@ data class PlantEditorForm(
 )
 
 @Immutable
-data class PlantEditorUiState(
-    val mode: PlantEditorMode,
-    val isLoading: Boolean,
-    val form: PlantEditorForm,
-    val displayNameError: Boolean = false,
-    val loadError: UiErrorCategory? = null,
-    val saveError: UiErrorCategory? = null,
-    val isSaving: Boolean = false,
-    val saved: Boolean = false,
-    val notFound: Boolean = false,
+data class StagedPlantNote(
+    val id: String,
+    val body: String,
 )
 
-internal fun Plant.toEditorForm(): PlantEditorForm = PlantEditorForm(
-    displayName = displayName,
-    commonName = commonName.orEmpty(),
+@Immutable
+data class StagedPhoto(val token: String)
+
+internal fun Plant.toPlantForm(): PlantForm = PlantForm(
+    name = name,
     scientificName = scientificName.orEmpty(),
     location = location.orEmpty(),
     acquiredEpochDay = acquiredEpochDay,

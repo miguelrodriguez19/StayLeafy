@@ -25,9 +25,8 @@
     <string name="save_plant_error">We couldn’t save this plant. Your changes are still here.</string>
     <string name="favorite_update_error">We couldn’t update the favorite.</string>
     <string name="delete_plant_error">We couldn’t delete this plant.</string>
-    <string name="display_name">Name</string>
-    <string name="display_name_required">Enter a plant name.</string>
-    <string name="common_name">Common name</string>
+    <string name="plant_name">Name</string>
+    <string name="plant_name_required">Enter a plant name.</string>
     <string name="scientific_name">Scientific name</string>
     <string name="location">Location</string>
     <string name="acquisition_date">Acquisition date</string>
@@ -43,6 +42,10 @@
     <string name="delete_plant">Delete plant</string>
     <string name="delete_plant_title">Delete this plant?</string>
     <string name="delete_plant_message">This action cannot be undone.</string>
+    <string name="discard_plant_title">Discard this plant?</string>
+    <string name="discard_plant_message">The plant, its prepared photo, and its notes will not be saved.</string>
+    <string name="discard">Discard</string>
+    <string name="keep_editing">Keep editing</string>
     <string name="take_photo">Take photo</string>
     <string name="choose_photo">Choose photo</string>
     <string name="replace_photo">Replace photo</string>
@@ -57,6 +60,7 @@
     <string name="photo_delete_error">We couldn’t remove this photo.</string>
     <string name="notes">Notes</string>
     <string name="add_note">Add note</string>
+    <string name="remove_note">Remove note</string>
     <string name="edit_note">Edit note</string>
     <string name="delete_note">Delete note</string>
     <string name="delete_note_title">Delete this note?</string>

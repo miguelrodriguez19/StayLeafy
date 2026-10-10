@@ -23,10 +23,7 @@ import kotlinx.serialization.Serializable
 data object PlantList : NavKey
 
 @Serializable
-data class PlantDetail(val plantId: String) : NavKey
-
-@Serializable
-data class PlantEditor(val plantId: String? = null) : NavKey
+data class PlantDetail(val plantId: String? = null) : NavKey
 
 @Serializable
 data class PlantNoteEditor(val plantId: String, val noteId: String? = null) : NavKey

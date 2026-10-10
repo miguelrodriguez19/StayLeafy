@@ -10,6 +10,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.miguelrodriguez19.stayleafy.data.local.database.AppDatabase
 import com.miguelrodriguez19.stayleafy.data.local.database.MIGRATION_1_2
 import com.miguelrodriguez19.stayleafy.data.local.database.MIGRATION_2_3
+import com.miguelrodriguez19.stayleafy.data.local.database.MIGRATION_3_4
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -46,9 +47,9 @@ class PlantNoteDatabaseMigrationTest {
     }
 
     @Test
-    fun migrate2To3_createsNotesAndPreservesCascadeBehavior() = runBlocking {
+    fun migrate2To4_createsNotesAndPreservesCascadeBehavior() = runBlocking {
         val context = ApplicationProvider.getApplicationContext<Context>()
-        val plant = testPlant(id = "plant-1", displayName = "Ficus")
+        val plant = testPlant(id = "plant-1", name = "Ficus")
 
         migrationTestHelper.createDatabase(databaseName, 2).use { version2Database ->
             version2Database.execSQL(
@@ -61,10 +62,10 @@ class PlantNoteDatabaseMigrationTest {
                 """.trimIndent(),
                 arrayOf<Any?>(
                     plant.id,
-                    plant.displayName,
-                    plant.displayNameSearch,
-                    plant.commonName,
-                    plant.commonNameSearch,
+                    plant.name,
+                    plant.nameSearch,
+                    null,
+                    "",
                     plant.scientificName,
                     plant.scientificNameSearch,
                     plant.location,
@@ -80,9 +81,10 @@ class PlantNoteDatabaseMigrationTest {
 
         migrationTestHelper.runMigrationsAndValidate(
             databaseName,
-            3,
+            4,
             true,
             MIGRATION_2_3,
+            MIGRATION_3_4,
         ).close()
 
         database = Room.databaseBuilder(
@@ -106,7 +108,7 @@ class PlantNoteDatabaseMigrationTest {
     }
 
     @Test
-    fun migrate1To3_preservesLegacyPlantAndAllowsNotes() = runBlocking {
+    fun migrate1To4_preservesLegacyPlantAndAllowsNotes() = runBlocking {
         val context = ApplicationProvider.getApplicationContext<Context>()
         migrationTestHelper.createDatabase(databaseName, 1).use { version1Database ->
             version1Database.execSQL("INSERT INTO Plant(uid, name) VALUES (7, 'Legacy fern')")
@@ -114,17 +116,18 @@ class PlantNoteDatabaseMigrationTest {
 
         migrationTestHelper.runMigrationsAndValidate(
             databaseName,
-            3,
+            4,
             true,
             MIGRATION_1_2,
             MIGRATION_2_3,
+            MIGRATION_3_4,
         ).close()
 
         database = Room.databaseBuilder(context, AppDatabase::class.java, databaseName)
             .allowMainThreadQueries()
             .build()
         val plant = database!!.plantDao().observePlants("", false).first().single()
-        assertEquals("Legacy fern", plant.displayName)
+        assertEquals("Legacy fern", plant.name)
 
         val note = com.miguelrodriguez19.stayleafy.data.local.database.PlantNoteEntity(
             id = "note-after-chain",

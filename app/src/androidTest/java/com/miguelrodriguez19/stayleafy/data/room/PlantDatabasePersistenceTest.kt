@@ -21,8 +21,7 @@ class PlantDatabasePersistenceTest {
         val databaseName = "persistence-${UUID.randomUUID()}.db"
         val plant = testPlant(
             id = "persistent-plant",
-            displayName = "Persistent Ficus",
-            commonName = "Ficus",
+            name = "Persistent Ficus",
             isFavorite = true,
         )
         context.deleteDatabase(databaseName)

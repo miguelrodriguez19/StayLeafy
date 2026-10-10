@@ -7,17 +7,15 @@ import androidx.room.PrimaryKey
 @Entity(
     tableName = "plants",
     indices = [
-        Index(value = ["displayName"]),
+        Index(value = ["name"]),
         Index(value = ["isFavorite"]),
     ],
 )
 data class PlantEntity(
     @PrimaryKey
     val id: String,
-    val displayName: String,
-    val displayNameSearch: String,
-    val commonName: String?,
-    val commonNameSearch: String,
+    val name: String,
+    val nameSearch: String,
     val scientificName: String?,
     val scientificNameSearch: String,
     val location: String?,

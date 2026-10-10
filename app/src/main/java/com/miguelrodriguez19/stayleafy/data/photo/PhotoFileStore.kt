@@ -34,6 +34,12 @@ data class StoredPhoto(
     val file: File,
 )
 
+data class StagedPhoto(
+    val token: String,
+    val pendingPath: String,
+    val file: File,
+)
+
 data class PhotoOrphanReconciliation(
     val deletedPaths: Set<String>,
     val failedPaths: Set<String>,
@@ -57,6 +63,19 @@ interface PhotoFileStore {
     suspend fun discardCameraCapture(token: String): Boolean
 
     suspend fun importImage(source: PhotoInputSource): StoredPhoto
+
+    suspend fun stageCameraCapture(token: String): StagedPhoto =
+        throw UnsupportedOperationException("Photo staging is not supported")
+
+    suspend fun stageImage(source: PhotoInputSource): StagedPhoto =
+        throw UnsupportedOperationException("Photo staging is not supported")
+
+    suspend fun commitStagedPhoto(token: String): StoredPhoto =
+        throw UnsupportedOperationException("Photo staging is not supported")
+
+    suspend fun discardStagedPhoto(token: String): Boolean = discardCameraCapture(token)
+
+    fun resolveStagedPhoto(token: String): File? = null
 
     suspend fun remove(relativePath: String): Boolean
 
@@ -108,35 +127,22 @@ class FilePhotoFileStore(
     }
 
     override suspend fun completeCameraCapture(token: String): StoredPhoto = withContext(ioDispatcher) {
-        val pendingFile = safePendingFile(token)
-        if (!pendingFile.isFile || pendingFile.length() == 0L) {
-            pendingFile.delete()
-            throw PendingPhotoNotFoundException(token)
-        }
-
         try {
-            val stored = copyIntoStable(
-                extensionHint = "jpg",
-                openSource = { FileInputStream(pendingFile) },
-            )
-            if (!pendingFile.delete()) {
+            stageCameraCapture(token)
+            val stored = commitStagedPhoto(token)
+            if (!discardStagedPhoto(token)) {
                 removeQuietly(stored.file)
                 throw PhotoFileStoreException("Unable to discard completed pending capture: $token")
             }
             stored
         } catch (error: Throwable) {
-            removeQuietly(pendingFile)
+            runCatching { discardStagedPhoto(token) }
             throw error
         }
     }
 
     override suspend fun discardCameraCapture(token: String): Boolean = withContext(ioDispatcher) {
-        val pendingFile = safePendingFile(token)
-        if (!pendingFile.exists()) return@withContext false
-        if (!pendingFile.delete()) {
-            throw PhotoFileStoreException("Unable to discard pending photo capture: $token")
-        }
-        true
+        discardStagedPhoto(token)
     }
 
     override suspend fun importImage(source: PhotoInputSource): StoredPhoto = withContext(ioDispatcher) {
@@ -152,6 +158,71 @@ class FilePhotoFileStore(
             },
         )
     }
+
+    override suspend fun stageCameraCapture(token: String): StagedPhoto = withContext(ioDispatcher) {
+        val pendingFile = findPendingFile(token)
+        if (pendingFile == null || pendingFile.length() == 0L) {
+            pendingFile?.delete()
+            throw PendingPhotoNotFoundException(token)
+        }
+        pendingFile.toStagedPhoto(token)
+    }
+
+    override suspend fun stageImage(source: PhotoInputSource): StagedPhoto = withContext(ioDispatcher) {
+        requireDirectory(stable = false)
+        val token = safeStem(uuidProvider.newUuid())
+        val extension = safeExtension(source.extensionHint)
+        val target = safePendingFile(token, extension)
+        val temporary = canonicalDirectChild(pendingDirectory, ".$token.$extension.part")
+        if (!temporary.createNewFile()) {
+            throw PhotoFileStoreException("Unable to reserve staged photo file")
+        }
+
+        try {
+            try {
+                source.openStream()
+            } catch (error: Throwable) {
+                if (error is CancellationException) throw error
+                throw PhotoSourceUnavailableException(error)
+            }.use { input ->
+                FileOutputStream(temporary).use { output ->
+                    input.copyTo(output)
+                    output.fd.sync()
+                }
+            }
+            if (!temporary.renameTo(target)) {
+                throw PhotoFileStoreException("Unable to finalize staged photo file")
+            }
+            target.toStagedPhoto(token)
+        } catch (error: Throwable) {
+            removeQuietly(temporary)
+            removeQuietly(target)
+            if (error is CancellationException) throw error
+            if (error is PhotoFileStoreException) throw error
+            throw PhotoFileStoreException("Unable to stage photo", error)
+        }
+    }
+
+    override suspend fun commitStagedPhoto(token: String): StoredPhoto = withContext(ioDispatcher) {
+        val pendingFile = findPendingFile(token)
+            ?.takeIf { it.length() > 0L }
+            ?: throw PendingPhotoNotFoundException(token)
+        copyIntoStable(
+            extensionHint = pendingFile.extension,
+            openSource = { FileInputStream(pendingFile) },
+        )
+    }
+
+    override suspend fun discardStagedPhoto(token: String): Boolean = withContext(ioDispatcher) {
+        val pendingFile = findPendingFile(token) ?: return@withContext false
+        if (!pendingFile.delete()) {
+            throw PhotoFileStoreException("Unable to discard staged photo: $token")
+        }
+        true
+    }
+
+    override fun resolveStagedPhoto(token: String): File? =
+        findPendingFile(token)?.takeIf { it.isFile && it.length() > 0L }
 
     override suspend fun remove(relativePath: String): Boolean = withContext(ioDispatcher) {
         val file = resolveExisting(relativePath) ?: return@withContext false
@@ -235,12 +306,28 @@ class FilePhotoFileStore(
         }
     }
 
-    private fun safePendingFile(token: String): File {
+    private fun safePendingFile(token: String, extension: String = "jpg"): File {
         val normalizedToken = safeStem(token)
         require(normalizedToken == token) { "Invalid pending photo token" }
         requireDirectory(stable = false)
-        return canonicalDirectChild(pendingDirectory, "$normalizedToken.jpg")
+        return canonicalDirectChild(pendingDirectory, "$normalizedToken.${safeExtension(extension)}")
     }
+
+    private fun findPendingFile(token: String): File? {
+        val normalizedToken = safeStem(token)
+        require(normalizedToken == token) { "Invalid pending photo token" }
+        requireDirectory(stable = false)
+        return pendingDirectory.listFiles().orEmpty().singleOrNull { file ->
+            file.isFile && file.nameWithoutExtension == normalizedToken &&
+                SAFE_EXTENSION.matches(file.extension)
+        }
+    }
+
+    private fun File.toStagedPhoto(token: String): StagedPhoto = StagedPhoto(
+        token = token,
+        pendingPath = "$PENDING_PLANT_PHOTO_DIRECTORY/$name",
+        file = this,
+    )
 
     private fun safeStableFile(name: String): File {
         require(SAFE_STABLE_FILE.matches(name)) { "Invalid stable photo name" }
@@ -315,6 +402,20 @@ class AndroidPhotoFileStore @Inject constructor(
 
     override suspend fun importImage(source: PhotoInputSource): StoredPhoto =
         delegate.importImage(source)
+
+    override suspend fun stageCameraCapture(token: String): StagedPhoto =
+        delegate.stageCameraCapture(token)
+
+    override suspend fun stageImage(source: PhotoInputSource): StagedPhoto =
+        delegate.stageImage(source)
+
+    override suspend fun commitStagedPhoto(token: String): StoredPhoto =
+        delegate.commitStagedPhoto(token)
+
+    override suspend fun discardStagedPhoto(token: String): Boolean =
+        delegate.discardStagedPhoto(token)
+
+    override fun resolveStagedPhoto(token: String): File? = delegate.resolveStagedPhoto(token)
 
     override suspend fun remove(relativePath: String): Boolean = delegate.remove(relativePath)
 

@@ -37,7 +37,7 @@ class PlantNoteDaoTest {
 
     @Test
     fun crud_insertsReadsUpdatesAndDeletesNote() = runBlocking {
-        val plant = testPlant(id = "plant-1", displayName = "Ficus")
+        val plant = testPlant(id = "plant-1", name = "Ficus")
         val inserted = PlantNoteEntity(
             id = "note-1",
             plantId = plant.id,
@@ -65,8 +65,8 @@ class PlantNoteDaoTest {
 
     @Test
     fun observeNotes_returnsNewestCreatedAtThenIdAndOnlyRequestedPlant() = runBlocking {
-        val firstPlant = testPlant(id = "plant-1", displayName = "Ficus")
-        val secondPlant = testPlant(id = "plant-2", displayName = "Monstera")
+        val firstPlant = testPlant(id = "plant-1", name = "Ficus")
+        val secondPlant = testPlant(id = "plant-2", name = "Monstera")
         database.plantDao().insertPlant(firstPlant)
         database.plantDao().insertPlant(secondPlant)
         val notes = listOf(
@@ -85,8 +85,8 @@ class PlantNoteDaoTest {
 
     @Test
     fun deletingPlant_cascadesToItsNotes() = runBlocking {
-        val deletedPlant = testPlant(id = "deleted", displayName = "Deleted")
-        val retainedPlant = testPlant(id = "retained", displayName = "Retained")
+        val deletedPlant = testPlant(id = "deleted", name = "Deleted")
+        val retainedPlant = testPlant(id = "retained", name = "Retained")
         database.plantDao().insertPlant(deletedPlant)
         database.plantDao().insertPlant(retainedPlant)
         val deletedNote = PlantNoteEntity("deleted-note", deletedPlant.id, "Gone", 1_000L, 1_000L)

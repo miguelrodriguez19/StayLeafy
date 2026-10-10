@@ -10,6 +10,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.miguelrodriguez19.stayleafy.data.local.database.AppDatabase
 import com.miguelrodriguez19.stayleafy.data.local.database.MIGRATION_1_2
 import com.miguelrodriguez19.stayleafy.data.local.database.MIGRATION_2_3
+import com.miguelrodriguez19.stayleafy.data.local.database.MIGRATION_3_4
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -31,7 +32,7 @@ class PlantDatabaseMigrationTest {
     )
 
     @Test
-    fun migrate1To2_preservesLegacyRowsAndAllowsFurtherReadsAndWrites() = runBlocking {
+    fun migrate1To4_preservesLegacyRowsAndAllowsFurtherReadsAndWrites() = runBlocking {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val databaseName = "migration-${UUID.randomUUID()}.db"
         context.deleteDatabase(databaseName)
@@ -62,7 +63,9 @@ class PlantDatabaseMigrationTest {
                 context,
                 AppDatabase::class.java,
                 databaseName,
-            ).addMigrations(MIGRATION_1_2, MIGRATION_2_3).allowMainThreadQueries().build()
+            ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+                .allowMainThreadQueries()
+                .build()
             try {
                 val migratedPlants = database.plantDao()
                     .observePlants(escapedQuery = "", favoritesOnly = false)
@@ -71,27 +74,25 @@ class PlantDatabaseMigrationTest {
                 assertEquals(4, migratedPlants.size)
                 assertEquals(
                     setOf("Ficus", "Plant 11", "Plant 12", "Plant 13"),
-                    migratedPlants.map { it.displayName }.toSet(),
+                    migratedPlants.map { it.name }.toSet(),
                 )
                 assertEquals(
                     setOf("ficus", "plant 11", "plant 12", "plant 13"),
-                    migratedPlants.map { it.displayNameSearch }.toSet(),
+                    migratedPlants.map { it.nameSearch }.toSet(),
                 )
-                assertTrue(migratedPlants.all { it.commonNameSearch.isEmpty() })
                 assertTrue(migratedPlants.all { it.scientificNameSearch.isEmpty() })
                 assertEquals(4, migratedPlants.map { it.id }.toSet().size)
                 assertTrue(migratedPlants.all { UUID.fromString(it.id) != null })
                 assertTrue(migratedPlants.all { it.createdAt > 0L })
                 assertTrue(migratedPlants.all { it.createdAt == it.updatedAt })
                 assertTrue(migratedPlants.all { !it.isFavorite })
-                assertTrue(migratedPlants.all { it.commonName == null })
                 assertTrue(migratedPlants.all { it.scientificName == null })
                 assertTrue(migratedPlants.all { it.location == null })
                 assertTrue(migratedPlants.all { it.acquiredEpochDay == null })
                 assertTrue(migratedPlants.all { it.description == null })
                 assertTrue(migratedPlants.all { it.mainPhotoPath == null })
 
-                val newPlant = testPlant(id = "new-v2-row", displayName = "New v2 plant")
+                val newPlant = testPlant(id = "new-v4-row", name = "New v4 plant")
                 database.plantDao().insertPlant(newPlant)
                 assertNotNull(database.plantDao().observePlant(newPlant.id).first())
                 assertFalse(database.plantDao().observePlant(newPlant.id).first()!!.isFavorite)

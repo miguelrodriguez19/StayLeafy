@@ -76,8 +76,7 @@ class PlantScreenTest {
     fun contentState_displaysFieldsAndForwardsPlantClick() {
         val plant = testPlant(
             id = "aloe-id",
-            displayName = "Aloe",
-            commonName = "Aloe vera",
+            name = "Aloe",
             scientificName = "Aloe barbadensis",
             location = "Kitchen",
         )
@@ -91,7 +90,6 @@ class PlantScreenTest {
 
         composeTestRule.onNodeWithText(string(R.string.add_plant)).performClick()
         composeTestRule.onNodeWithText("Aloe").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Aloe vera").assertIsDisplayed()
         composeTestRule.onNodeWithText("Aloe barbadensis").assertIsDisplayed()
         composeTestRule.onNodeWithText("Kitchen").assertIsDisplayed()
         composeTestRule
@@ -104,7 +102,7 @@ class PlantScreenTest {
 
     @Test
     fun favoriteButton_forwardsNewFavoriteValue() {
-        val plant = testPlant(id = "fern-id", displayName = "Fern")
+        val plant = testPlant(id = "fern-id", name = "Fern")
         var favoriteChange: Pair<String, Boolean>? = null
         setScreen(
             state = PlantListUiState.Content(listOf(plant)),
@@ -231,15 +229,13 @@ class PlantScreenTest {
 
 private fun testPlant(
     id: String,
-    displayName: String,
-    commonName: String? = null,
+    name: String,
     scientificName: String? = null,
     location: String? = null,
     isFavorite: Boolean = false,
 ): Plant = Plant(
     id = id,
-    displayName = displayName,
-    commonName = commonName,
+    name = name,
     scientificName = scientificName,
     location = location,
     acquiredEpochDay = null,

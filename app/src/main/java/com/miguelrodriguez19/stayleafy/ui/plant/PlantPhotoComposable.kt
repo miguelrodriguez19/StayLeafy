@@ -26,11 +26,13 @@ import java.io.File
 @Composable
 internal fun PlantPhotoBox(
     relativePath: String?,
+    stagedFile: File? = null,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
     val isPreview = LocalInspectionMode.current
-    val file = relativePath?.let { resolvePlantPhotoFile(context.filesDir, it) }
+    val file = stagedFile?.takeIf(File::isFile)
+        ?: relativePath?.let { resolvePlantPhotoFile(context.filesDir, it) }
     var decodeFailed by remember(file) { mutableStateOf(false) }
     val clippedModifier = modifier.clip(RoundedCornerShape(12.dp))
     when {

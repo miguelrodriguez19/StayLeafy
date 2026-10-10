@@ -268,19 +268,11 @@ private fun PlantListItem(
                 )
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = plant.displayName,
+                        text = plant.name,
                         style = MaterialTheme.typography.titleMedium,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
-                    plant.commonName?.let { commonName ->
-                        Text(
-                            text = commonName,
-                            style = MaterialTheme.typography.bodyMedium,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
                     plant.scientificName?.let { scientificName ->
                         Text(
                             text = scientificName,
@@ -443,8 +435,7 @@ private fun PlantListFilteredEmptyPreview() {
 internal val previewPlants = listOf(
     Plant(
         id = "preview-1",
-        displayName = "Ficus del salón",
-        commonName = "Fiddle-leaf fig",
+        name = "Ficus del salón",
         scientificName = "Ficus lyrata",
         location = "Living room",
         acquiredEpochDay = null,
@@ -456,8 +447,7 @@ internal val previewPlants = listOf(
     ),
     Plant(
         id = "preview-2",
-        displayName = "Aloe",
-        commonName = "Aloe vera",
+        name = "Aloe",
         scientificName = null,
         location = null,
         acquiredEpochDay = null,

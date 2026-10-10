@@ -26,6 +26,7 @@ import dagger.hilt.components.SingletonComponent
 import com.miguelrodriguez19.stayleafy.data.local.database.AppDatabase
 import com.miguelrodriguez19.stayleafy.data.local.database.MIGRATION_1_2
 import com.miguelrodriguez19.stayleafy.data.local.database.MIGRATION_2_3
+import com.miguelrodriguez19.stayleafy.data.local.database.MIGRATION_3_4
 import com.miguelrodriguez19.stayleafy.data.local.database.PlantDao
 import com.miguelrodriguez19.stayleafy.data.local.database.PlantNoteDao
 import javax.inject.Singleton
@@ -51,6 +52,6 @@ class DatabaseModule {
             appContext,
             AppDatabase::class.java,
             "Plant"
-        ).addMigrations(MIGRATION_1_2, MIGRATION_2_3).build()
+        ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4).build()
     }
 }

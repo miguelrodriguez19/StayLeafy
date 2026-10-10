@@ -8,9 +8,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
-import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onLast
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -31,10 +31,62 @@ class PlantDetailScreenTest {
     val composeTestRule = createAndroidComposeRule<ComponentActivity>()
 
     @Test
-    fun contentState_displaysDetailsAndForwardsActions() {
+    fun createMode_displaysUnifiedPlantFieldsAndActions() {
+        setScreen(
+            state = PlantDetailUiState.Content(
+                mode = PlantDetailMode.Create,
+                plant = null,
+                form = PlantForm(),
+            ),
+        )
+
+        composeTestRule.onNodeWithText(string(R.string.add_plant)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(string(R.string.plant_name)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(string(R.string.scientific_name)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(string(R.string.location)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(string(R.string.acquisition_date)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(string(R.string.description)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(string(R.string.notes)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(string(R.string.take_photo)).assertIsDisplayed()
+    }
+
+    @Test
+    fun editMode_displaysSameFieldsAndForwardsSaveAndCancel() {
         val plant = detailPlant(
-            displayName = "Monstera",
-            commonName = "Swiss cheese plant",
+            name = "Monstera",
+            scientificName = "Monstera deliciosa",
+            location = "Living room",
+            acquiredEpochDay = 0L,
+            description = "Bright indirect light",
+        )
+        var saveClicks = 0
+        var cancelClicks = 0
+        setScreen(
+            state = PlantDetailUiState.Content(
+                mode = PlantDetailMode.Edit,
+                plant = plant,
+                form = plant.toForm(),
+            ),
+            onSave = { saveClicks++ },
+            onCancelEdit = { cancelClicks++ },
+        )
+
+        composeTestRule.onNodeWithText(string(R.string.edit_plant)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(string(R.string.plant_name)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(string(R.string.scientific_name)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(string(R.string.location)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(string(R.string.description)).assertIsDisplayed()
+        composeTestRule.onAllNodesWithText(string(R.string.save)).onFirst().performClick()
+        composeTestRule.onNodeWithText(string(R.string.cancel)).performClick()
+
+        assertEquals(1, saveClicks)
+        assertEquals(1, cancelClicks)
+    }
+
+    @Test
+    fun viewMode_displaysDetailsAndForwardsFavoriteAndEdit() {
+        val plant = detailPlant(
+            name = "Monstera",
             scientificName = "Monstera deliciosa",
             location = "Living room",
             acquiredEpochDay = 0L,
@@ -43,13 +95,16 @@ class PlantDetailScreenTest {
         var favorite: Boolean? = null
         var editClicks = 0
         setScreen(
-            state = PlantDetailUiState.Content(plant),
+            state = PlantDetailUiState.Content(
+                mode = PlantDetailMode.View,
+                plant = plant,
+                form = plant.toForm(),
+            ),
             onFavoriteClick = { favorite = it },
-            onEdit = { editClicks++ },
+            onBeginEdit = { editClicks++ },
         )
 
-        composeTestRule.onAllNodesWithText("Monstera").onFirst().assertIsDisplayed()
-        composeTestRule.onNodeWithText("Swiss cheese plant").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Monstera").assertIsDisplayed()
         composeTestRule.onNodeWithText("Monstera deliciosa").assertIsDisplayed()
         composeTestRule.onNodeWithText("Living room").assertIsDisplayed()
         composeTestRule.onNodeWithText(formatEpochDay(0L)).assertIsDisplayed()
@@ -65,7 +120,7 @@ class PlantDetailScreenTest {
     fun deleteDialog_cancelDoesNotDelete_confirmForwardsDelete() {
         var deleteClicks = 0
         setScreen(
-            state = PlantDetailUiState.Content(detailPlant("Monstera")),
+            state = viewState(detailPlant(name = "Monstera")),
             onDelete = { deleteClicks++ },
         )
 
@@ -76,10 +131,7 @@ class PlantDetailScreenTest {
         assertEquals(0, deleteClicks)
 
         composeTestRule.onNodeWithText(string(R.string.delete_plant)).performScrollTo().performClick()
-        composeTestRule
-            .onAllNodesWithText(string(R.string.delete_plant))
-            .onLast()
-            .performClick()
+        composeTestRule.onAllNodesWithText(string(R.string.delete_plant)).onLast().performClick()
 
         assertEquals(1, deleteClicks)
     }
@@ -89,7 +141,7 @@ class PlantDetailScreenTest {
         var takeClicks = 0
         var pickClicks = 0
         setScreen(
-            state = PlantDetailUiState.Content(detailPlant("Monstera")),
+            state = viewState(detailPlant(name = "Monstera")),
             onTakePhoto = { takeClicks++ },
             onPickPhoto = { pickClicks++ },
         )
@@ -107,12 +159,12 @@ class PlantDetailScreenTest {
         var pickClicks = 0
         var removeClicks = 0
         setScreen(
-            state = PlantDetailUiState.Content(
-                detailPlant("Monstera", mainPhotoPath = "plant_photos/example.jpg"),
+            state = viewState(
+                detailPlant(name = "Monstera", mainPhotoPath = "plant_photos/example.jpg"),
             ),
             onTakePhoto = { takeClicks++ },
             onPickPhoto = { pickClicks++ },
-            onRemovePhotoRequest = { removeClicks++ },
+            onRemovePhoto = { removeClicks++ },
         )
 
         composeTestRule.onNodeWithText(string(R.string.replace_photo)).performClick()
@@ -120,6 +172,7 @@ class PlantDetailScreenTest {
         composeTestRule.onNodeWithText(string(R.string.replace_photo)).performClick()
         composeTestRule.onNodeWithText(string(R.string.choose_photo)).performClick()
         composeTestRule.onNodeWithText(string(R.string.remove_photo)).performClick()
+        composeTestRule.onAllNodesWithText(string(R.string.remove_photo)).onLast().performClick()
 
         assertEquals(1, takeClicks)
         assertEquals(1, pickClicks)
@@ -130,7 +183,7 @@ class PlantDetailScreenTest {
     fun failedPendingPhotoCleanup_offersRetry() {
         var retryClicks = 0
         setScreen(
-            state = PlantDetailUiState.Content(detailPlant("Monstera")),
+            state = viewState(detailPlant(name = "Monstera")),
             photoMutationError = UiErrorCategory.PhotoImport,
             photoCleanupRetryEnabled = true,
             onRetryPhotoCleanup = { retryClicks++ },
@@ -155,7 +208,7 @@ class PlantDetailScreenTest {
         var editedId: String? = null
         var deletedId: String? = null
         setScreen(
-            state = PlantDetailUiState.Content(detailPlant("Monstera")),
+            state = viewState(detailPlant(name = "Monstera")),
             notesState = PlantNotesUiState.Content(listOf(note)),
             onAddNote = { addClicks++ },
             onEditNote = { editedId = it },
@@ -223,14 +276,39 @@ class PlantDetailScreenTest {
             ) {
                 StayLeafyTheme(dynamicColor = false) {
                     PlantDetailScreen(
-                        state = PlantDetailUiState.Content(detailPlant("Monstera")),
+                        state = viewState(detailPlant(name = "Monstera")),
+                        notesState = PlantNotesUiState.Empty,
+                        notesMutationError = null,
+                        notesMutating = false,
+                        photoMutating = false,
+                        photoMutationError = null,
+                        photoCleanupRetryEnabled = false,
                         mutationError = null,
                         isDeleting = false,
                         onBack = {},
                         onRetry = {},
-                        onEdit = {},
+                        onBeginEdit = {},
+                        onCancelEdit = {},
+                        onNameChange = {},
+                        onScientificNameChange = {},
+                        onLocationChange = {},
+                        onAcquiredEpochDayChange = {},
+                        onDescriptionChange = {},
                         onFavoriteClick = {},
+                        onSave = {},
                         onDelete = {},
+                        onAddNote = {},
+                        onEditNote = {},
+                        onDeleteNote = {},
+                        onRetryNotes = {},
+                        onAddStagedNote = {},
+                        onUpdateStagedNote = { _, _ -> },
+                        onRemoveStagedNote = {},
+                        onTakePhoto = {},
+                        onPickPhoto = {},
+                        onRemoveStagedPhoto = {},
+                        onRemovePhoto = {},
+                        onRetryPhotoCleanup = {},
                     )
                 }
             }
@@ -243,44 +321,74 @@ class PlantDetailScreenTest {
 
     private fun setScreen(
         state: PlantDetailUiState,
+        notesState: PlantNotesUiState = PlantNotesUiState.Empty,
+        notesMutationError: UiErrorCategory? = null,
+        notesMutating: Boolean = false,
+        photoMutating: Boolean = false,
+        photoMutationError: UiErrorCategory? = null,
+        photoCleanupRetryEnabled: Boolean = false,
         mutationError: UiErrorCategory? = null,
         isDeleting: Boolean = false,
         onBack: () -> Unit = {},
         onRetry: () -> Unit = {},
-        onEdit: () -> Unit = {},
+        onBeginEdit: () -> Unit = {},
+        onCancelEdit: () -> Unit = {},
+        onNameChange: (String) -> Unit = {},
+        onScientificNameChange: (String) -> Unit = {},
+        onLocationChange: (String) -> Unit = {},
+        onAcquiredEpochDayChange: (Long?) -> Unit = {},
+        onDescriptionChange: (String) -> Unit = {},
         onFavoriteClick: (Boolean) -> Unit = {},
+        onSave: () -> Unit = {},
         onDelete: () -> Unit = {},
-        notesState: PlantNotesUiState = PlantNotesUiState.Empty,
         onAddNote: () -> Unit = {},
         onEditNote: (String) -> Unit = {},
         onDeleteNote: (String) -> Unit = {},
+        onRetryNotes: () -> Unit = {},
+        onAddStagedNote: (String) -> Unit = {},
+        onUpdateStagedNote: (String, String) -> Unit = { _, _ -> },
+        onRemoveStagedNote: (String) -> Unit = {},
         onTakePhoto: () -> Unit = {},
         onPickPhoto: () -> Unit = {},
-        onRemovePhotoRequest: () -> Unit = {},
-        photoMutationError: UiErrorCategory? = null,
-        photoCleanupRetryEnabled: Boolean = false,
+        onRemoveStagedPhoto: () -> Unit = {},
+        onRemovePhoto: () -> Unit = {},
         onRetryPhotoCleanup: () -> Unit = {},
     ) {
         composeTestRule.setContent {
             StayLeafyTheme(dynamicColor = false) {
                 PlantDetailScreen(
                     state = state,
+                    notesState = notesState,
+                    notesMutationError = notesMutationError,
+                    notesMutating = notesMutating,
+                    photoMutating = photoMutating,
+                    photoMutationError = photoMutationError,
+                    photoCleanupRetryEnabled = photoCleanupRetryEnabled,
                     mutationError = mutationError,
                     isDeleting = isDeleting,
                     onBack = onBack,
                     onRetry = onRetry,
-                    onEdit = onEdit,
+                    onBeginEdit = onBeginEdit,
+                    onCancelEdit = onCancelEdit,
+                    onNameChange = onNameChange,
+                    onScientificNameChange = onScientificNameChange,
+                    onLocationChange = onLocationChange,
+                    onAcquiredEpochDayChange = onAcquiredEpochDayChange,
+                    onDescriptionChange = onDescriptionChange,
                     onFavoriteClick = onFavoriteClick,
+                    onSave = onSave,
                     onDelete = onDelete,
-                    notesState = notesState,
                     onAddNote = onAddNote,
                     onEditNote = onEditNote,
                     onDeleteNote = onDeleteNote,
+                    onRetryNotes = onRetryNotes,
+                    onAddStagedNote = onAddStagedNote,
+                    onUpdateStagedNote = onUpdateStagedNote,
+                    onRemoveStagedNote = onRemoveStagedNote,
                     onTakePhoto = onTakePhoto,
                     onPickPhoto = onPickPhoto,
-                    onRemovePhotoRequest = onRemovePhotoRequest,
-                    photoMutationError = photoMutationError,
-                    photoCleanupRetryEnabled = photoCleanupRetryEnabled,
+                    onRemoveStagedPhoto = onRemoveStagedPhoto,
+                    onRemovePhoto = onRemovePhoto,
                     onRetryPhotoCleanup = onRetryPhotoCleanup,
                 )
             }
@@ -288,12 +396,18 @@ class PlantDetailScreenTest {
         composeTestRule.waitForIdle()
     }
 
+    private fun viewState(plant: Plant): PlantDetailUiState.Content =
+        PlantDetailUiState.Content(
+            mode = PlantDetailMode.View,
+            plant = plant,
+            form = plant.toForm(),
+        )
+
     private fun string(id: Int): String = composeTestRule.activity.getString(id)
 }
 
 private fun detailPlant(
-    displayName: String,
-    commonName: String? = null,
+    name: String,
     scientificName: String? = null,
     location: String? = null,
     acquiredEpochDay: Long? = null,
@@ -301,8 +415,7 @@ private fun detailPlant(
     mainPhotoPath: String? = null,
 ): Plant = Plant(
     id = "detail-id",
-    displayName = displayName,
-    commonName = commonName,
+    name = name,
     scientificName = scientificName,
     location = location,
     acquiredEpochDay = acquiredEpochDay,
@@ -311,4 +424,12 @@ private fun detailPlant(
     isFavorite = false,
     createdAt = 1L,
     updatedAt = 1L,
+)
+
+private fun Plant.toForm(): PlantForm = PlantForm(
+    name = name,
+    scientificName = scientificName.orEmpty(),
+    location = location.orEmpty(),
+    acquiredEpochDay = acquiredEpochDay,
+    description = description.orEmpty(),
 )

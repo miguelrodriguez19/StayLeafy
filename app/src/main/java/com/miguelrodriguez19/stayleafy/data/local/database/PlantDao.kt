@@ -15,11 +15,10 @@ interface PlantDao {
         WHERE (:favoritesOnly = 0 OR isFavorite = 1)
           AND (
             :escapedQuery = ''
-            OR displayNameSearch LIKE '%' || :escapedQuery || '%' ESCAPE '\'
-            OR commonNameSearch LIKE '%' || :escapedQuery || '%' ESCAPE '\'
+            OR nameSearch LIKE '%' || :escapedQuery || '%' ESCAPE '\'
             OR scientificNameSearch LIKE '%' || :escapedQuery || '%' ESCAPE '\'
           )
-        ORDER BY displayName COLLATE NOCASE ASC, id ASC
+        ORDER BY name COLLATE NOCASE ASC, id ASC
         """,
     )
     fun observePlants(escapedQuery: String, favoritesOnly: Boolean): Flow<List<PlantEntity>>
@@ -33,13 +32,23 @@ interface PlantDao {
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertPlant(plant: PlantEntity)
 
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insertInitialNotes(notes: List<PlantNoteEntity>)
+
+    @Transaction
+    suspend fun insertPlantWithNotes(
+        plant: PlantEntity,
+        notes: List<PlantNoteEntity>,
+    ) {
+        insertPlant(plant)
+        if (notes.isNotEmpty()) insertInitialNotes(notes)
+    }
+
     @Query(
         """
         UPDATE plants
-        SET displayName = :displayName,
-            displayNameSearch = :displayNameSearch,
-            commonName = :commonName,
-            commonNameSearch = :commonNameSearch,
+        SET name = :name,
+            nameSearch = :nameSearch,
             scientificName = :scientificName,
             scientificNameSearch = :scientificNameSearch,
             location = :location,
@@ -51,10 +60,8 @@ interface PlantDao {
     )
     suspend fun updatePlant(
         id: String,
-        displayName: String,
-        displayNameSearch: String,
-        commonName: String?,
-        commonNameSearch: String,
+        name: String,
+        nameSearch: String,
         scientificName: String?,
         scientificNameSearch: String,
         location: String?,

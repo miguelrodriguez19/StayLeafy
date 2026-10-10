@@ -215,8 +215,7 @@ private class FakeEditorPlantRepository(
 
 private fun editorPlant() = Plant(
     id = "plant-1",
-    displayName = "Monstera",
-    commonName = null,
+    name = "Monstera",
     scientificName = null,
     location = null,
     acquiredEpochDay = null,

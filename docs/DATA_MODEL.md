@@ -2,9 +2,11 @@
 
 ## Implementation status
 
-The implemented database is Room schema version 3. Phase 1 persists the `Plant` entity and Phase 2 adds `PlantNote`. The database filename remains `Plant` for compatibility with the template's schema version 1 and its migration path.
+The implemented database is Room schema version 4. Phase 1 persists the `Plant` entity, Phase 2 adds `PlantNote` and one primary photo, and the independent correction pass unifies the plant screen and removes the redundant common-name fields. The database filename remains `Plant` for compatibility with the template's schema version 1 and its migration path.
 
-`CareEvent` and `ReminderRule` remain planned future tables. They are not part of schema version 3. Care-event cleanup belongs to Phase 3 and reminder-rule cleanup belongs to Phase 4.
+The explicit migration chain is `1→2→3→4`. Migration `3→4` preserves plant, note, photo, favorite, and timestamp data, discards stored common-name values, and leaves one required `name` field plus the scientific-name field for search.
+
+`CareEvent` and `ReminderRule` remain planned future tables. They are not part of schema version 4. Care-event cleanup belongs to Phase 3 and reminder-rule cleanup belongs to Phase 4.
 
 ## Principles
 
@@ -19,7 +21,7 @@ The implemented database is Room schema version 3. Phase 1 persists the `Plant` 
 ## Relationships
 
 ```text
-Implemented in schema v3: Plant 1 ─── 0..* PlantNote
+Implemented in schema v4: Plant 1 ─── 0..* PlantNote
 Planned: Plant 1 ─── 0..* CareEvent
 Planned: Plant 1 ─── 0..* ReminderRule
 ```
@@ -28,15 +30,13 @@ Phase 1 deletion removed only the `Plant` row. Phase 2 adds the notes cascade an
 
 ## Plant
 
-Represents one physical household plant. This is the implemented Phase 1 schema-v2 entity.
+Represents one physical household plant. This is the implemented schema-v4 entity.
 
 | Field | Type | Required | Notes |
 |---|---|---:|---|
 | `id` | String UUID | Yes | Primary key |
-| `displayName` | String | Yes | User-facing name, for example `Ficus Living Room` |
-| `displayNameSearch` | String | Yes | Internal `Locale.ROOT` lowercase projection used for case-insensitive search in the supported English and Spanish text |
-| `commonName` | String? | No | Common species name |
-| `commonNameSearch` | String | Yes | Internal lowercase projection; empty when `commonName` is absent |
+| `name` | String | Yes | User-facing non-blank name, for example `Ficus Living Room` |
+| `nameSearch` | String | Yes | Internal `Locale.ROOT` lowercase projection used for literal, case-insensitive name search |
 | `scientificName` | String? | No | Botanical name |
 | `scientificNameSearch` | String | Yes | Internal lowercase projection; empty when `scientificName` is absent |
 | `location` | String? | No | Room or household location |
@@ -49,13 +49,13 @@ Represents one physical household plant. This is the implemented Phase 1 schema-
 
 Implemented indexes and search support:
 
-- `displayName` is indexed for stable list ordering.
+- `name` is indexed for stable list ordering.
 - `isFavorite` is indexed for the favorites-only filter.
-- The three normalized search projections support case-insensitive English and Spanish matching; leading-wildcard substring queries intentionally do not rely on an index.
+- The two normalized search projections support case-insensitive English and Spanish matching; leading-wildcard substring queries intentionally do not rely on an index.
 
 ## PlantNote
 
-Represents one independently dated observation. It is implemented in Room schema v3.
+Represents one independently dated observation. It is implemented in Room schema v4; the table was introduced in schema v3 and is preserved by `3→4`.
 
 | Field | Type | Required | Notes |
 |---|---|---:|---|
@@ -70,6 +70,8 @@ The foreign key references `Plant.id` with `ON DELETE CASCADE`. The table has an
 ## Photo storage
 
 The database does not own image bytes. Confirmed images live under the app's internal files directory in `plant_photos/`, with a generated filename and extension derived from the source MIME type. Room stores only the stable relative path in `Plant.mainPhotoPath`.
+
+On the shared plant creation screen, a selected or captured image remains staged in temporary storage until the plant is saved. The save materializes the stable path and writes the plant, favorite state, and staged notes in one Room transaction. If the Room write fails, the newly materialized file is deleted as compensation and the staged draft remains retryable; a successful write makes the temporary file eligible for immediate cleanup.
 
 Camera capture uses `TakePicture` with a temporary app-owned `FileProvider` URI. Image selection uses `PickVisualMedia(ImageOnly)` and its platform document fallback. Neither flow requires `CAMERA`, `READ_MEDIA_IMAGES`, or legacy broad storage permission.
 
@@ -131,7 +133,7 @@ Persisting the last notified key makes reminder checks idempotent.
 
 ## Planned future transaction boundaries
 
-Phase 1's delete transaction removes the Plant row only. The following boundaries apply when their owning phases add the corresponding data:
+The correction pass keeps plant, staged-note, and favorite creation within the shared plant-save boundary. The following boundaries apply when their owning phases add the corresponding data:
 
 The following operations must be transactional:
 

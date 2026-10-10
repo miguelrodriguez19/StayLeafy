@@ -105,6 +105,22 @@ class PlantPhotoRepositoryTest {
     }
 
     @Test
+    fun stagedPhotoOperations_areSerializedThroughTheFileStore() = runTest {
+        val store = RecordingPhotoFileStore()
+        val owner = RecordingOwner(PlantPhotoOwner(exists = true, relativePath = null))
+        val repository = DefaultPlantPhotoRepository(owner, store, PhotoInputResolver { source })
+
+        val staged = repository.stageCameraCapture("pending-id")
+        val stored = repository.commitStagedPhoto(staged.token)
+        val discarded = repository.discardStagedPhoto(staged.token)
+
+        assertEquals("pending-id", staged.token)
+        assertEquals("plant_photos/new.jpg", stored.relativePath)
+        assertTrue(discarded)
+        assertEquals(listOf("stage:pending-id", "commit:pending-id", "discard:pending-id"), store.stagedCalls)
+    }
+
+    @Test
     fun reconciliation_waitsUntilPhotoImportIsAttachedToRoom() = runTest {
         val importStarted = CompletableDeferred<Unit>()
         val allowImport = CompletableDeferred<Unit>()
@@ -156,6 +172,7 @@ class PlantPhotoRepositoryTest {
         val imported = StoredPhoto("plant_photos/new.jpg", File("/tmp/new.jpg"))
         val removedPaths = mutableListOf<String>()
         var reconciledReferences: Set<String> = emptySet()
+        val stagedCalls = mutableListOf<String>()
 
         override fun prepareCameraCapture(): PendingPhotoCapture = error("unused")
 
@@ -164,6 +181,21 @@ class PlantPhotoRepositoryTest {
         override suspend fun discardCameraCapture(token: String): Boolean = error("unused")
 
         override suspend fun importImage(source: PhotoInputSource): StoredPhoto = imported
+
+        override suspend fun stageCameraCapture(token: String): StagedPhoto {
+            stagedCalls += "stage:$token"
+            return StagedPhoto(token, "pending_plant_photos/$token.jpg", File("/tmp/$token.jpg"))
+        }
+
+        override suspend fun commitStagedPhoto(token: String): StoredPhoto {
+            stagedCalls += "commit:$token"
+            return imported
+        }
+
+        override suspend fun discardStagedPhoto(token: String): Boolean {
+            stagedCalls += "discard:$token"
+            return true
+        }
 
         override suspend fun remove(relativePath: String): Boolean {
             removedPaths += relativePath

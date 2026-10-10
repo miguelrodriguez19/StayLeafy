@@ -10,21 +10,23 @@
 
 ## Functional requirements
 
-Phase delivery note: Phase 1 implements the Plant inventory. Phase 2 implements Room schema v3 notes plus one app-managed primary photo. Care events belong to Phase 3, and reminder rules plus care-status filtering belong to Phase 4.
+Phase delivery note: Phase 1 implements the Plant inventory. Phase 2 implements notes plus one app-managed primary photo. The independent correction pass raises Room to schema v4, removes the redundant common-name field, and unifies plant creation, viewing, and editing. Care events belong to Phase 3, and reminder rules plus care-status filtering belong to Phase 4.
 
 ### Plant inventory
 
 - **FR-PLANT-001** — The user can create a plant.
-- **FR-PLANT-002** — A plant requires a display name.
-- **FR-PLANT-003** — The user can optionally record common name, scientific name, room or location, acquisition date, and general information.
+- **FR-PLANT-002** — A plant requires a non-blank name.
+- **FR-PLANT-003** — The user can optionally record scientific name, room or location, acquisition date, and general information.
 - **FR-PLANT-004** — The user can view a list of all plants.
 - **FR-PLANT-005** — The user can open a plant detail screen.
 - **FR-PLANT-006** — The user can edit plant information.
 - **FR-PLANT-007** — The user can delete a plant after confirmation.
 - **FR-PLANT-008** — Deleting a plant ultimately removes its notes, care events, reminder rules, and app-managed photo. Delivery is incremental: Phase 1 removes the Plant row, Phase 2 adds photo cleanup and the notes cascade, Phase 3 adds the care-event cascade, and Phase 4 adds the reminder-rule cascade.
 - **FR-PLANT-009** — The user can mark or unmark a plant as a favorite.
-- **FR-PLANT-010** — The user can search plants by display, common, or scientific name.
+- **FR-PLANT-010** — The user can search plants by name or scientific name using literal, case-insensitive substring matching.
 - **FR-PLANT-011** — The user can filter plants by favorites and care status. Phase 1 implements the favorites-only filter; the care-status filter is delivered with care and reminder data in Phase 4.
+- **FR-PLANT-012** — Plant creation, viewing, and editing use one shared screen with the same plant information sections.
+- **FR-PLANT-013** — Before a new plant is saved, the user can stage its favorite state, one primary photo, and multiple notes. Saving persists the plant and staged notes in one Room transaction and uses compensating cleanup if file or database persistence fails.
 
 ### Primary photo
 
@@ -44,7 +46,7 @@ Phase delivery note: Phase 1 implements the Plant inventory. Phase 2 implements 
 - **FR-NOTE-002** — Each note records its creation date and time.
 - **FR-NOTE-003** — The user can edit or delete a note.
 - **FR-NOTE-004** — Notes are displayed newest first.
-- **FR-NOTE-005** — Notes are stored in Room schema v3 as independent rows with UUID, Plant foreign key, body, creation timestamp, and update timestamp; deleting a plant cascades to its notes.
+- **FR-NOTE-005** — Notes are stored as independent rows with UUID, Plant foreign key, body, creation timestamp, and update timestamp; they remain present after the schema v3-to-v4 migration, and deleting a plant cascades to its notes.
 - **FR-NOTE-006** — Note bodies are trimmed and must remain non-blank. Creation timestamps remain stable when a note is edited.
 
 ### Care history
@@ -102,7 +104,14 @@ Phase delivery note: Phase 1 implements the Plant inventory. Phase 2 implements 
 - **NFR-008** — Key plant-management flows have focused Compose or instrumented tests.
 - **NFR-009** — The app targets the current device and does not optimize prematurely for broad legacy support.
 
-## Phase 2 acceptance scenarios
+## Schema v3-to-v4 migration requirements
+
+- The database filename remains `Plant` and the explicit migration chain is `1→2→3→4`.
+- The current Plant model has one required `name` field and no common-name fields.
+- Existing common-name values are deliberately discarded during `3→4`; plant names, scientific names, location, dates, descriptions, favorites, timestamps, photo paths, and notes are preserved.
+- Reads and writes continue to work after migration, and searches use only name and scientific name.
+
+## Phase 2 and correction acceptance scenarios
 
 1. The user creates a plant named `Ficus Living Room`, captures or selects one photo, and later sees the original image after restarting the application.
 2. The user sees the primary photo or placeholder in both the plant list and detail screen.
@@ -111,6 +120,9 @@ Phase delivery note: Phase 1 implements the Plant inventory. Phase 2 implements 
 5. Deleting the plant removes its notes and leaves no referenced primary-photo file; startup reconciliation removes any orphaned stable file.
 6. Cancellation, missing camera/picker handlers, URI read/write failures, and process recreation leave the database and stable files consistent.
 7. The Phase 2 flows work offline in English and Spanish and remain usable in light and dark themes.
+8. The user can create a plant on the shared plant screen with a favorite state, notes, and a photo staged before the first save.
+9. A successful save persists the plant and staged notes atomically; a failed save removes the newly materialized photo and leaves no partial Room data.
+10. The v3-to-v4 migration discards common-name values while preserving the remaining plant, note, and photo data.
 
 ## Later-phase acceptance scenarios
 

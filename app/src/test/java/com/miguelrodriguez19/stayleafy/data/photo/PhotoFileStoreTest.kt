@@ -50,6 +50,36 @@ class PhotoFileStoreTest {
     }
 
     @Test
+    fun stagedImage_canBePreviewedCommittedAndDiscardedWithoutConsumingItEarly() = runTest {
+        val store = newStore("stage-id", "stable-id")
+
+        val staged = store.stageImage(source("unused", "png", byteArrayOf(4, 5, 6)))
+
+        assertEquals("stage-id", staged.token)
+        assertEquals("pending_plant_photos/stage-id.png", staged.pendingPath)
+        assertArrayEquals(byteArrayOf(4, 5, 6), store.resolveStagedPhoto(staged.token)?.readBytes())
+
+        val stored = store.commitStagedPhoto(staged.token)
+
+        assertEquals("plant_photos/stable-id.png", stored.relativePath)
+        assertArrayEquals(byteArrayOf(4, 5, 6), stored.file.readBytes())
+        assertTrue(staged.file.exists())
+
+        assertTrue(store.discardStagedPhoto(staged.token))
+        assertFalse(staged.file.exists())
+    }
+
+    @Test
+    fun committingMissingStagedPhotoFailsWithoutCreatingStableFile() = runTest {
+        val store = newStore("stable-id")
+
+        val error = runCatching { store.commitStagedPhoto("missing") }.exceptionOrNull()
+
+        assertTrue(error is PendingPhotoNotFoundException)
+        assertFalse(File(temporaryFolder.root, "files/$PLANT_PHOTO_DIRECTORY").listFiles().orEmpty().any())
+    }
+
+    @Test
     fun resolve_rejectsPathsOutsideManagedDirectory() = runTest {
         val store = newStore("resolve-id")
 
