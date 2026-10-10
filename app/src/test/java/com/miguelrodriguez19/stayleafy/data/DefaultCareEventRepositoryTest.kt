@@ -158,6 +158,16 @@ class DefaultCareEventRepositoryTest {
     }
 
     @Test
+    fun deleteEventsByType_scopesDeletionToPlantAndCareType() = runTest {
+        val dao = RecordingCareEventDao()
+        val repository = createRepository(dao)
+
+        repository.deleteEventsByType("plant-1", CareType.PRUNING)
+
+        assertEquals("plant-1" to CareType.PRUNING.name, dao.deletedHistory)
+    }
+
+    @Test
     fun updateAndDeleteMissingEvents_areRejected() = runTest {
         val repository = createRepository(RecordingCareEventDao())
 
@@ -213,6 +223,8 @@ private class RecordingCareEventDao(initialEvents: List<CareEventEntity> = empty
         private set
     var deletedEvent: EventKey? = null
         private set
+    var deletedHistory: Pair<String, String>? = null
+        private set
     var lastObservedPlantId: String? = null
         private set
     var lastObservedEvent: EventKey? = null
@@ -265,6 +277,13 @@ private class RecordingCareEventDao(initialEvents: List<CareEventEntity> = empty
         deletedEvent = EventKey(plantId, eventId)
         val deleted = data.value.count { it.plantId == plantId && it.id == eventId }
         data.value = data.value.filterNot { it.plantId == plantId && it.id == eventId }
+        return deleted
+    }
+
+    override suspend fun deleteEventsByType(plantId: String, careType: String): Int {
+        deletedHistory = plantId to careType
+        val deleted = data.value.count { it.plantId == plantId && it.careType == careType }
+        data.value = data.value.filterNot { it.plantId == plantId && it.careType == careType }
         return deleted
     }
 }

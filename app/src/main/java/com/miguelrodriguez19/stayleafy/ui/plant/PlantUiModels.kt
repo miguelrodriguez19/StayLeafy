@@ -16,7 +16,6 @@ enum class UiErrorCategory {
     CareLoad,
     CareSave,
     CareDelete,
-    CareFuture,
     PhotoImport,
     PhotoDelete,
 }

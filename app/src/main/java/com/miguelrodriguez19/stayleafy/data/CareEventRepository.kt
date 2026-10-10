@@ -19,6 +19,8 @@ interface CareEventRepository {
     suspend fun updateEvent(plantId: String, eventId: String, draft: CareEventDraft)
 
     suspend fun deleteEvent(plantId: String, eventId: String)
+
+    suspend fun deleteEventsByType(plantId: String, careType: CareType)
 }
 
 class DefaultCareEventRepository @Inject constructor(
@@ -70,6 +72,10 @@ class DefaultCareEventRepository @Inject constructor(
     override suspend fun deleteEvent(plantId: String, eventId: String) {
         val deletedRows = careEventDao.deleteEvent(plantId, eventId)
         check(deletedRows == 1) { "Care event no longer exists" }
+    }
+
+    override suspend fun deleteEventsByType(plantId: String, careType: CareType) {
+        careEventDao.deleteEventsByType(plantId, careType.name)
     }
 }
 

@@ -12,7 +12,6 @@ import androidx.navigation3.ui.NavDisplay
 import com.miguelrodriguez19.stayleafy.ui.plant.PlantDetailRoute
 import com.miguelrodriguez19.stayleafy.ui.plant.PlantListRoute
 import com.miguelrodriguez19.stayleafy.ui.plant.PlantNoteEditorRoute
-import com.miguelrodriguez19.stayleafy.ui.plant.CareEventEditorRoute
 
 @Composable
 fun MainNavigation() {
@@ -42,23 +41,12 @@ fun MainNavigation() {
                     },
                     onAddNote = { key.plantId?.let { backStack.add(PlantNoteEditor(it)) } },
                     onEditNote = { noteId -> key.plantId?.let { backStack.add(PlantNoteEditor(it, noteId)) } },
-                    onAddCare = { careType -> key.plantId?.let { backStack.add(CareEventEditor(it, careType = careType)) } },
-                    onEditCare = { eventId -> key.plantId?.let { backStack.add(CareEventEditor(it, eventId = eventId)) } },
                 )
             }
             entry<PlantNoteEditor> { key ->
                 PlantNoteEditorRoute(
                     plantId = key.plantId,
                     noteId = key.noteId,
-                    onBack = { backStack.removeLastOrNull() },
-                    onSaved = { backStack.removeLastOrNull() },
-                )
-            }
-            entry<CareEventEditor> { key ->
-                CareEventEditorRoute(
-                    plantId = key.plantId,
-                    careType = key.careType,
-                    eventId = key.eventId,
                     onBack = { backStack.removeLastOrNull() },
                     onSaved = { backStack.removeLastOrNull() },
                 )

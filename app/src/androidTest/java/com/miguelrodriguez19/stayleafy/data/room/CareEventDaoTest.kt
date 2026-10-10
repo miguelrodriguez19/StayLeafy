@@ -120,6 +120,38 @@ class CareEventDaoTest {
         )
     }
 
+    @Test
+    fun deleteEventsByType_onlyClearsSelectedTypeForSelectedPlant() = runBlocking {
+        val selectedPlant = testPlant(id = "selected", name = "Selected")
+        val otherPlant = testPlant(id = "other", name = "Other")
+        database.plantDao().insertPlant(selectedPlant)
+        database.plantDao().insertPlant(otherPlant)
+        val selectedWatering = careEvent("selected-watering", selectedPlant.id, 3_000L)
+        val selectedPruning = careEvent("selected-pruning", selectedPlant.id, 2_000L)
+            .copy(careType = "PRUNING")
+        val otherWatering = careEvent("other-watering", otherPlant.id, 1_000L)
+        database.careEventDao().insertEvent(selectedWatering)
+        database.careEventDao().insertEvent(selectedPruning)
+        database.careEventDao().insertEvent(otherWatering)
+
+        assertEquals(
+            1,
+            database.careEventDao().deleteEventsByType(selectedPlant.id, "WATERING"),
+        )
+
+        assertNull(
+            database.careEventDao().observeEvent(selectedPlant.id, selectedWatering.id).first(),
+        )
+        assertEquals(
+            selectedPruning,
+            database.careEventDao().observeEvent(selectedPlant.id, selectedPruning.id).first(),
+        )
+        assertEquals(
+            otherWatering,
+            database.careEventDao().observeEvent(otherPlant.id, otherWatering.id).first(),
+        )
+    }
+
     private fun careEvent(id: String, plantId: String, performedAt: Long, note: String? = null) =
         CareEventEntity(
             id = id,

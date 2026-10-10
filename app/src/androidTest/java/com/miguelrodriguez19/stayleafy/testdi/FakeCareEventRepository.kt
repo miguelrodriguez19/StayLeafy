@@ -3,6 +3,7 @@ package com.miguelrodriguez19.stayleafy.testdi
 import com.miguelrodriguez19.stayleafy.data.CareEventRepository
 import com.miguelrodriguez19.stayleafy.model.CareEvent
 import com.miguelrodriguez19.stayleafy.model.CareEventDraft
+import com.miguelrodriguez19.stayleafy.model.CareType
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
@@ -80,5 +81,12 @@ class FakeCareEventRepository @Inject constructor() : CareEventRepository {
     override suspend fun deleteEvent(plantId: String, eventId: String) {
         check(!failMutation) { "care mutation failed" }
         events.value = events.value.filterNot { it.plantId == plantId && it.id == eventId }
+    }
+
+    override suspend fun deleteEventsByType(plantId: String, careType: CareType) {
+        check(!failMutation) { "care mutation failed" }
+        events.value = events.value.filterNot {
+            it.plantId == plantId && it.careType == careType
+        }
     }
 }

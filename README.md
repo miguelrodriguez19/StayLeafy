@@ -10,7 +10,7 @@ Phases 1 through 3 and the independent plant-screen correction are implemented. 
 
 Plant creation, viewing, and editing use one shared screen. A new plant can stage its photo and favorite state before saving; notes are added only after the plant exists. The final Room write is atomic, with file compensation when persistence fails.
 
-Phase 3 adds `CareEvent` rows for watering, pruning, and fertilizing, UTC epoch-millisecond timestamps, optional trimmed notes, stable newest-first ordering, and a cascade from Plant deletion. Plant-detail quick actions open a prefilled date-and-time editor; future timestamps are rejected, and the detail screen shows per-type last-care summaries plus the full history.
+Phase 3 adds `CareEvent` rows for watering, pruning, and fertilizing, UTC epoch-millisecond timestamps, optional trimmed legacy notes, stable newest-first ordering, and a cascade from Plant deletion. Plant detail keeps three always-visible care cells: a short press records today, a long press selects another date, and pressing the cell opens a read-only, newest-first history for that type and plant. The history menu can clear that scoped history after confirmation.
 
 The project was created from the official Android `architecture-templates` single-module template and remains a personal, single-user application with no account, backend, synchronization, analytics, advertising, or paid-service dependency.
 
@@ -21,8 +21,8 @@ The project was created from the official Android `architecture-templates` singl
 - Replace or remove the primary photo, clean old files, and reconcile unreferenced files after restarts.
 - Add, edit, list, and delete independent dated notes in Room schema v4, with a cascade when their plant is deleted.
 - Create, view, and edit plants through the shared plant screen, including staged photo and favorite changes with atomic Room persistence and compensating cleanup.
-- Add, correct, list, and delete watering, pruning, and fertilizing events in Room schema v5.
-- Show per-type last-care summaries and deterministic reverse-chronological care history from plant detail.
+- Record watering, pruning, and fertilizing inline from plant detail in Room schema v5.
+- Show each type's latest date and a read-only, deterministic reverse-chronological history scoped to that plant and type.
 
 ## Planned capabilities
 

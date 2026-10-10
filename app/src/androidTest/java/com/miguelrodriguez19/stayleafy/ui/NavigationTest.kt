@@ -158,26 +158,18 @@ class NavigationTest {
     }
 
     @Test
-    fun detailCreateAndEditCareSave_returnsToDetail() {
+    fun detailQuickCare_staysInlineAndOpensFilteredHistorySheet() {
         clickListPlant("Monstera")
         composeTestRule.onNodeWithText(string(R.string.add_watering)).performScrollTo().performClick()
-        composeTestRule.onNodeWithText(string(R.string.add_care_event)).assertIsDisplayed()
-        composeTestRule.onNodeWithText(string(R.string.care_type)).assertIsDisplayed()
-        composeTestRule.onNodeWithContentDescription(string(R.string.save)).performClick()
         composeTestRule.waitForIdle()
 
         composeTestRule.onNodeWithText("Monstera deliciosa").assertIsDisplayed()
         assertEquals(1, careRepository.currentEvents.size)
 
-        composeTestRule.onNodeWithText(string(R.string.edit_care_event)).performScrollTo().performClick()
-        composeTestRule.onNodeWithText(string(R.string.edit_care_event)).assertIsDisplayed()
-        composeTestRule.onNode(hasSetTextAction()).performTextReplacement("Evening watering")
-        composeTestRule.onNodeWithContentDescription(string(R.string.save)).performClick()
-        composeTestRule.waitForIdle()
-
-        composeTestRule.onNodeWithText("Monstera deliciosa").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Evening watering").performScrollTo().assertIsDisplayed()
-        assertEquals("Evening watering", careRepository.currentEvents.single().note)
+        composeTestRule.onNodeWithText(string(R.string.care_watering)).performScrollTo().performClick()
+        composeTestRule.onNodeWithText(
+            string(R.string.care_type_history, string(R.string.care_watering)),
+        ).assertIsDisplayed()
     }
 
     private fun clickListPlant(name: String) {
@@ -186,5 +178,6 @@ class NavigationTest {
             .performClick()
     }
 
-    private fun string(id: Int): String = composeTestRule.activity.getString(id)
+    private fun string(id: Int, vararg arguments: Any): String =
+        composeTestRule.activity.getString(id, *arguments)
 }

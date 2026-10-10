@@ -181,6 +181,15 @@ Phase 3 adds `CareEvent` as an independent Room table in schema v5. The complete
 
 The table is indexed by `(plantId, performedAt)` and `(plantId, careType, performedAt)`. Reads use `performedAt DESC, id DESC` so the history is deterministic, including ties. Optional blank notes become `NULL`, and a completion timestamp later than the injected current time is rejected by the repository.
 
-Plant-detail quick actions open a prefilled editor with the selected care type and current local date and time. The event is not persisted until the user saves. The editor can correct type, date, time, and note; deletion requires confirmation. Plant detail presents the latest event for each care type and the complete reverse-chronological history.
+The original Phase 3 interaction used a separate editor for type, date, time, and note corrections. D-021 supersedes that UI interaction with inline recording and scoped read-only histories; the schema and repository validation described above remain unchanged.
 
 Phase 3 does not create reminder rules, calculate next-due dates, reschedule notifications, or implement the care-status filter. Those behaviors remain owned by Phase 4. Room v5 registration, migration, UI, tests, and local/device verification are complete.
+
+## D-021 — Inline care actions and plant-scoped read-only history
+
+- **Date:** 2026-10-10
+- **Status:** Accepted
+
+This decision supersedes only the UI workflow in D-020 and does not change schema v5. Plant detail keeps an always-visible Care history section with one cell for watering, pruning, and fertilizing. Each cell shows only its latest localized date. A short press on its action records the injected current time immediately; a long press opens a date picker and records the chosen local date. Reminder frequencies and the Configure care destination remain owned by Phase 4 and are not exposed as a non-functional button.
+
+Pressing a cell opens a read-only bottom sheet containing only that care type for the current plant, ordered by `performedAt DESC, id DESC`. Individual events cannot be edited or deleted from this view. Its contextual menu can clear the complete selected-type history after confirmation. The delete query is constrained by both `plantId` and `careType`, so no other plant or care type is modified. Existing optional notes remain readable for compatibility, while new inline events store `NULL` notes.

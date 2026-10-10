@@ -3,7 +3,10 @@ package com.miguelrodriguez19.stayleafy.ui.plant
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.miguelrodriguez19.stayleafy.data.CareEventRepository
+import com.miguelrodriguez19.stayleafy.data.EpochMillisProvider
 import com.miguelrodriguez19.stayleafy.model.CareEvent
+import com.miguelrodriguez19.stayleafy.model.CareEventDraft
+import com.miguelrodriguez19.stayleafy.model.CareType
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
@@ -19,12 +22,16 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel(assistedFactory = PlantCareViewModel.Factory::class)
 class PlantCareViewModel @AssistedInject constructor(
     @Assisted private val plantId: String,
     private val repository: CareEventRepository,
+    private val epochMillisProvider: EpochMillisProvider,
 ) : ViewModel() {
     private val reload = MutableStateFlow(0)
     private val _mutationError = MutableStateFlow<UiErrorCategory?>(null)
@@ -45,12 +52,32 @@ class PlantCareViewModel @AssistedInject constructor(
         reload.value += 1
     }
 
-    fun delete(eventId: String) {
+    fun record(type: CareType, epochDay: Long? = null) {
         if (_isMutating.value) return
         _isMutating.value = true
         _mutationError.value = null
         viewModelScope.launch {
-            runCatching { repository.deleteEvent(plantId, eventId) }
+            runCatching {
+                val now = epochMillisProvider.now()
+                repository.createEvent(
+                    plantId,
+                    CareEventDraft(
+                        careType = type,
+                        performedAt = epochDay?.toTimestampUsingTimeFrom(now) ?: now,
+                        note = null,
+                    ),
+                )
+            }.onFailure { _mutationError.value = UiErrorCategory.CareSave }
+            _isMutating.value = false
+        }
+    }
+
+    fun clearHistory(type: CareType) {
+        if (_isMutating.value) return
+        _isMutating.value = true
+        _mutationError.value = null
+        viewModelScope.launch {
+            runCatching { repository.deleteEventsByType(plantId, type) }
                 .onFailure { _mutationError.value = UiErrorCategory.CareDelete }
             _isMutating.value = false
         }
@@ -60,4 +87,14 @@ class PlantCareViewModel @AssistedInject constructor(
     interface Factory {
         fun create(plantId: String): PlantCareViewModel
     }
+}
+
+private fun Long.toTimestampUsingTimeFrom(now: Long): Long {
+    val zone = ZoneId.systemDefault()
+    val currentTime = Instant.ofEpochMilli(now).atZone(zone).toLocalTime()
+    return LocalDate.ofEpochDay(this)
+        .atTime(currentTime)
+        .atZone(zone)
+        .toInstant()
+        .toEpochMilli()
 }

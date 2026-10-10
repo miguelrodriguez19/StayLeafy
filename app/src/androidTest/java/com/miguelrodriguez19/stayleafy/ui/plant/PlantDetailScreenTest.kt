@@ -6,6 +6,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasProgressBarRangeInfo
@@ -20,6 +21,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.miguelrodriguez19.stayleafy.R
 import com.miguelrodriguez19.stayleafy.model.CareEvent
@@ -261,7 +263,7 @@ class PlantDetailScreenTest {
     }
 
     @Test
-    fun careSummary_displaysLatestAndNeverStates() {
+    fun careSection_displaysThreeCellsWithCompactLatestDates() {
         val event = careEvent(
             id = "watering-id",
             careType = CareType.WATERING,
@@ -273,11 +275,16 @@ class PlantDetailScreenTest {
             careState = CareEventsUiState.Content(listOf(event)),
         )
 
-        composeTestRule.onNodeWithText(string(R.string.care_last_watering)).performScrollTo().assertIsDisplayed()
-        composeTestRule.onAllNodesWithText(formatTimestamp(event.performedAt)).onFirst().performScrollTo().assertIsDisplayed()
-        composeTestRule.onNodeWithText(string(R.string.care_last_pruning)).performScrollTo().assertIsDisplayed()
-        composeTestRule.onAllNodesWithText(string(R.string.care_never)).onFirst().assertIsDisplayed()
-        composeTestRule.onNodeWithText("Watered today").performScrollTo().assertIsDisplayed()
+        composeTestRule.onNodeWithText(string(R.string.care_watering)).performScrollTo().assertIsDisplayed()
+        composeTestRule.onNodeWithText(
+            string(R.string.care_last_time, formatCareDate(event.performedAt)),
+        ).assertIsDisplayed()
+        composeTestRule.onNodeWithText(string(R.string.care_pruning)).performScrollTo().assertIsDisplayed()
+        composeTestRule.onNodeWithText(string(R.string.care_fertilizing)).performScrollTo().assertIsDisplayed()
+        composeTestRule.onAllNodesWithText(
+            string(R.string.care_last_time, string(R.string.care_never)),
+        ).onFirst().assertIsDisplayed()
+        composeTestRule.onNodeWithText("Watered today").assertDoesNotExist()
     }
 
     @Test
@@ -311,35 +318,67 @@ class PlantDetailScreenTest {
             state = viewState(detailPlant(name = "Monstera")),
             careState = CareEventsUiState.Empty,
         )
-        composeTestRule.onNodeWithText(string(R.string.no_care_events)).performScrollTo().assertIsDisplayed()
+        composeTestRule.onNodeWithText(string(R.string.care_watering)).performScrollTo().assertIsDisplayed()
+        composeTestRule.onAllNodesWithText(
+            string(R.string.care_last_time, string(R.string.care_never)),
+        ).onFirst().assertIsDisplayed()
     }
 
     @Test
-    fun careActions_forwardQuickAddEditAndDeleteAfterConfirmation() {
-        val event = careEvent("care-id", CareType.WATERING, 1_700_000_000_000L)
-        var addedType: CareType? = null
-        var editedId: String? = null
-        var deletedId: String? = null
+    fun careAction_shortPressRecordsTodayAndLongPressOpensDatePicker() {
+        var recorded: Pair<CareType, Long?>? = null
         setScreen(
             state = viewState(detailPlant(name = "Monstera")),
-            careState = CareEventsUiState.Content(listOf(event)),
-            onAddCare = { addedType = it },
-            onEditCare = { editedId = it },
-            onDeleteCare = { deletedId = it },
+            onRecordCare = { type, day -> recorded = type to day },
         )
 
         composeTestRule.onNodeWithText(string(R.string.add_pruning)).performScrollTo().performClick()
-        composeTestRule.onNodeWithText(string(R.string.edit_care_event)).performScrollTo().performClick()
-        composeTestRule.onNodeWithText(string(R.string.delete_care_event)).performScrollTo().performClick()
-        composeTestRule.onNodeWithText(string(R.string.delete_care_event_title)).assertIsDisplayed()
-        composeTestRule.onNodeWithText(string(R.string.cancel)).performClick()
-        assertEquals(CareType.PRUNING, addedType)
-        assertEquals("care-id", editedId)
-        assertEquals(null, deletedId)
+        assertEquals(CareType.PRUNING to null, recorded)
 
-        composeTestRule.onNodeWithText(string(R.string.delete_care_event)).performScrollTo().performClick()
-        composeTestRule.onAllNodesWithText(string(R.string.delete_care_event)).onLast().performClick()
-        assertEquals("care-id", deletedId)
+        composeTestRule.onNodeWithText(string(R.string.add_fertilizing))
+            .performScrollTo()
+            .performSemanticsAction(SemanticsActions.OnLongClick)
+        composeTestRule.onNodeWithText(string(R.string.record_care)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(string(R.string.record_care)).performClick()
+        assertEquals(CareType.FERTILIZING, recorded?.first)
+        assertEquals(true, recorded?.second != null)
+    }
+
+    @Test
+    fun careCell_opensFilteredReadOnlyHistoryAndClearsOnlySelectedType() {
+        val watering = careEvent(
+            "watering-id",
+            CareType.WATERING,
+            1_700_000_000_000L,
+            note = "Watered thoroughly",
+        )
+        val pruning = careEvent(
+            "pruning-id",
+            CareType.PRUNING,
+            1_699_000_000_000L,
+            note = "Removed dry leaves",
+        )
+        var clearedType: CareType? = null
+        setScreen(
+            state = viewState(detailPlant(name = "Monstera")),
+            careState = CareEventsUiState.Content(listOf(watering, pruning)),
+            onClearCareHistory = { clearedType = it },
+        )
+
+        composeTestRule.onNodeWithText(string(R.string.care_watering)).performScrollTo().performClick()
+        composeTestRule.onNodeWithText(
+            string(R.string.care_type_history, string(R.string.care_watering)),
+        ).assertIsDisplayed()
+        composeTestRule.onNodeWithText("Watered thoroughly").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Removed dry leaves").assertDoesNotExist()
+        composeTestRule.onNodeWithContentDescription(string(R.string.more_options)).performClick()
+        composeTestRule.onNodeWithText(string(R.string.clear_history)).performClick()
+        composeTestRule.onNodeWithText(
+            string(R.string.clear_care_history_title, string(R.string.care_watering)),
+        ).assertIsDisplayed()
+        composeTestRule.onAllNodesWithText(string(R.string.clear_history)).onLast().performClick()
+
+        assertEquals(CareType.WATERING, clearedType)
     }
 
     @Test
@@ -437,9 +476,8 @@ class PlantDetailScreenTest {
         careMutationError: UiErrorCategory? = null,
         careMutating: Boolean = false,
         onRetryCare: () -> Unit = {},
-        onDeleteCare: (String) -> Unit = {},
-        onAddCare: (CareType) -> Unit = {},
-        onEditCare: (String) -> Unit = {},
+        onRecordCare: (CareType, Long?) -> Unit = { _, _ -> },
+        onClearCareHistory: (CareType) -> Unit = {},
         photoMutating: Boolean = false,
         photoMutationError: UiErrorCategory? = null,
         photoCleanupRetryEnabled: Boolean = false,
@@ -499,9 +537,8 @@ class PlantDetailScreenTest {
                     careMutationError = careMutationError,
                     careMutating = careMutating,
                     onRetryCare = onRetryCare,
-                    onDeleteCare = onDeleteCare,
-                    onAddCare = onAddCare,
-                    onEditCare = onEditCare,
+                    onRecordCare = onRecordCare,
+                    onClearCareHistory = onClearCareHistory,
                     onTakePhoto = onTakePhoto,
                     onPickPhoto = onPickPhoto,
                     onRemoveStagedPhoto = onRemoveStagedPhoto,
@@ -520,7 +557,8 @@ class PlantDetailScreenTest {
             form = plant.toForm(),
         )
 
-    private fun string(id: Int): String = composeTestRule.activity.getString(id)
+    private fun string(id: Int, vararg arguments: Any): String =
+        composeTestRule.activity.getString(id, *arguments)
 }
 
 private fun detailPlant(

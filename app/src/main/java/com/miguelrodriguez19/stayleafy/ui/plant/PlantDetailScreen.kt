@@ -5,6 +5,8 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,17 +19,24 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SelectableDates
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -47,6 +56,7 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.foundation.text.KeyboardActions
@@ -71,8 +81,6 @@ fun PlantDetailRoute(
     modifier: Modifier = Modifier,
     onAddNote: () -> Unit = {},
     onEditNote: (String) -> Unit = {},
-    onAddCare: (CareType) -> Unit = {},
-    onEditCare: (String) -> Unit = {},
 ) {
     val viewModel: PlantDetailViewModel = hiltViewModel(
         creationCallback = { factory: PlantDetailViewModel.Factory -> factory.create(plantId) },
@@ -96,7 +104,8 @@ fun PlantDetailRoute(
     var careMutationError: UiErrorCategory? = null
     var careMutating = false
     var retryCare: () -> Unit = {}
-    var deleteCare: (String) -> Unit = {}
+    var recordCare: (CareType, Long?) -> Unit = { _, _ -> }
+    var clearCareHistory: (CareType) -> Unit = {}
 
     if (plantId != null) {
         val notesViewModel: PlantNotesViewModel = hiltViewModel(
@@ -120,7 +129,8 @@ fun PlantDetailRoute(
         careMutationError = observedCareError
         careMutating = observedCareMutating
         retryCare = careViewModel::retry
-        deleteCare = careViewModel::delete
+        recordCare = careViewModel::record
+        clearCareHistory = careViewModel::clearHistory
     }
 
     val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
@@ -168,9 +178,8 @@ fun PlantDetailRoute(
         careMutationError = careMutationError,
         careMutating = careMutating,
         onRetryCare = retryCare,
-        onDeleteCare = deleteCare,
-        onAddCare = onAddCare,
-        onEditCare = onEditCare,
+        onRecordCare = recordCare,
+        onClearCareHistory = clearCareHistory,
         onTakePhoto = {
             viewModel.prepareCameraCapture()?.let { capture ->
                 runCatching { cameraLauncher.launch(capture.contentUri) }
@@ -225,9 +234,8 @@ fun PlantDetailScreen(
     careMutationError: UiErrorCategory? = null,
     careMutating: Boolean = false,
     onRetryCare: () -> Unit = {},
-    onDeleteCare: (String) -> Unit = {},
-    onAddCare: (CareType) -> Unit = {},
-    onEditCare: (String) -> Unit = {},
+    onRecordCare: (CareType, Long?) -> Unit = { _, _ -> },
+    onClearCareHistory: (CareType) -> Unit = {},
     onTakePhoto: () -> Unit,
     onPickPhoto: () -> Unit,
     onRemoveStagedPhoto: () -> Unit,
@@ -319,9 +327,8 @@ fun PlantDetailScreen(
                     careMutationError = careMutationError,
                     careMutating = careMutating,
                     onRetryCare = onRetryCare,
-                    onDeleteCare = onDeleteCare,
-                    onAddCare = onAddCare,
-                    onEditCare = onEditCare,
+                    onRecordCare = onRecordCare,
+                    onClearCareHistory = onClearCareHistory,
                     onTakePhoto = onTakePhoto,
                     onPickPhoto = onPickPhoto,
                     onReplacePhotoRequest = { showPhotoSourceDialog = true },
@@ -402,9 +409,8 @@ private fun PlantDetailContent(
     careMutationError: UiErrorCategory?,
     careMutating: Boolean,
     onRetryCare: () -> Unit,
-    onDeleteCare: (String) -> Unit,
-    onAddCare: (CareType) -> Unit,
-    onEditCare: (String) -> Unit,
+    onRecordCare: (CareType, Long?) -> Unit,
+    onClearCareHistory: (CareType) -> Unit,
     onTakePhoto: () -> Unit,
     onPickPhoto: () -> Unit,
     onReplacePhotoRequest: () -> Unit,
@@ -417,7 +423,9 @@ private fun PlantDetailContent(
     var showPhotoDeleteDialog by rememberSaveable { mutableStateOf(false) }
     var showDatePicker by rememberSaveable { mutableStateOf(false) }
     var pendingNoteDeleteId by rememberSaveable { mutableStateOf<String?>(null) }
-    var pendingCareDeleteId by rememberSaveable { mutableStateOf<String?>(null) }
+    var selectedCareHistoryType by rememberSaveable { mutableStateOf<CareType?>(null) }
+    var pendingCareDateType by rememberSaveable { mutableStateOf<CareType?>(null) }
+    var pendingCareClearType by rememberSaveable { mutableStateOf<CareType?>(null) }
     val editable = state.mode != PlantDetailMode.View
     val plant = state.plant
     val favorite = if (state.mode == PlantDetailMode.Create) state.stagedFavorite else plant?.isFavorite == true
@@ -482,9 +490,9 @@ private fun PlantDetailContent(
                 state = careState,
                 mutationError = careMutationError,
                 mutating = careMutating,
-                onAddCare = onAddCare,
-                onEditCare = onEditCare,
-                onDeleteRequest = { pendingCareDeleteId = it },
+                onRecordNow = { type -> onRecordCare(type, null) },
+                onPickDate = { type -> pendingCareDateType = type },
+                onOpenHistory = { type -> selectedCareHistoryType = type },
                 onRetry = onRetryCare,
             )
             NotesSection(
@@ -531,25 +539,70 @@ private fun PlantDetailContent(
             },
         )
     }
-    pendingCareDeleteId?.let { eventId ->
+    pendingCareClearType?.let { careType ->
         AlertDialog(
-            onDismissRequest = { if (!careMutating) pendingCareDeleteId = null },
-            title = { Text(stringResource(R.string.delete_care_event_title)) },
-            text = { Text(stringResource(R.string.delete_care_event_message)) },
+            onDismissRequest = { if (!careMutating) pendingCareClearType = null },
+            title = { Text(stringResource(R.string.clear_care_history_title, careType.historyLabel())) },
+            text = { Text(stringResource(R.string.clear_care_history_message)) },
             dismissButton = {
-                TextButton(onClick = { pendingCareDeleteId = null }, enabled = !careMutating) {
+                TextButton(onClick = { pendingCareClearType = null }, enabled = !careMutating) {
                     Text(stringResource(R.string.cancel))
                 }
             },
             confirmButton = {
                 Button(
                     onClick = {
-                        onDeleteCare(eventId)
-                        pendingCareDeleteId = null
+                        onClearCareHistory(careType)
+                        pendingCareClearType = null
                     },
                     enabled = !careMutating,
-                ) { Text(stringResource(R.string.delete_care_event)) }
+                ) { Text(stringResource(R.string.clear_history)) }
             },
+        )
+    }
+    pendingCareDateType?.let { careType ->
+        val todayPickerMillis = initialAcquisitionDatePickerMillis(null)
+        val pastAndPresentDates = remember(todayPickerMillis) {
+            object : SelectableDates {
+                override fun isSelectableDate(utcTimeMillis: Long): Boolean =
+                    utcTimeMillis <= todayPickerMillis
+            }
+        }
+        val pickerState = rememberDatePickerState(
+            initialSelectedDateMillis = todayPickerMillis,
+            selectableDates = pastAndPresentDates,
+        )
+        DatePickerDialog(
+            onDismissRequest = { pendingCareDateType = null },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        pickerState.selectedDateMillis?.let { selected ->
+                            onRecordCare(careType, pickerMillisToEpochDay(selected))
+                        }
+                        pendingCareDateType = null
+                    },
+                    enabled = !careMutating,
+                ) { Text(stringResource(R.string.record_care)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingCareDateType = null }, enabled = !careMutating) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
+        ) { DatePicker(state = pickerState, showModeToggle = false) }
+    }
+    selectedCareHistoryType?.let { careType ->
+        val events = (careState as? CareEventsUiState.Content)
+            ?.events
+            .orEmpty()
+            .filter { it.careType == careType }
+        CareHistorySheet(
+            type = careType,
+            events = events,
+            mutating = careMutating,
+            onDismiss = { selectedCareHistoryType = null },
+            onClearRequest = { pendingCareClearType = careType },
         )
     }
     if (showDatePicker) {
@@ -667,9 +720,9 @@ private fun CareSection(
     state: CareEventsUiState,
     mutationError: UiErrorCategory?,
     mutating: Boolean,
-    onAddCare: (CareType) -> Unit,
-    onEditCare: (String) -> Unit,
-    onDeleteRequest: (String) -> Unit,
+    onRecordNow: (CareType) -> Unit,
+    onPickDate: (CareType) -> Unit,
+    onOpenHistory: (CareType) -> Unit,
     onRetry: () -> Unit,
 ) {
     val events = (state as? CareEventsUiState.Content)?.events.orEmpty()
@@ -682,7 +735,9 @@ private fun CareSection(
                     CareSummaryRow(
                         type = type,
                         latest = latest,
-                        onAdd = { onAddCare(type) },
+                        onRecordNow = { onRecordNow(type) },
+                        onPickDate = { onPickDate(type) },
+                        onOpenHistory = { onOpenHistory(type) },
                         enabled = !mutating,
                     )
                 }
@@ -693,13 +748,20 @@ private fun CareSection(
                     Text(stringResource(R.string.load_care_error), Modifier.weight(1f), color = MaterialTheme.colorScheme.error)
                     TextButton(onClick = onRetry) { Text(stringResource(R.string.retry)) }
                 }
-                CareEventsUiState.Empty -> Text(stringResource(R.string.no_care_events))
-                is CareEventsUiState.Content -> events.forEach { event ->
-                    CareEventRow(event, mutating, onEditCare, onDeleteRequest)
-                }
+                CareEventsUiState.Empty -> Unit
+                is CareEventsUiState.Content -> Unit
             }
             if (mutationError != null) {
-                Text(stringResource(R.string.delete_care_error), color = MaterialTheme.colorScheme.error)
+                Text(
+                    stringResource(
+                        if (mutationError == UiErrorCategory.CareDelete) {
+                            R.string.clear_care_history_error
+                        } else {
+                            R.string.save_care_error
+                        },
+                    ),
+                    color = MaterialTheme.colorScheme.error,
+                )
             }
         }
     }
@@ -709,46 +771,148 @@ private fun CareSection(
 private fun CareSummaryRow(
     type: CareType,
     latest: CareEvent?,
-    onAdd: () -> Unit,
+    onRecordNow: () -> Unit,
+    onPickDate: () -> Unit,
+    onOpenHistory: () -> Unit,
     enabled: Boolean,
 ) {
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Column(Modifier.weight(1f)) {
-            Text(type.summaryLabel(), style = MaterialTheme.typography.labelLarge)
-            Text(
-                latest?.let { formatTimestamp(it.performedAt) } ?: stringResource(R.string.care_never),
-                style = MaterialTheme.typography.bodyMedium,
+    Card(
+        Modifier
+            .fillMaxWidth()
+            .clickable(enabled = enabled, onClick = onOpenHistory),
+    ) {
+        Row(
+            Modifier.fillMaxWidth().padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(type.historyLabel(), style = MaterialTheme.typography.titleSmall)
+                Text(
+                    stringResource(
+                        R.string.care_last_time,
+                        latest?.let { formatCareDate(it.performedAt) }
+                            ?: stringResource(R.string.care_never),
+                    ),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
+            CareActionButton(
+                label = type.actionLabel(),
+                enabled = enabled,
+                onClick = onRecordNow,
+                onLongClick = onPickDate,
             )
         }
-        OutlinedButton(onClick = onAdd, enabled = enabled) { Text(type.actionLabel()) }
     }
 }
 
 @Composable
-private fun CareEventRow(
-    event: CareEvent,
-    mutating: Boolean,
-    onEdit: (String) -> Unit,
-    onDelete: (String) -> Unit,
+private fun CareActionButton(
+    label: String,
+    enabled: Boolean,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit,
 ) {
-    Card(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(event.careType.historyLabel(), style = MaterialTheme.typography.titleSmall)
-            Text(formatTimestamp(event.performedAt), style = MaterialTheme.typography.bodyMedium)
-            event.note?.let { Text(it) }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                TextButton(onClick = { onEdit(event.id) }, enabled = !mutating) { Text(stringResource(R.string.edit_care_event)) }
-                TextButton(onClick = { onDelete(event.id) }, enabled = !mutating) { Text(stringResource(R.string.delete_care_event)) }
+    val chooseDateLabel = stringResource(R.string.choose_care_date)
+    Surface(
+        modifier = Modifier.combinedClickable(
+            enabled = enabled,
+            role = Role.Button,
+            onClickLabel = label,
+            onLongClickLabel = chooseDateLabel,
+            onLongClick = onLongClick,
+            onClick = onClick,
+        ),
+        shape = MaterialTheme.shapes.extraLarge,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+        color = MaterialTheme.colorScheme.surface,
+        contentColor = if (enabled) {
+            MaterialTheme.colorScheme.primary
+        } else {
+            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+        },
+    ) {
+        Text(label, Modifier.padding(horizontal = 20.dp, vertical = 10.dp))
+    }
+}
+
+@Composable
+@OptIn(ExperimentalMaterial3Api::class)
+private fun CareHistorySheet(
+    type: CareType,
+    events: List<CareEvent>,
+    mutating: Boolean,
+    onDismiss: () -> Unit,
+    onClearRequest: () -> Unit,
+) {
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        CareHistoryContent(type, events, mutating, onClearRequest)
+    }
+}
+
+@Composable
+private fun CareHistoryContent(
+    type: CareType,
+    events: List<CareEvent>,
+    mutating: Boolean,
+    onClearRequest: () -> Unit,
+) {
+    var menuExpanded by remember { mutableStateOf(false) }
+    val moreOptionsLabel = stringResource(R.string.more_options)
+    Column(
+        Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                stringResource(R.string.care_type_history, type.historyLabel()),
+                style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.weight(1f),
+            )
+            Box {
+                TextButton(
+                    onClick = { menuExpanded = true },
+                    enabled = events.isNotEmpty() && !mutating,
+                    modifier = Modifier.semantics {
+                        contentDescription = moreOptionsLabel
+                    },
+                ) { Text("⋮") }
+                DropdownMenu(
+                    expanded = menuExpanded,
+                    onDismissRequest = { menuExpanded = false },
+                ) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.clear_history)) },
+                        onClick = {
+                            menuExpanded = false
+                            onClearRequest()
+                        },
+                    )
+                }
+            }
+        }
+        if (events.isEmpty()) {
+            Text(stringResource(R.string.no_care_events_for_type))
+        } else {
+            LazyColumn(
+                modifier = Modifier.fillMaxWidth().height(360.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                items(events, key = CareEvent::id) { event ->
+                    Card(Modifier.fillMaxWidth()) {
+                        Column(
+                            Modifier.padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                        ) {
+                            Text(formatCareDate(event.performedAt))
+                            event.note?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
+                        }
+                    }
+                }
             }
         }
     }
-}
-
-@Composable
-private fun CareType.summaryLabel(): String = when (this) {
-    CareType.WATERING -> stringResource(R.string.care_last_watering)
-    CareType.PRUNING -> stringResource(R.string.care_last_pruning)
-    CareType.FERTILIZING -> stringResource(R.string.care_last_fertilizing)
 }
 
 @Composable
@@ -882,5 +1046,41 @@ private fun PlantDetailPreview() {
             notesMutationError = null, notesMutating = false, photoMutating = false, photoMutationError = null, photoCleanupRetryEnabled = false, mutationError = null, isDeleting = false,
             onBack = {}, onRetry = {}, onBeginEdit = {}, onCancelEdit = {}, onNameChange = {}, onScientificNameChange = {}, onLocationChange = {}, onAcquiredEpochDayChange = {}, onDescriptionChange = {}, onFavoriteClick = {}, onSave = {}, onDelete = {}, onAddNote = {}, onEditNote = {}, onDeleteNote = {}, onRetryNotes = {}, onTakePhoto = {}, onPickPhoto = {}, onRemoveStagedPhoto = {}, onRemovePhoto = {}, onRetryPhotoCleanup = {},
         )
+    }
+}
+
+@Preview(name = "Care history - Light", showBackground = true, uiMode = Configuration.UI_MODE_NIGHT_NO)
+@Preview(name = "Care history - Dark", showBackground = true, uiMode = Configuration.UI_MODE_NIGHT_YES)
+@Composable
+private fun CareHistoryPreview() {
+    val events = listOf(
+        CareEvent(
+            id = "new",
+            plantId = "plant",
+            careType = CareType.WATERING,
+            performedAt = 1_725_000_000_000L,
+            note = null,
+            createdAt = 1_725_000_000_000L,
+            updatedAt = 1_725_000_000_000L,
+        ),
+        CareEvent(
+            id = "old",
+            plantId = "plant",
+            careType = CareType.WATERING,
+            performedAt = 1_720_000_000_000L,
+            note = "Watered thoroughly",
+            createdAt = 1_720_000_000_000L,
+            updatedAt = 1_720_000_000_000L,
+        ),
+    )
+    StayLeafyTheme(dynamicColor = false) {
+        Surface {
+            CareHistoryContent(
+                type = CareType.WATERING,
+                events = events,
+                mutating = false,
+                onClearRequest = {},
+            )
+        }
     }
 }

@@ -56,12 +56,12 @@ Phase delivery note: Phase 1 implements the Plant inventory. Phase 2 implements 
 - **FR-CARE-001** — The supported initial care types are watering, pruning, and fertilizing.
 - **FR-CARE-002** — The user can record a completed care event for a plant.
 - **FR-CARE-003** — A care event records the care type, completion time, and an optional note.
-- **FR-CARE-004** — The user can review a plant's care history in reverse chronological order.
-- **FR-CARE-005** — The user can correct or delete an incorrectly recorded event.
-- **FR-CARE-006** — Plant-detail quick actions for watering, pruning, and fertilizing open a prefilled editor with the selected type and the current local date and time; the action is not persisted until the user saves.
-- **FR-CARE-007** — The user can correct both the local date and time of a care event. The repository rejects a completion timestamp later than the injected current time.
-- **FR-CARE-008** — Plant detail shows the latest recorded event for each supported care type and the complete reverse-chronological history.
-- **FR-CARE-009** — Care-event notes are optional, trimmed, and stored as `NULL` when blank. Supported care types are limited to watering, pruning, and fertilizing.
+- **FR-CARE-004** — Pressing a care cell opens a read-only history for that plant and care type, ordered newest first.
+- **FR-CARE-005** — The history menu can clear all events of the selected type for the current plant after confirmation; it must not affect another type or plant.
+- **FR-CARE-006** — A short press on Water, Prune, or Fertilize records the current time immediately. A long press opens a date picker for recording forgotten care on another local date.
+- **FR-CARE-007** — The repository rejects a completion timestamp later than the injected current time.
+- **FR-CARE-008** — Plant detail always shows one cell per supported care type with only that type's latest localized date, or a never-recorded label.
+- **FR-CARE-009** — Existing care-event notes remain optional, trimmed, and stored as `NULL` when blank. Inline Phase 3 actions create events without notes.
 
 ### Interval reminders
 
@@ -142,11 +142,11 @@ Phase delivery note: Phase 1 implements the Plant inventory. Phase 2 implements 
 
 ### Phase 3 care history
 
-1. From plant detail, tapping watering, pruning, or fertilizing opens an editor prefilled with that type and the current date and time.
-2. Saving a care event stores its type, date and time, optional trimmed note, and audit timestamps; blank notes are stored as `NULL`.
-3. Editing can change the type, date, time, and note, but a future completion timestamp is rejected and the previous event remains intact.
-4. Plant detail shows the latest event for each type and all events newest first, with localized date and time.
-5. Deleting an event requires confirmation; deleting a plant cascades its care events and leaves no child rows.
+1. From plant detail, a short press on watering, pruning, or fertilizing records that care immediately with the injected current time.
+2. A long press opens a date picker and records the selected non-future local date for that care type.
+3. Each care cell shows its latest localized date; pressing the cell opens only that type's read-only history, newest first.
+4. The history menu clears all events of that type for the current plant only after confirmation.
+5. Deleting a plant cascades all of its care events and leaves no child rows.
 
 ### Phase 4 reminders
 
@@ -159,5 +159,4 @@ Phase delivery note: Phase 1 implements the Plant inventory. Phase 2 implements 
 
 - Whether the user can choose a preferred notification time in the MVP.
 - Whether an incomplete seasonal action should receive a second reminder before the season ends.
-- Whether care-event editing should automatically recompute reminder dates or require confirmation.
 - Whether export and restore should be included before the first personally used release.

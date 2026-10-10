@@ -69,8 +69,8 @@ The independent correction coverage adds:
 
 Phase 3 coverage adds:
 
-- Care-event draft validation for the three supported care types, trimmed optional notes, and future timestamp rejection against a fixed clock.
-- Repository create, observe, correct, and delete behavior, including stable `createdAt`, updated `updatedAt`, deterministic ordering, and invalid-plant failures.
+- Care-event draft validation for the three supported care types, trimmed optional legacy notes, and future timestamp rejection against a fixed clock.
+- Repository create, observe, correct, individual-delete compatibility, and plant-and-type-scoped history clearing, including deterministic ordering and invalid-plant failures.
 - Explicit migration `4→5` and the complete `1→2→3→4→5` path, exported schema v5, database reopen, care-event indexes, and Plant-delete cascade.
 
 Phase 1 deletion tests verify Plant-row deletion only. Phase 2 deletion tests verify the notes cascade, primary-photo cleanup, replacement cleanup, failed-write compensation, and startup reconciliation.
@@ -116,9 +116,9 @@ Care completion, reminder editor, and next-due-date assertions belong to their l
 
 Phase 3 Compose and navigation coverage adds:
 
-- Watering, pruning, and fertilizing quick actions opening a prefilled editor without persisting until Save.
-- Local date-and-time editing, future-date validation, optional note rendering, save/error/retry states, delete confirmation, and repeated-action protection.
-- Per-type last-care summaries, reverse-chronological history, empty/loading/error/content states, not-found behavior, and English/Spanish strings in light and dark themes.
+- Watering, pruning, and fertilizing short presses recording today inline and long presses opening a date picker.
+- Per-type latest-date summaries, read-only filtered bottom sheets, newest-first ordering, scoped clear confirmation, save/delete errors, and repeated-action protection.
+- Empty/loading/error/content states plus English/Spanish strings in light and dark themes.
 
 Phase 2 Compose coverage adds:
 
@@ -137,7 +137,7 @@ Later phases should maintain a small smoke suite for:
 4. Add, edit, and delete a note.
 5. Replace and remove the primary photo.
 6. Restart the application and verify persistence and cleanup.
-7. Record, correct, and delete watering, pruning, and fertilizing events; verify the summary and history.
+7. Record watering, pruning, and fertilizing for today and a prior date; verify each summary, filtered history, and plant-scoped clear action.
 8. Continue with interval-reminder checks once those later phases exist.
 
 The current smoke flow covers plant inventory, primary-photo, dated-note, and care-event behavior. Reminder steps remain future Phase 4 coverage.
@@ -195,7 +195,7 @@ Highest priority:
 - Search/filter query correctness and literal wildcard handling.
 - Plant deletion confirmation and row deletion.
 - Room v2-to-v3 and v3-to-v4 migrations, note cascade, original-byte photo persistence, replacement compensation, staged-create compensation, and orphan cleanup.
-- Room v4-to-v5 and complete v1-to-v5 migrations, care-event cascade, ordering, correction, deletion, summaries, and localized UI.
+- Room v4-to-v5 and complete v1-to-v5 migrations, care-event cascade, ordering, scoped history clearing, summaries, and localized UI.
 
 Medium priority:
 

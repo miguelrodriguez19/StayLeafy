@@ -19,6 +19,12 @@ internal fun formatTimestamp(epochMillis: Long): String =
         .withZone(ZoneId.systemDefault())
         .format(Instant.ofEpochMilli(epochMillis))
 
+internal fun formatCareDate(epochMillis: Long): String =
+    DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)
+        .withLocale(Locale.getDefault())
+        .withZone(ZoneId.systemDefault())
+        .format(Instant.ofEpochMilli(epochMillis))
+
 internal fun epochDayToPickerMillis(epochDay: Long?): Long? =
     epochDay?.let { LocalDate.ofEpochDay(it).atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli() }
 

@@ -44,4 +44,7 @@ interface CareEventDao {
 
     @Query("DELETE FROM care_events WHERE plantId = :plantId AND id = :eventId")
     suspend fun deleteEvent(plantId: String, eventId: String): Int
+
+    @Query("DELETE FROM care_events WHERE plantId = :plantId AND careType = :careType")
+    suspend fun deleteEventsByType(plantId: String, careType: String): Int
 }

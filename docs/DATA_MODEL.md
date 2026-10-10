@@ -93,7 +93,7 @@ Represents completed care and forms the historical record. The immutable model, 
 
 The foreign key references `Plant.id` with `ON DELETE CASCADE`. Required indexes are `(plantId, performedAt)` for history reads and `(plantId, careType, performedAt)` for per-type summaries and future care queries. Repository reads order by `performedAt DESC, id DESC`, giving deterministic newest-first history even when events share a timestamp.
 
-Supported `careType` values are `WATERING`, `PRUNING`, and `FERTILIZING`. Plant detail quick actions open a prefilled editor with the selected type and current local date/time; saving is required before insertion. The editor can correct date, time, type, and note. Phase 3 does not calculate reminder due dates or schedule notifications.
+Supported `careType` values are `WATERING`, `PRUNING`, and `FERTILIZING`. A short press records the injected current time, while a long press records the selected local date using the current local time. New inline events have no note; the nullable column remains compatible with events created before this interaction was simplified. Type history is queried from the plant-scoped newest-first stream, and clearing uses both `plantId` and `careType`. Phase 3 does not calculate reminder due dates or schedule notifications.
 
 ## ReminderRule
 
