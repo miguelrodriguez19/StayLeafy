@@ -168,7 +168,7 @@ The current plant model has one required user-facing `name` field. The redundant
 
 Search is literal, partial, and case-insensitive across `name` and `scientificName` only. The old common-name search surface is not retained as hidden legacy data or a compatibility alias.
 
-Plant creation, viewing, and editing use one shared screen so the information shown in detail is also available during creation. A new plant stages its favorite state, primary photo, and notes before the first save. The final operation writes the plant and staged notes in one Room transaction; file materialization occurs with compensating cleanup if Room persistence fails, and a failed save must not leave partial rows or an orphaned stable file.
+Plant creation, viewing, and editing use one shared screen. A new plant stages its favorite state and primary photo before the first save; notes are intentionally available only after the Plant row exists. File materialization occurs with compensating cleanup if Room persistence fails, and a failed save must not leave a partial row or orphaned stable file.
 
 This correction is intentionally separate from Phase 3. Care-event tables, care history, and their cascade remain planned and are not part of this decision.
 

@@ -22,5 +22,10 @@ internal fun formatTimestamp(epochMillis: Long): String =
 internal fun epochDayToPickerMillis(epochDay: Long?): Long? =
     epochDay?.let { LocalDate.ofEpochDay(it).atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli() }
 
+internal fun initialAcquisitionDatePickerMillis(
+    acquiredEpochDay: Long?,
+    todayEpochDay: Long = LocalDate.now().toEpochDay(),
+): Long = epochDayToPickerMillis(acquiredEpochDay ?: todayEpochDay)!!
+
 internal fun pickerMillisToEpochDay(millis: Long): Long =
     java.time.Instant.ofEpochMilli(millis).atZone(ZoneOffset.UTC).toLocalDate().toEpochDay()

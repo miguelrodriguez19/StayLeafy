@@ -8,7 +8,7 @@ The application is intended for a single user. It stores plant inventory records
 
 Phases 1 through 3 and the independent plant-screen correction are implemented. The app provides the complete offline plant inventory, Room schema v5 with dated notes and care events, and one app-managed primary photo per plant. The v3-to-v4 migration removes the redundant common-name fields and discards their stored values. The current model has one `name` field, and search covers `name` and scientific name.
 
-Plant creation, viewing, and editing use one shared screen. A new plant can stage its photo, notes, and favorite state before saving; the final Room write is atomic, with file compensation when persistence fails.
+Plant creation, viewing, and editing use one shared screen. A new plant can stage its photo and favorite state before saving; notes are added only after the plant exists. The final Room write is atomic, with file compensation when persistence fails.
 
 Phase 3 adds `CareEvent` rows for watering, pruning, and fertilizing, UTC epoch-millisecond timestamps, optional trimmed notes, stable newest-first ordering, and a cascade from Plant deletion. Plant-detail quick actions open a prefilled date-and-time editor; future timestamps are rejected, and the detail screen shows per-type last-care summaries plus the full history.
 
@@ -20,7 +20,7 @@ The project was created from the official Android `architecture-templates` singl
 - Store original selected bytes in app-managed local storage and render the photo in plant list and detail surfaces.
 - Replace or remove the primary photo, clean old files, and reconcile unreferenced files after restarts.
 - Add, edit, list, and delete independent dated notes in Room schema v4, with a cascade when their plant is deleted.
-- Create, view, and edit plants through the shared plant screen, including staged photo, note, and favorite changes with atomic Room persistence and compensating cleanup.
+- Create, view, and edit plants through the shared plant screen, including staged photo and favorite changes with atomic Room persistence and compensating cleanup.
 - Add, correct, list, and delete watering, pruning, and fertilizing events in Room schema v5.
 - Show per-type last-care summaries and deterministic reverse-chronological care history from plant detail.
 

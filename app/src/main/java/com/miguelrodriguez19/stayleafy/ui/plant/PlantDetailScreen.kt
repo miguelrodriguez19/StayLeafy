@@ -36,14 +36,21 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -164,9 +171,6 @@ fun PlantDetailRoute(
         onDeleteCare = deleteCare,
         onAddCare = onAddCare,
         onEditCare = onEditCare,
-        onAddStagedNote = viewModel::addStagedNote,
-        onUpdateStagedNote = viewModel::updateStagedNote,
-        onRemoveStagedNote = viewModel::removeStagedNote,
         onTakePhoto = {
             viewModel.prepareCameraCapture()?.let { capture ->
                 runCatching { cameraLauncher.launch(capture.contentUri) }
@@ -224,9 +228,6 @@ fun PlantDetailScreen(
     onDeleteCare: (String) -> Unit = {},
     onAddCare: (CareType) -> Unit = {},
     onEditCare: (String) -> Unit = {},
-    onAddStagedNote: (String) -> Unit,
-    onUpdateStagedNote: (String, String) -> Unit,
-    onRemoveStagedNote: (String) -> Unit,
     onTakePhoto: () -> Unit,
     onPickPhoto: () -> Unit,
     onRemoveStagedPhoto: () -> Unit,
@@ -321,9 +322,6 @@ fun PlantDetailScreen(
                     onDeleteCare = onDeleteCare,
                     onAddCare = onAddCare,
                     onEditCare = onEditCare,
-                    onAddStagedNote = onAddStagedNote,
-                    onUpdateStagedNote = onUpdateStagedNote,
-                    onRemoveStagedNote = onRemoveStagedNote,
                     onTakePhoto = onTakePhoto,
                     onPickPhoto = onPickPhoto,
                     onReplacePhotoRequest = { showPhotoSourceDialog = true },
@@ -407,9 +405,6 @@ private fun PlantDetailContent(
     onDeleteCare: (String) -> Unit,
     onAddCare: (CareType) -> Unit,
     onEditCare: (String) -> Unit,
-    onAddStagedNote: (String) -> Unit,
-    onUpdateStagedNote: (String, String) -> Unit,
-    onRemoveStagedNote: (String) -> Unit,
     onTakePhoto: () -> Unit,
     onPickPhoto: () -> Unit,
     onReplacePhotoRequest: () -> Unit,
@@ -420,10 +415,6 @@ private fun PlantDetailContent(
     onCancel: () -> Unit,
 ) {
     var showPhotoDeleteDialog by rememberSaveable { mutableStateOf(false) }
-    var showNoteDialog by rememberSaveable { mutableStateOf(false) }
-    var noteDraft by rememberSaveable { mutableStateOf("") }
-    var editingNoteId by rememberSaveable { mutableStateOf<String?>(null) }
-    var noteError by rememberSaveable { mutableStateOf(false) }
     var showDatePicker by rememberSaveable { mutableStateOf(false) }
     var pendingNoteDeleteId by rememberSaveable { mutableStateOf<String?>(null) }
     var pendingCareDeleteId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -476,7 +467,7 @@ private fun PlantDetailContent(
         state.saveError?.let { Text(stringResource(R.string.save_plant_error), color = MaterialTheme.colorScheme.error) }
 
         if (editable) {
-            PlantFormFields(state, showDatePicker, onNameChange, onScientificNameChange, onLocationChange, onAcquiredEpochDayChange, onDescriptionChange) { showDatePicker = true }
+            PlantFormFields(state, onNameChange, onScientificNameChange, onLocationChange, onAcquiredEpochDayChange, onDescriptionChange) { showDatePicker = true }
             Button(onClick = onSave, enabled = !state.isSaving, modifier = Modifier.fillMaxWidth()) { Text(stringResource(if (state.isSaving) R.string.saving else R.string.save)) }
         } else if (plant != null) {
             DetailField(R.string.plant_name, plant.name)
@@ -486,24 +477,7 @@ private fun PlantDetailContent(
             plant.description?.let { DetailField(R.string.description, it) }
         }
 
-        if (state.mode == PlantDetailMode.Create) {
-            StagedNotesSection(
-                notes = state.stagedNotes,
-                onAdd = {
-                    editingNoteId = null
-                    noteDraft = ""
-                    noteError = false
-                    showNoteDialog = true
-                },
-                onEdit = { note ->
-                    editingNoteId = note.id
-                    noteDraft = note.body
-                    noteError = false
-                    showNoteDialog = true
-                },
-                onRemove = onRemoveStagedNote,
-            )
-        } else {
+        if (state.mode != PlantDetailMode.Create) {
             CareSection(
                 state = careState,
                 mutationError = careMutationError,
@@ -533,37 +507,6 @@ private fun PlantDetailContent(
             isBusy = photoMutating,
             onDismiss = { if (!photoMutating) showPhotoDeleteDialog = false },
             onConfirm = { showPhotoDeleteDialog = false; onRemovePhoto() },
-        )
-    }
-    if (showNoteDialog) {
-        AlertDialog(
-            onDismissRequest = { if (!notesMutating) showNoteDialog = false },
-            title = {
-                Text(stringResource(if (editingNoteId == null) R.string.add_note else R.string.edit_note))
-            },
-            text = {
-                OutlinedTextField(
-                    value = noteDraft,
-                    onValueChange = { noteDraft = it; noteError = false },
-                    label = { Text(stringResource(R.string.note_body)) },
-                    isError = noteError,
-                    supportingText = if (noteError) ({ Text(stringResource(R.string.note_required)) }) else null,
-                    minLines = 4,
-                )
-            },
-            dismissButton = { TextButton(onClick = { showNoteDialog = false }) { Text(stringResource(R.string.cancel)) } },
-            confirmButton = {
-                Button(onClick = {
-                    if (noteDraft.trim().isEmpty()) noteError = true
-                    else {
-                        editingNoteId?.let { onUpdateStagedNote(it, noteDraft) }
-                            ?: onAddStagedNote(noteDraft)
-                        showNoteDialog = false
-                    }
-                }) {
-                    Text(stringResource(if (editingNoteId == null) R.string.add_note else R.string.save))
-                }
-            },
         )
     }
     pendingNoteDeleteId?.let { noteId ->
@@ -610,7 +553,9 @@ private fun PlantDetailContent(
         )
     }
     if (showDatePicker) {
-        val pickerState = rememberDatePickerState(initialSelectedDateMillis = epochDayToPickerMillis(state.form.acquiredEpochDay))
+        val pickerState = rememberDatePickerState(
+            initialSelectedDateMillis = initialAcquisitionDatePickerMillis(state.form.acquiredEpochDay),
+        )
         DatePickerDialog(
             onDismissRequest = { showDatePicker = false },
             confirmButton = {
@@ -627,7 +572,6 @@ private fun PlantDetailContent(
 @Composable
 private fun PlantFormFields(
     state: PlantDetailUiState.Content,
-    showDatePicker: Boolean,
     onNameChange: (String) -> Unit,
     onScientificNameChange: (String) -> Unit,
     onLocationChange: (String) -> Unit,
@@ -636,6 +580,10 @@ private fun PlantFormFields(
     openDatePicker: () -> Unit,
 ) {
     val acquisitionDateDescription = stringResource(R.string.acquisition_date)
+    val focusManager = LocalFocusManager.current
+    val scientificNameFocusRequester = remember { FocusRequester() }
+    val locationFocusRequester = remember { FocusRequester() }
+    val descriptionFocusRequester = remember { FocusRequester() }
     OutlinedTextField(
         value = state.form.name,
         onValueChange = onNameChange,
@@ -644,9 +592,23 @@ private fun PlantFormFields(
         supportingText = if (state.nameError) ({ Text(stringResource(R.string.plant_name_required)) }) else null,
         isError = state.nameError,
         singleLine = true,
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+        keyboardActions = KeyboardActions(onNext = { scientificNameFocusRequester.requestFocus() }),
     )
-    EditorTextField(state.form.scientificName, onScientificNameChange, R.string.scientific_name)
-    EditorTextField(state.form.location, onLocationChange, R.string.location)
+    EditorTextField(
+        value = state.form.scientificName,
+        onValueChange = onScientificNameChange,
+        label = R.string.scientific_name,
+        focusRequester = scientificNameFocusRequester,
+        onNext = { locationFocusRequester.requestFocus() },
+    )
+    EditorTextField(
+        value = state.form.location,
+        onValueChange = onLocationChange,
+        label = R.string.location,
+        focusRequester = locationFocusRequester,
+        onNext = { descriptionFocusRequester.requestFocus() },
+    )
     Box(Modifier.fillMaxWidth()) {
         OutlinedTextField(
             value = state.form.acquiredEpochDay?.let(::formatEpochDay).orEmpty(),
@@ -659,12 +621,34 @@ private fun PlantFormFields(
         Box(Modifier.matchParentSize().semantics { contentDescription = acquisitionDateDescription }.clickable(onClick = openDatePicker))
     }
     if (state.form.acquiredEpochDay != null) TextButton(onClick = { onAcquiredEpochDayChange(null) }) { Text(stringResource(R.string.clear_date)) }
-    OutlinedTextField(value = state.form.description, onValueChange = onDescriptionChange, modifier = Modifier.fillMaxWidth(), label = { Text(stringResource(R.string.description)) }, minLines = 4)
+    OutlinedTextField(
+        value = state.form.description,
+        onValueChange = onDescriptionChange,
+        modifier = Modifier.fillMaxWidth().focusRequester(descriptionFocusRequester),
+        label = { Text(stringResource(R.string.description)) },
+        minLines = 4,
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+        keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
+    )
 }
 
 @Composable
-private fun EditorTextField(value: String, onValueChange: (String) -> Unit, label: Int) {
-    OutlinedTextField(value = value, onValueChange = onValueChange, modifier = Modifier.fillMaxWidth(), label = { Text(stringResource(label)) }, singleLine = true)
+private fun EditorTextField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: Int,
+    focusRequester: FocusRequester,
+    onNext: () -> Unit,
+) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
+        label = { Text(stringResource(label)) },
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+        keyboardActions = KeyboardActions(onNext = { onNext() }),
+    )
 }
 
 @Composable
@@ -675,35 +659,8 @@ private fun PhotoActions(onTakePhoto: () -> Unit, onPickPhoto: () -> Unit, enabl
     }
 }
 
-@Composable
-private fun StagedNotesSection(
-    notes: List<StagedPlantNote>,
-    onAdd: () -> Unit,
-    onEdit: (StagedPlantNote) -> Unit,
-    onRemove: (String) -> Unit,
-) {
-    Card(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text(stringResource(R.string.notes), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                TextButton(onClick = onAdd) { Text(stringResource(R.string.add_note)) }
-            }
-            if (notes.isEmpty()) Text(stringResource(R.string.no_notes_yet))
-            notes.forEach { note ->
-                Card(Modifier.fillMaxWidth()) {
-                    Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Text(note.body, Modifier.weight(1f))
-                        TextButton(onClick = { onEdit(note) }) { Text(stringResource(R.string.edit_note)) }
-                        TextButton(onClick = { onRemove(note.id) }) { Text(stringResource(R.string.remove_note)) }
-                    }
-                }
-            }
-        }
-    }
-}
-
 private val PlantDetailUiState.Content.hasUnsavedCreation: Boolean
-    get() = form != PlantForm() || stagedFavorite || stagedNotes.isNotEmpty() || stagedPhoto != null
+    get() = form != PlantForm() || stagedFavorite || stagedPhoto != null
 
 @Composable
 private fun CareSection(
@@ -909,7 +866,7 @@ private fun PlantDetailCreatePreview() {
             photoCleanupRetryEnabled = false,
             mutationError = null,
             isDeleting = false,
-            onBack = {}, onRetry = {}, onBeginEdit = {}, onCancelEdit = {}, onNameChange = {}, onScientificNameChange = {}, onLocationChange = {}, onAcquiredEpochDayChange = {}, onDescriptionChange = {}, onFavoriteClick = {}, onSave = {}, onDelete = {}, onAddNote = {}, onEditNote = {}, onDeleteNote = {}, onRetryNotes = {}, onAddStagedNote = {}, onUpdateStagedNote = { _, _ -> }, onRemoveStagedNote = {}, onTakePhoto = {}, onPickPhoto = {}, onRemoveStagedPhoto = {}, onRemovePhoto = {}, onRetryPhotoCleanup = {},
+            onBack = {}, onRetry = {}, onBeginEdit = {}, onCancelEdit = {}, onNameChange = {}, onScientificNameChange = {}, onLocationChange = {}, onAcquiredEpochDayChange = {}, onDescriptionChange = {}, onFavoriteClick = {}, onSave = {}, onDelete = {}, onAddNote = {}, onEditNote = {}, onDeleteNote = {}, onRetryNotes = {}, onTakePhoto = {}, onPickPhoto = {}, onRemoveStagedPhoto = {}, onRemovePhoto = {}, onRetryPhotoCleanup = {},
         )
     }
 }
@@ -923,7 +880,7 @@ private fun PlantDetailPreview() {
             state = PlantDetailUiState.Content(PlantDetailMode.View, previewPlants.first(), previewPlants.first().toPlantForm()),
             notesState = PlantNotesUiState.Content(listOf(PlantNote("n", "p", "Watered today", 0, 0))),
             notesMutationError = null, notesMutating = false, photoMutating = false, photoMutationError = null, photoCleanupRetryEnabled = false, mutationError = null, isDeleting = false,
-            onBack = {}, onRetry = {}, onBeginEdit = {}, onCancelEdit = {}, onNameChange = {}, onScientificNameChange = {}, onLocationChange = {}, onAcquiredEpochDayChange = {}, onDescriptionChange = {}, onFavoriteClick = {}, onSave = {}, onDelete = {}, onAddNote = {}, onEditNote = {}, onDeleteNote = {}, onRetryNotes = {}, onAddStagedNote = {}, onUpdateStagedNote = { _, _ -> }, onRemoveStagedNote = {}, onTakePhoto = {}, onPickPhoto = {}, onRemoveStagedPhoto = {}, onRemovePhoto = {}, onRetryPhotoCleanup = {},
+            onBack = {}, onRetry = {}, onBeginEdit = {}, onCancelEdit = {}, onNameChange = {}, onScientificNameChange = {}, onLocationChange = {}, onAcquiredEpochDayChange = {}, onDescriptionChange = {}, onFavoriteClick = {}, onSave = {}, onDelete = {}, onAddNote = {}, onEditNote = {}, onDeleteNote = {}, onRetryNotes = {}, onTakePhoto = {}, onPickPhoto = {}, onRemoveStagedPhoto = {}, onRemovePhoto = {}, onRetryPhotoCleanup = {},
         )
     }
 }

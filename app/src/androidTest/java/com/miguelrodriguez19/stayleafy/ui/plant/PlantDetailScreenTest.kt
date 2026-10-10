@@ -6,8 +6,11 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasProgressBarRangeInfo
+import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
@@ -15,6 +18,7 @@ import androidx.compose.ui.test.onLast
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.miguelrodriguez19.stayleafy.R
@@ -51,8 +55,29 @@ class PlantDetailScreenTest {
         composeTestRule.onNodeWithText(string(R.string.location)).assertIsDisplayed()
         composeTestRule.onNodeWithText(string(R.string.acquisition_date)).assertIsDisplayed()
         composeTestRule.onNodeWithText(string(R.string.description)).assertIsDisplayed()
-        composeTestRule.onNodeWithText(string(R.string.notes)).performScrollTo().assertIsDisplayed()
+        composeTestRule.onNodeWithText(string(R.string.notes)).assertDoesNotExist()
         composeTestRule.onNodeWithText(string(R.string.take_photo)).assertIsDisplayed()
+    }
+
+    @Test
+    fun createMode_imeNextMovesAcrossTextFields() {
+        setScreen(
+            state = PlantDetailUiState.Content(
+                mode = PlantDetailMode.Create,
+                plant = null,
+                form = PlantForm(),
+            ),
+        )
+
+        val name = composeTestRule.onNode(hasText(string(R.string.plant_name)) and hasSetTextAction())
+        val scientificName = composeTestRule.onNode(hasText(string(R.string.scientific_name)) and hasSetTextAction())
+        val location = composeTestRule.onNode(hasText(string(R.string.location)) and hasSetTextAction())
+        val description = composeTestRule.onNode(hasText(string(R.string.description)) and hasSetTextAction())
+
+        name.performClick().performImeAction()
+        scientificName.assertIsFocused().performImeAction()
+        location.assertIsFocused().performImeAction()
+        description.assertIsFocused()
     }
 
     @Test
@@ -388,9 +413,6 @@ class PlantDetailScreenTest {
                         onEditNote = {},
                         onDeleteNote = {},
                         onRetryNotes = {},
-                        onAddStagedNote = {},
-                        onUpdateStagedNote = { _, _ -> },
-                        onRemoveStagedNote = {},
                         onTakePhoto = {},
                         onPickPhoto = {},
                         onRemoveStagedPhoto = {},
@@ -439,9 +461,6 @@ class PlantDetailScreenTest {
         onEditNote: (String) -> Unit = {},
         onDeleteNote: (String) -> Unit = {},
         onRetryNotes: () -> Unit = {},
-        onAddStagedNote: (String) -> Unit = {},
-        onUpdateStagedNote: (String, String) -> Unit = { _, _ -> },
-        onRemoveStagedNote: (String) -> Unit = {},
         onTakePhoto: () -> Unit = {},
         onPickPhoto: () -> Unit = {},
         onRemoveStagedPhoto: () -> Unit = {},
@@ -483,9 +502,6 @@ class PlantDetailScreenTest {
                     onDeleteCare = onDeleteCare,
                     onAddCare = onAddCare,
                     onEditCare = onEditCare,
-                    onAddStagedNote = onAddStagedNote,
-                    onUpdateStagedNote = onUpdateStagedNote,
-                    onRemoveStagedNote = onRemoveStagedNote,
                     onTakePhoto = onTakePhoto,
                     onPickPhoto = onPickPhoto,
                     onRemoveStagedPhoto = onRemoveStagedPhoto,

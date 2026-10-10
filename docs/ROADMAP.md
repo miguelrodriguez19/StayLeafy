@@ -53,7 +53,7 @@ Phase 2 boundary: it intentionally excludes multiple photos, image editing or co
 - [x] Discard stored common-name values during the explicit `3→4` migration; scientific names and all other supported data remain preserved.
 - [x] Search literally and case-insensitively across `name` and scientific name only.
 - [x] Use one shared create/view/edit plant screen rather than a separate creation form and detail form.
-- [x] Stage a new plant's photo, notes, and favorite state before saving, then persist the Room rows atomically with compensating file cleanup on failure.
+- [x] Stage a new plant's photo and favorite state before saving, keep notes out of creation, and use compensating file cleanup on failure.
 
 Exit condition met: the current plant model and creation flow are coherent with the detail experience, and the v3-to-v4 migration is explicit and tested.
 

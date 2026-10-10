@@ -8,12 +8,10 @@ import com.miguelrodriguez19.stayleafy.data.PlantRepository
 import com.miguelrodriguez19.stayleafy.data.photo.PendingPhotoCapture
 import com.miguelrodriguez19.stayleafy.data.photo.PlantPhotoRepository
 import com.miguelrodriguez19.stayleafy.model.PlantDraft
-import com.miguelrodriguez19.stayleafy.model.PlantNoteDraft
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
 import dagger.hilt.android.lifecycle.HiltViewModel
-import java.util.concurrent.atomic.AtomicLong
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -39,7 +37,6 @@ class PlantDetailViewModel @AssistedInject constructor(
                 plant = null,
                 form = savedForm(),
                 stagedFavorite = savedStateHandle[FAVORITE_KEY] ?: false,
-                stagedNotes = savedNotes(),
                 stagedPhoto = savedStagedPhoto(),
             )
         } else {
@@ -65,9 +62,6 @@ class PlantDetailViewModel @AssistedInject constructor(
     )
     val pendingCaptureToken: StateFlow<String?> = _pendingCaptureToken.asStateFlow()
 
-    private val noteSequence = AtomicLong(
-        (_uiState.value as? PlantDetailUiState.Content)?.stagedNotes?.size?.toLong() ?: 0L,
-    )
     private var plantObservationJob: Job? = null
 
     init {
@@ -114,40 +108,6 @@ class PlantDetailViewModel @AssistedInject constructor(
             runCatching { plantRepository.setFavorite(id, favorite) }
                 .onFailure { _mutationError.value = UiErrorCategory.Favorite }
         }
-    }
-
-    fun addStagedNote(body: String) {
-        val normalized = body.trim()
-        if (normalized.isEmpty()) return
-        val state = _uiState.value as? PlantDetailUiState.Content ?: return
-        if (state.mode != PlantDetailMode.Create) return
-        val notes = state.stagedNotes + StagedPlantNote(
-            id = "staged-${noteSequence.incrementAndGet()}",
-            body = normalized,
-        )
-        persistNotes(notes)
-        _uiState.value = state.copy(
-            stagedNotes = notes,
-        )
-    }
-
-    fun removeStagedNote(noteId: String) {
-        val state = _uiState.value as? PlantDetailUiState.Content ?: return
-        val notes = state.stagedNotes.filterNot { it.id == noteId }
-        persistNotes(notes)
-        _uiState.value = state.copy(stagedNotes = notes)
-    }
-
-    fun updateStagedNote(noteId: String, body: String) {
-        val normalized = body.trim()
-        if (normalized.isEmpty()) return
-        val state = _uiState.value as? PlantDetailUiState.Content ?: return
-        if (state.mode != PlantDetailMode.Create) return
-        val notes = state.stagedNotes.map { note ->
-            if (note.id == noteId) note.copy(body = normalized) else note
-        }
-        persistNotes(notes)
-        _uiState.value = state.copy(stagedNotes = notes)
     }
 
     fun save() {
@@ -339,7 +299,6 @@ class PlantDetailViewModel @AssistedInject constructor(
                             saveError = current?.saveError,
                             isSaving = current?.isSaving ?: false,
                             stagedFavorite = plant.isFavorite,
-                            stagedNotes = current?.stagedNotes.orEmpty(),
                             stagedPhoto = current?.stagedPhoto,
                         )
                     }
@@ -352,7 +311,7 @@ class PlantDetailViewModel @AssistedInject constructor(
             draft = previous.form.toDraft(name),
             favorite = previous.stagedFavorite,
             stagedPhotoToken = previous.stagedPhoto?.token,
-            notes = previous.stagedNotes.map { note -> PlantNoteDraft(note.body) },
+            notes = emptyList(),
         )
         clearCreationDraft()
         val createdPlant = plantRepository.observePlant(id).first()
@@ -364,7 +323,6 @@ class PlantDetailViewModel @AssistedInject constructor(
             form = createdPlant.toPlantForm(),
             isSaving = false,
             stagedFavorite = createdPlant.isFavorite,
-            stagedNotes = emptyList(),
             stagedPhoto = null,
             savedPlantId = id,
         )
@@ -431,17 +389,6 @@ class PlantDetailViewModel @AssistedInject constructor(
         savedStateHandle[DESCRIPTION_KEY] = form.description
     }
 
-    private fun savedNotes(): List<StagedPlantNote> {
-        val ids = savedStateHandle.get<ArrayList<String>>(NOTE_IDS_KEY).orEmpty()
-        val bodies = savedStateHandle.get<ArrayList<String>>(NOTE_BODIES_KEY).orEmpty()
-        return ids.zip(bodies).map { (id, body) -> StagedPlantNote(id, body) }
-    }
-
-    private fun persistNotes(notes: List<StagedPlantNote>) {
-        savedStateHandle[NOTE_IDS_KEY] = ArrayList(notes.map(StagedPlantNote::id))
-        savedStateHandle[NOTE_BODIES_KEY] = ArrayList(notes.map(StagedPlantNote::body))
-    }
-
     private fun clearCreationDraft() {
         listOf(
             NAME_KEY,
@@ -450,8 +397,6 @@ class PlantDetailViewModel @AssistedInject constructor(
             ACQUIRED_DATE_KEY,
             DESCRIPTION_KEY,
             FAVORITE_KEY,
-            NOTE_IDS_KEY,
-            NOTE_BODIES_KEY,
             STAGED_PHOTO_KEY,
             PENDING_CAPTURE_KEY,
         ).forEach { key -> savedStateHandle.remove<Any?>(key) }
@@ -487,7 +432,5 @@ class PlantDetailViewModel @AssistedInject constructor(
         const val ACQUIRED_DATE_KEY = "create_acquired_epoch_day"
         const val DESCRIPTION_KEY = "create_description"
         const val FAVORITE_KEY = "create_favorite"
-        const val NOTE_IDS_KEY = "create_note_ids"
-        const val NOTE_BODIES_KEY = "create_note_bodies"
     }
 }

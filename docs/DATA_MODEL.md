@@ -71,7 +71,7 @@ The foreign key references `Plant.id` with `ON DELETE CASCADE`. The table has an
 
 The database does not own image bytes. Confirmed images live under the app's internal files directory in `plant_photos/`, with a generated filename and extension derived from the source MIME type. Room stores only the stable relative path in `Plant.mainPhotoPath`.
 
-On the shared plant creation screen, a selected or captured image remains staged in temporary storage until the plant is saved. The save materializes the stable path and writes the plant, favorite state, and staged notes in one Room transaction. If the Room write fails, the newly materialized file is deleted as compensation and the staged draft remains retryable; a successful write makes the temporary file eligible for immediate cleanup.
+On the shared plant creation screen, a selected or captured image remains staged in temporary storage until the plant is saved. The save materializes the stable path and writes the plant and favorite state; notes are created only after the Plant row exists. If the Room write fails, the newly materialized file is deleted as compensation and the staged draft remains retryable; a successful write makes the temporary file eligible for immediate cleanup.
 
 Camera capture uses `TakePicture` with a temporary app-owned `FileProvider` URI. Image selection uses `PickVisualMedia(ImageOnly)` and its platform document fallback. Neither flow requires `CAMERA`, `READ_MEDIA_IMAGES`, or legacy broad storage permission.
 
@@ -135,7 +135,7 @@ Persisting the last notified key makes reminder checks idempotent.
 
 ## Planned future transaction boundaries
 
-The correction pass keeps plant, staged-note, and favorite creation within the shared plant-save boundary. The following operations must be transactional:
+The correction pass keeps the plant and favorite creation within the shared plant-save boundary, with compensating cleanup for a staged photo. The following operations must be transactional:
 
 1. Recording, correcting, or deleting care events once reminder rules exist in Phase 4; Phase 3 persists the event itself without reminder recalculation.
 2. Deleting a plant and its structured child data. Room cascades notes and care events; file cleanup happens immediately after the database transaction and is safe to retry.

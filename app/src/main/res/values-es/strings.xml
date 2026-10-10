@@ -61,7 +61,6 @@
     <string name="photo_delete_error">No se ha podido quitar esta foto.</string>
     <string name="notes">Notas</string>
     <string name="add_note">Añadir nota</string>
-    <string name="remove_note">Quitar nota</string>
     <string name="edit_note">Editar nota</string>
     <string name="delete_note">Eliminar nota</string>
     <string name="delete_note_title">¿Eliminar esta nota?</string>

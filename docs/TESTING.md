@@ -19,7 +19,7 @@ Use plain JVM tests for Phase 1 logic without Android dependencies:
 - ViewModels using fake repositories and test dispatchers.
 - Note draft trimming, blank-body validation, and fixed UUID/clock behavior.
 - Photo filename/MIME normalization, original-byte copying, replacement compensation, temporary-file cleanup, and orphan reconciliation.
-- Shared-screen staged photo, note, and favorite state, atomic save coordination, and file compensation after a failed Room write.
+- Shared-screen staged photo and favorite state, absence of notes during creation, atomic save coordination, and file compensation after a failed Room write.
 - Care-event normalization, optional-note trimming, fixed UUID and timestamp behavior, correction timestamp stability, and rejection of future completion date-times.
 
 Phase 1 does not test interval, seasonal, notification, or WorkManager behavior; those belong to later phases.
@@ -64,7 +64,7 @@ The independent correction coverage adds:
 - Explicit migration from schema 3 to schema 4 and the complete 1→2→3→4 path.
 - Removal of common-name columns and deliberate discard of their values while preserving the remaining plant, note, favorite, photo, and timestamp data.
 - Name/scientific-name search correctness, including `%` and `_` as literal characters.
-- Shared create/view/edit screen behavior, including staged photo, note, and favorite state.
+- Shared create/view/edit screen behavior, including staged photo and favorite state, with notes excluded from creation.
 - Successful atomic Room save, failed-save compensation, no partial rows, and retryable staged state.
 
 Phase 3 coverage adds:
@@ -104,6 +104,7 @@ Compose tests use immutable screen state and event lambdas where possible. Cover
 
 - Loading, empty, filtered-empty, populated, and error list states.
 - Shared plant-screen validation, staged create callbacks, edit callbacks, and save/cancel behavior.
+- IME next/done focus traversal, notes excluded from creation, and today's default acquisition-date selection.
 - Plant detail rendering and not-found behavior.
 - Delete confirmation, cancellation, and confirmation callbacks.
 - Favorite toggles and favorites-only filtering.
@@ -124,7 +125,7 @@ Phase 2 Compose coverage adds:
 - Primary-photo placeholder and image rendering in list and detail.
 - Capture/picker callbacks, replacement/removal actions, disabled repeated actions, and photo-delete confirmation.
 - Notes loading, error/retry, empty, content, editor validation, save, edit, delete confirmation, and localized date text.
-- Staged photo, note, and favorite rendering before the first save, atomic-save errors, retry, and localized name-only labels.
+- Staged photo and favorite rendering before the first save, notes hidden during creation, atomic-save errors, retry, and localized name-only labels.
 
 ### Later-phase end-to-end device tests
 

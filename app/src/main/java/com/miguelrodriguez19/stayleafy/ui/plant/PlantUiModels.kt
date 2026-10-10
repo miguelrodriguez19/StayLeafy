@@ -53,7 +53,6 @@ sealed interface PlantDetailUiState {
         val saveError: UiErrorCategory? = null,
         val isSaving: Boolean = false,
         val stagedFavorite: Boolean = false,
-        val stagedNotes: List<StagedPlantNote> = emptyList(),
         val stagedPhoto: StagedPhoto? = null,
         val savedPlantId: String? = null,
     ) : PlantDetailUiState
@@ -72,12 +71,6 @@ data class PlantForm(
     val location: String = "",
     val acquiredEpochDay: Long? = null,
     val description: String = "",
-)
-
-@Immutable
-data class StagedPlantNote(
-    val id: String,
-    val body: String,
 )
 
 @Immutable

@@ -26,7 +26,9 @@ Phase delivery note: Phase 1 implements the Plant inventory. Phase 2 implements 
 - **FR-PLANT-010** — The user can search plants by name or scientific name using literal, case-insensitive substring matching.
 - **FR-PLANT-011** — The user can filter plants by favorites and care status. Phase 1 implements the favorites-only filter; the care-status filter is delivered with care and reminder data in Phase 4.
 - **FR-PLANT-012** — Plant creation, viewing, and editing use one shared screen with the same plant information sections.
-- **FR-PLANT-013** — Before a new plant is saved, the user can stage its favorite state, one primary photo, and multiple notes. Saving persists the plant and staged notes in one Room transaction and uses compensating cleanup if file or database persistence fails.
+- **FR-PLANT-013** — Before a new plant is saved, the user can stage its favorite state and one primary photo. Notes are available only after the Plant row exists. Saving uses compensating cleanup if file or database persistence fails.
+- **FR-PLANT-014** — The software keyboard advances through the editable plant text fields in form order and finishes from the final field.
+- **FR-PLANT-015** — Opening an empty acquisition-date picker selects the device's current local date by default; an existing acquisition date remains selected while editing.
 
 ### Primary photo
 
@@ -132,8 +134,8 @@ Phase delivery note: Phase 1 implements the Plant inventory. Phase 2 implements 
 5. Deleting the plant removes its notes and leaves no referenced primary-photo file; startup reconciliation removes any orphaned stable file.
 6. Cancellation, missing camera/picker handlers, URI read/write failures, and process recreation leave the database and stable files consistent.
 7. The Phase 2 flows work offline in English and Spanish and remain usable in light and dark themes.
-8. The user can create a plant on the shared plant screen with a favorite state, notes, and a photo staged before the first save.
-9. A successful save persists the plant and staged notes atomically; a failed save removes the newly materialized photo and leaves no partial Room data.
+8. The user can create a plant on the shared plant screen with a favorite state and photo staged before the first save; notes are not shown during creation.
+9. A successful save persists the plant; a failed save removes the newly materialized photo and leaves no partial Room data.
 10. The v3-to-v4 migration discards common-name values while preserving the remaining plant, note, and photo data.
 
 ## Later-phase acceptance scenarios

@@ -8,7 +8,6 @@ import com.miguelrodriguez19.stayleafy.data.photo.PlantPhotoRepository
 import com.miguelrodriguez19.stayleafy.data.photo.StagedPhoto
 import com.miguelrodriguez19.stayleafy.data.photo.StoredPhoto
 import com.miguelrodriguez19.stayleafy.model.PlantDraft
-import com.miguelrodriguez19.stayleafy.model.PlantNoteDraft
 import com.miguelrodriguez19.stayleafy.test.MainDispatcherRule
 import java.io.File
 import kotlinx.coroutines.flow.first
@@ -97,7 +96,7 @@ class PlantDetailViewModelTest {
     }
 
     @Test
-    fun create_savePassesNormalizedDraftFavoriteNotesAndStagedPhoto() = runTest {
+    fun create_savePassesNormalizedDraftFavoriteAndStagedPhotoWithoutNotes() = runTest {
         val repository = FakePlantRepository().apply {
             observedPlant = testPlant(id = "created-plant")
         }
@@ -114,7 +113,6 @@ class PlantDetailViewModelTest {
         viewModel.updateLocation("  South window  ")
         viewModel.updateDescription("  Easy to care for  ")
         viewModel.setFavorite(true)
-        viewModel.addStagedNote("  New leaf appeared.  ")
         assertEquals(
             StagedPhoto("photo-token"),
             (viewModel.uiState.value as PlantDetailUiState.Content).stagedPhoto,
@@ -134,7 +132,7 @@ class PlantDetailViewModelTest {
                     ),
                     favorite = true,
                     stagedPhotoToken = "photo-token",
-                    notes = listOf(PlantNoteDraft("New leaf appeared.")),
+                    notes = emptyList(),
                 ),
             ),
             repository.createCalls,
@@ -143,7 +141,6 @@ class PlantDetailViewModelTest {
         assertEquals(PlantDetailMode.View, state.mode)
         assertEquals("created-plant", state.savedPlantId)
         assertNull(state.stagedPhoto)
-        assertTrue(state.stagedNotes.isEmpty())
     }
 
     @Test
