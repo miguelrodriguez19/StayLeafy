@@ -27,3 +27,12 @@ data class PlantDetail(val plantId: String? = null) : NavKey
 
 @Serializable
 data class PlantNoteEditor(val plantId: String, val noteId: String? = null) : NavKey
+
+@Serializable
+data class CareConfiguration(val plantId: String) : NavKey
+
+@Serializable
+data object NoticeList : NavKey
+
+@Serializable
+data class NoticeDetail(val noticeId: String) : NavKey

@@ -20,8 +20,14 @@ import androidx.room.Database
 import androidx.room.RoomDatabase
 
 @Database(
-    entities = [PlantEntity::class, PlantNoteEntity::class, CareEventEntity::class],
-    version = 5,
+    entities = [
+        PlantEntity::class,
+        PlantNoteEntity::class,
+        CareEventEntity::class,
+        ReminderRuleEntity::class,
+        NoticeEntity::class,
+    ],
+    version = 6,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -30,4 +36,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun plantNoteDao(): PlantNoteDao
 
     abstract fun careEventDao(): CareEventDao
+
+    abstract fun reminderRuleDao(): ReminderRuleDao
+
+    abstract fun noticeDao(): NoticeDao
 }

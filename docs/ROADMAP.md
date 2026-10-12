@@ -78,22 +78,29 @@ Exit condition: the user can reliably answer when each care action last occurred
 
 ## Phase 4 — Interval reminders
 
-Phase 4 remains planned. It owns reminder rules, next-due calculations, the care-status filter, WorkManager evaluation, notifications, and reminder-rule cleanup; Phase 3 does not schedule reminders or recompute due dates.
+Phase 4 is complete. It owns interval rules, next-due calculations, care-status filtering, a persistent in-app Notices inbox, bottom navigation, WorkManager evaluation, system notifications, and reminder/notice cleanup. Phase 3 does not schedule reminders or recompute due dates.
 
-- [ ] Add interval reminder rules.
-- [ ] Add the care-configuration entry point from plant detail when its destination and rule editor are designed.
-- [ ] Calculate the next due date after completion.
-- [ ] Display upcoming and overdue states.
-- [ ] Add the care-status filter to the plant inventory.
-- [ ] Add the reminder-rule cascade when a Plant is deleted.
-- [ ] Add WorkManager reminder evaluation.
-- [ ] Add notification permission education.
-- [ ] Deep link notifications to plant detail.
-- [ ] Add deduplication and scheduler tests.
+- [x] Add Room schema v6 with interval reminder rules and persistent read/unread Notices, preserving the complete non-destructive migration chain.
+- [x] Add a dedicated care-configuration destination with watering, pruning, and fertilizing cards plus one atomic Save action.
+- [x] Require a positive interval and an explicit source: latest matching care or a directly selected first due date.
+- [x] Recalculate the next due date transactionally after matching care without allowing an older retroactive event to move it backwards.
+- [x] Keep the current due date when the plant-scoped care history is cleared.
+- [x] Display next-due, upcoming, and overdue states in plant detail and a compact most-urgent summary in inventory rows.
+- [x] Add independent, combinable Upcoming and Overdue inventory filters; Upcoming covers today through seven days ahead and both selected filters use union semantics.
+- [x] Add the reminder-rule and notice cascades when a Plant is deleted.
+- [x] Add `Plants | Notices` bottom navigation, preserving independent root state and showing the unread count on Notices.
+- [x] Add the Notices list, Notice detail, read-on-open behavior, Mark all as read, and navigation from a notice to its plant.
+- [x] Add unique periodic WorkManager evaluation approximately daily around 09:00 local time, with one persistent Notice and at most one system notification per occurrence.
+- [x] Add contextual Android notification-permission education after the first active rule is saved. Denial keeps rules and Notices active, and granting permission later does not deliver previously suppressed occurrences.
+- [x] Route notification taps through the Notices root to the matching Notice detail.
+- [x] Add migration, date calculation, transactional rescheduling, deduplication, permission, inbox, scheduler, navigation, localization, and connected-device checks.
+- [x] Complete `./gradlew test lint assembleDebug` and `./gradlew connectedDebugAndroidTest`.
 
-Exit condition: watering every `N` days works end to end without duplicate notifications.
+Exit condition met: interval care works fully offline end to end; due occurrences create exactly one persistent Notice, never duplicate a system notification, expose correct read state and filters, and pass the local and connected-emulator verification gates.
 
 ## Phase 5 — Seasonal care
+
+Phase 5 remains the sole owner of seasonal schedules. Phase 4 may retain a schedule discriminator for forward compatibility, but it must not add seasonal fields, calculations, editor controls, or seasonal notifications.
 
 - [ ] Add annual seasonal start and optional end dates.
 - [ ] Support seasons crossing the year boundary.

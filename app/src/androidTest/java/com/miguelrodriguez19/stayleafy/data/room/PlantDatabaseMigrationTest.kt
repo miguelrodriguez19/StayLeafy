@@ -12,6 +12,7 @@ import com.miguelrodriguez19.stayleafy.data.local.database.MIGRATION_1_2
 import com.miguelrodriguez19.stayleafy.data.local.database.MIGRATION_2_3
 import com.miguelrodriguez19.stayleafy.data.local.database.MIGRATION_3_4
 import com.miguelrodriguez19.stayleafy.data.local.database.MIGRATION_4_5
+import com.miguelrodriguez19.stayleafy.data.local.database.MIGRATION_5_6
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -64,7 +65,13 @@ class PlantDatabaseMigrationTest {
                 context,
                 AppDatabase::class.java,
                 databaseName,
-            ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+            ).addMigrations(
+                MIGRATION_1_2,
+                MIGRATION_2_3,
+                MIGRATION_3_4,
+                MIGRATION_4_5,
+                MIGRATION_5_6,
+            )
                 .allowMainThreadQueries()
                 .build()
             try {

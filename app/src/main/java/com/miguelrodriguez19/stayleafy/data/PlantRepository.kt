@@ -63,13 +63,23 @@ class DefaultPlantRepository @Inject constructor(
     private val epochMillisProvider: EpochMillisProvider,
     private val uuidProvider: UuidProvider,
     private val photoFileStore: PhotoFileStore,
+    private val zoneIdProvider: ZoneIdProvider,
 ) : PlantRepository {
 
-    override fun observePlants(filter: PlantListFilter): Flow<List<Plant>> =
-        plantDao.observePlants(
+    override fun observePlants(filter: PlantListFilter): Flow<List<Plant>> {
+        val todayEpochDay = epochDayAt(
+            epochMillis = epochMillisProvider.now(),
+            zoneId = zoneIdProvider.currentZoneId(),
+        )
+        return plantDao.observePlants(
             escapedQuery = escapeLikeQuery(filter.query.trim().normalizeForPlantSearch()),
             favoritesOnly = filter.favoritesOnly,
+            upcomingOnly = filter.upcomingOnly,
+            overdueOnly = filter.overdueOnly,
+            todayEpochDay = todayEpochDay,
+            upcomingEndEpochDay = Math.addExact(todayEpochDay, 7L),
         ).map { items -> items.map(PlantEntity::toModel) }
+    }
 
     override fun observePlant(id: String): Flow<Plant?> =
         plantDao.observePlant(id).map { item -> item?.toModel() }

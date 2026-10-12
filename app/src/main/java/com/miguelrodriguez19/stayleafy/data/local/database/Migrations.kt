@@ -199,3 +199,60 @@ val MIGRATION_4_5 = object : Migration(4, 5) {
         )
     }
 }
+
+val MIGRATION_5_6 = object : Migration(5, 6) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `reminder_rules` (
+                `id` TEXT NOT NULL,
+                `plantId` TEXT NOT NULL,
+                `careType` TEXT NOT NULL,
+                `scheduleType` TEXT NOT NULL,
+                `enabled` INTEGER NOT NULL,
+                `intervalDays` INTEGER NOT NULL,
+                `nextDueEpochDay` INTEGER NOT NULL,
+                `createdAt` INTEGER NOT NULL,
+                `updatedAt` INTEGER NOT NULL,
+                PRIMARY KEY(`id`),
+                FOREIGN KEY(`plantId`) REFERENCES `plants`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE
+            )
+            """.trimIndent(),
+        )
+        db.execSQL(
+            "CREATE UNIQUE INDEX IF NOT EXISTS `index_reminder_rules_plantId_careType_scheduleType` " +
+                "ON `reminder_rules` (`plantId`, `careType`, `scheduleType`)",
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_reminder_rules_enabled_nextDueEpochDay` " +
+                "ON `reminder_rules` (`enabled`, `nextDueEpochDay`)",
+        )
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `notices` (
+                `id` TEXT NOT NULL,
+                `ruleId` TEXT NOT NULL,
+                `occurrenceKey` TEXT NOT NULL,
+                `careType` TEXT NOT NULL,
+                `dueEpochDay` INTEGER NOT NULL,
+                `createdAt` INTEGER NOT NULL,
+                `readAt` INTEGER,
+                `deliveryState` TEXT NOT NULL,
+                PRIMARY KEY(`id`),
+                FOREIGN KEY(`ruleId`) REFERENCES `reminder_rules`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE
+            )
+            """.trimIndent(),
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_notices_ruleId` ON `notices` (`ruleId`)",
+        )
+        db.execSQL(
+            "CREATE UNIQUE INDEX IF NOT EXISTS `index_notices_occurrenceKey` " +
+                "ON `notices` (`occurrenceKey`)",
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_notices_readAt_createdAt` " +
+                "ON `notices` (`readAt`, `createdAt`)",
+        )
+    }
+}

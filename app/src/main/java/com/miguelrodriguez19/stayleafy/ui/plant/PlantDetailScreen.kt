@@ -67,7 +67,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.miguelrodriguez19.stayleafy.R
 import com.miguelrodriguez19.stayleafy.model.PlantNote
 import com.miguelrodriguez19.stayleafy.model.CareEvent
+import com.miguelrodriguez19.stayleafy.model.CareDueStatus
+import com.miguelrodriguez19.stayleafy.model.CareStatusSummary
 import com.miguelrodriguez19.stayleafy.model.CareType
+import com.miguelrodriguez19.stayleafy.ui.reminder.CareReminderUiState
+import com.miguelrodriguez19.stayleafy.ui.reminder.PlantCareStatusViewModel
 import com.miguelrodriguez19.stayleafy.ui.theme.StayLeafyTheme
 import java.io.File
 
@@ -81,6 +85,7 @@ fun PlantDetailRoute(
     modifier: Modifier = Modifier,
     onAddNote: () -> Unit = {},
     onEditNote: (String) -> Unit = {},
+    onConfigureCare: () -> Unit = {},
 ) {
     val viewModel: PlantDetailViewModel = hiltViewModel(
         creationCallback = { factory: PlantDetailViewModel.Factory -> factory.create(plantId) },
@@ -106,6 +111,8 @@ fun PlantDetailRoute(
     var retryCare: () -> Unit = {}
     var recordCare: (CareType, Long?) -> Unit = { _, _ -> }
     var clearCareHistory: (CareType) -> Unit = {}
+    var reminderState: CareReminderUiState = CareReminderUiState.Content(emptyList())
+    var retryReminders: () -> Unit = {}
 
     if (plantId != null) {
         val notesViewModel: PlantNotesViewModel = hiltViewModel(
@@ -131,6 +138,12 @@ fun PlantDetailRoute(
         retryCare = careViewModel::retry
         recordCare = careViewModel::record
         clearCareHistory = careViewModel::clearHistory
+        val reminderViewModel: PlantCareStatusViewModel = hiltViewModel(
+            creationCallback = { factory: PlantCareStatusViewModel.Factory -> factory.create(plantId) },
+        )
+        val observedReminderState by reminderViewModel.uiState.collectAsStateWithLifecycle()
+        reminderState = observedReminderState
+        retryReminders = reminderViewModel::retry
     }
 
     val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
@@ -180,6 +193,9 @@ fun PlantDetailRoute(
         onRetryCare = retryCare,
         onRecordCare = recordCare,
         onClearCareHistory = clearCareHistory,
+        reminderState = reminderState,
+        onRetryReminders = retryReminders,
+        onConfigureCare = onConfigureCare,
         onTakePhoto = {
             viewModel.prepareCameraCapture()?.let { capture ->
                 runCatching { cameraLauncher.launch(capture.contentUri) }
@@ -241,9 +257,12 @@ fun PlantDetailScreen(
     onRemoveStagedPhoto: () -> Unit,
     onRemovePhoto: () -> Unit,
     onRetryPhotoCleanup: () -> Unit,
+    modifier: Modifier = Modifier,
     stagedPhotoFile: File? = null,
     onDiscardCreation: () -> Unit = onBack,
-    modifier: Modifier = Modifier,
+    reminderState: CareReminderUiState = CareReminderUiState.Content(emptyList()),
+    onRetryReminders: () -> Unit = {},
+    onConfigureCare: () -> Unit = {},
 ) {
     var showDeleteDialog by rememberSaveable { mutableStateOf(false) }
     var showPhotoSourceDialog by rememberSaveable { mutableStateOf(false) }
@@ -329,6 +348,9 @@ fun PlantDetailScreen(
                     onRetryCare = onRetryCare,
                     onRecordCare = onRecordCare,
                     onClearCareHistory = onClearCareHistory,
+                    reminderState = reminderState,
+                    onRetryReminders = onRetryReminders,
+                    onConfigureCare = onConfigureCare,
                     onTakePhoto = onTakePhoto,
                     onPickPhoto = onPickPhoto,
                     onReplacePhotoRequest = { showPhotoSourceDialog = true },
@@ -411,6 +433,9 @@ private fun PlantDetailContent(
     onRetryCare: () -> Unit,
     onRecordCare: (CareType, Long?) -> Unit,
     onClearCareHistory: (CareType) -> Unit,
+    reminderState: CareReminderUiState,
+    onRetryReminders: () -> Unit,
+    onConfigureCare: () -> Unit,
     onTakePhoto: () -> Unit,
     onPickPhoto: () -> Unit,
     onReplacePhotoRequest: () -> Unit,
@@ -494,6 +519,9 @@ private fun PlantDetailContent(
                 onPickDate = { type -> pendingCareDateType = type },
                 onOpenHistory = { type -> selectedCareHistoryType = type },
                 onRetry = onRetryCare,
+                reminderState = reminderState,
+                onRetryReminders = onRetryReminders,
+                onConfigureCare = onConfigureCare,
             )
             NotesSection(
                 notesState,
@@ -724,23 +752,50 @@ private fun CareSection(
     onPickDate: (CareType) -> Unit,
     onOpenHistory: (CareType) -> Unit,
     onRetry: () -> Unit,
+    reminderState: CareReminderUiState,
+    onRetryReminders: () -> Unit,
+    onConfigureCare: () -> Unit,
 ) {
     val events = (state as? CareEventsUiState.Content)?.events.orEmpty()
+    val summaries = (reminderState as? CareReminderUiState.Content)?.summaries.orEmpty()
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text(stringResource(R.string.care_history), style = MaterialTheme.typography.titleMedium)
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    stringResource(R.string.care_history),
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f),
+                )
+                TextButton(onClick = onConfigureCare) { Text(stringResource(R.string.configure_care)) }
+            }
             if (state is CareEventsUiState.Empty || state is CareEventsUiState.Content) {
                 CareType.values().forEach { type ->
                     val latest = events.firstOrNull { it.careType == type }
                     CareSummaryRow(
                         type = type,
                         latest = latest,
+                        reminder = summaries.firstOrNull { it.careType == type },
                         onRecordNow = { onRecordNow(type) },
                         onPickDate = { onPickDate(type) },
                         onOpenHistory = { onOpenHistory(type) },
                         enabled = !mutating,
                     )
                 }
+            }
+            when (reminderState) {
+                CareReminderUiState.Loading -> Text(
+                    stringResource(R.string.loading_care_schedule),
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                CareReminderUiState.Error -> Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        stringResource(R.string.load_care_schedule_error),
+                        Modifier.weight(1f),
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                    TextButton(onClick = onRetryReminders) { Text(stringResource(R.string.retry)) }
+                }
+                is CareReminderUiState.Content -> Unit
             }
             when (state) {
                 CareEventsUiState.Loading -> CircularProgressIndicator()
@@ -771,6 +826,7 @@ private fun CareSection(
 private fun CareSummaryRow(
     type: CareType,
     latest: CareEvent?,
+    reminder: CareStatusSummary?,
     onRecordNow: () -> Unit,
     onPickDate: () -> Unit,
     onOpenHistory: () -> Unit,
@@ -796,6 +852,31 @@ private fun CareSummaryRow(
                     ),
                     style = MaterialTheme.typography.bodyMedium,
                 )
+                if (reminder != null) {
+                    Text(
+                        text = stringResource(
+                            when (reminder.status) {
+                                CareDueStatus.OVERDUE -> R.string.care_due_overdue
+                                CareDueStatus.DUE_TODAY -> R.string.care_due_today
+                                CareDueStatus.UPCOMING -> R.string.care_due_upcoming
+                                CareDueStatus.LATER -> R.string.care_due_later
+                            },
+                            formatEpochDay(reminder.nextDueEpochDay),
+                        ),
+                        color = if (reminder.status == CareDueStatus.OVERDUE) {
+                            MaterialTheme.colorScheme.error
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                } else {
+                    Text(
+                        stringResource(R.string.care_not_scheduled),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
             CareActionButton(
                 label = type.actionLabel(),

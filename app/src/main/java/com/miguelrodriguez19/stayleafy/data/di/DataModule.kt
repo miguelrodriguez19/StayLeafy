@@ -26,10 +26,16 @@ import com.miguelrodriguez19.stayleafy.data.DefaultPlantNoteRepository
 import com.miguelrodriguez19.stayleafy.data.PlantNoteRepository
 import com.miguelrodriguez19.stayleafy.data.CareEventRepository
 import com.miguelrodriguez19.stayleafy.data.DefaultCareEventRepository
+import com.miguelrodriguez19.stayleafy.data.DefaultNoticeRepository
+import com.miguelrodriguez19.stayleafy.data.DefaultReminderRepository
 import com.miguelrodriguez19.stayleafy.data.EpochMillisProvider
+import com.miguelrodriguez19.stayleafy.data.NoticeRepository
+import com.miguelrodriguez19.stayleafy.data.ReminderRepository
 import com.miguelrodriguez19.stayleafy.data.SystemEpochMillisProvider
+import com.miguelrodriguez19.stayleafy.data.SystemZoneIdProvider
 import com.miguelrodriguez19.stayleafy.data.RandomUuidProvider
 import com.miguelrodriguez19.stayleafy.data.UuidProvider
+import com.miguelrodriguez19.stayleafy.data.ZoneIdProvider
 import com.miguelrodriguez19.stayleafy.data.photo.AndroidPhotoFileStore
 import com.miguelrodriguez19.stayleafy.data.photo.ContentResolverPhotoInputResolver
 import com.miguelrodriguez19.stayleafy.data.photo.DefaultPlantPhotoRepository
@@ -64,6 +70,18 @@ abstract class DataModule {
 
     @Singleton
     @Binds
+    abstract fun bindsReminderRepository(
+        repository: DefaultReminderRepository,
+    ): ReminderRepository
+
+    @Singleton
+    @Binds
+    abstract fun bindsNoticeRepository(
+        repository: DefaultNoticeRepository,
+    ): NoticeRepository
+
+    @Singleton
+    @Binds
     abstract fun bindsPlantPhotoRepository(
         repository: DefaultPlantPhotoRepository,
     ): PlantPhotoRepository
@@ -91,6 +109,12 @@ abstract class DataModule {
     abstract fun bindsEpochMillisProvider(
         provider: SystemEpochMillisProvider,
     ): EpochMillisProvider
+
+    @Singleton
+    @Binds
+    abstract fun bindsZoneIdProvider(
+        provider: SystemZoneIdProvider,
+    ): ZoneIdProvider
 
     @Singleton
     @Binds

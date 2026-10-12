@@ -25,10 +25,13 @@ import androidx.compose.ui.test.performSemanticsAction
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.miguelrodriguez19.stayleafy.R
 import com.miguelrodriguez19.stayleafy.model.CareEvent
+import com.miguelrodriguez19.stayleafy.model.CareDueStatus
+import com.miguelrodriguez19.stayleafy.model.CareStatusSummary
 import com.miguelrodriguez19.stayleafy.model.CareType
 import com.miguelrodriguez19.stayleafy.model.Plant
 import com.miguelrodriguez19.stayleafy.model.PlantNote
 import com.miguelrodriguez19.stayleafy.ui.theme.StayLeafyTheme
+import com.miguelrodriguez19.stayleafy.ui.reminder.CareReminderUiState
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -325,6 +328,33 @@ class PlantDetailScreenTest {
     }
 
     @Test
+    fun careSection_showsConfigureActionAndNextDueState() {
+        var configureClicks = 0
+        val dueDay = 21_000L
+        setScreen(
+            state = viewState(detailPlant(name = "Monstera")),
+            reminderState = CareReminderUiState.Content(
+                listOf(
+                    CareStatusSummary(
+                        plantId = "detail-id",
+                        careType = CareType.WATERING,
+                        nextDueEpochDay = dueDay,
+                        status = CareDueStatus.OVERDUE,
+                    ),
+                ),
+            ),
+            onConfigureCare = { configureClicks++ },
+        )
+
+        composeTestRule.onNodeWithText(string(R.string.configure_care)).performScrollTo().performClick()
+        composeTestRule.onNodeWithText(
+            string(R.string.care_due_overdue, formatEpochDay(dueDay)),
+        ).performScrollTo().assertIsDisplayed()
+
+        assertEquals(1, configureClicks)
+    }
+
+    @Test
     fun careAction_shortPressRecordsTodayAndLongPressOpensDatePicker() {
         var recorded: Pair<CareType, Long?>? = null
         setScreen(
@@ -478,6 +508,9 @@ class PlantDetailScreenTest {
         onRetryCare: () -> Unit = {},
         onRecordCare: (CareType, Long?) -> Unit = { _, _ -> },
         onClearCareHistory: (CareType) -> Unit = {},
+        reminderState: CareReminderUiState = CareReminderUiState.Content(emptyList()),
+        onRetryReminders: () -> Unit = {},
+        onConfigureCare: () -> Unit = {},
         photoMutating: Boolean = false,
         photoMutationError: UiErrorCategory? = null,
         photoCleanupRetryEnabled: Boolean = false,
@@ -539,6 +572,9 @@ class PlantDetailScreenTest {
                     onRetryCare = onRetryCare,
                     onRecordCare = onRecordCare,
                     onClearCareHistory = onClearCareHistory,
+                    reminderState = reminderState,
+                    onRetryReminders = onRetryReminders,
+                    onConfigureCare = onConfigureCare,
                     onTakePhoto = onTakePhoto,
                     onPickPhoto = onPickPhoto,
                     onRemoveStagedPhoto = onRemoveStagedPhoto,

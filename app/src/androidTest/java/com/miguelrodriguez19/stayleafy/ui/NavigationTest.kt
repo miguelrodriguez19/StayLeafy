@@ -16,10 +16,14 @@ import androidx.compose.ui.test.performTextReplacement
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.miguelrodriguez19.stayleafy.R
 import com.miguelrodriguez19.stayleafy.model.PlantNote
+import com.miguelrodriguez19.stayleafy.model.AppNotice
+import com.miguelrodriguez19.stayleafy.model.CareType
+import com.miguelrodriguez19.stayleafy.model.NoticeDeliveryState
 import com.miguelrodriguez19.stayleafy.testdi.FakeCareEventRepository
 import com.miguelrodriguez19.stayleafy.testdi.FakePlantNoteRepository
 import com.miguelrodriguez19.stayleafy.testdi.FakePlantRepository
 import com.miguelrodriguez19.stayleafy.testdi.fakePlant
+import com.miguelrodriguez19.stayleafy.ui.reminder.FakePhase4UiGateway
 import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
 import javax.inject.Inject
@@ -48,12 +52,16 @@ class NavigationTest {
     @Inject
     lateinit var careRepository: FakeCareEventRepository
 
+    @Inject
+    lateinit var phase4Gateway: FakePhase4UiGateway
+
     @Before
     fun setUp() {
         hiltRule.inject()
         repository.reset()
         noteRepository.reset()
         careRepository.reset()
+        phase4Gateway.reset()
         repository.replacePlants(
             listOf(
                 fakePlant(
@@ -91,6 +99,43 @@ class NavigationTest {
 
         composeTestRule.onNodeWithText("Monstera deliciosa").assertIsDisplayed()
         composeTestRule.onNodeWithText("Living room").assertIsDisplayed()
+        composeTestRule.onNodeWithText(string(R.string.navigation_plants)).assertDoesNotExist()
+        composeTestRule.onNodeWithText(string(R.string.navigation_notices)).assertDoesNotExist()
+    }
+
+    @Test
+    fun rootTabs_switchBetweenIndependentPlantAndNoticeRoots() {
+        composeTestRule.onNodeWithText(string(R.string.navigation_notices)).performClick()
+        composeTestRule.onAllNodesWithText(string(R.string.notices_title)).onFirst().assertIsDisplayed()
+        composeTestRule.onNodeWithText(string(R.string.no_notices)).assertIsDisplayed()
+
+        composeTestRule.onNodeWithText(string(R.string.navigation_plants)).performClick()
+        composeTestRule.onNodeWithText(string(R.string.plants_title)).assertIsDisplayed()
+        composeTestRule.onNodeWithText("Monstera").assertIsDisplayed()
+    }
+
+    @Test
+    fun unreadBadge_andAndroidNoticeHook_openNoticeDetail() {
+        phase4Gateway.replaceNotices(listOf(testNotice()))
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("1", useUnmergedTree = true).assertIsDisplayed()
+
+        AndroidNoticeNavigation.openNotice("notice-id")
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText(string(R.string.notice_details)).assertIsDisplayed()
+        composeTestRule.onNodeWithText("Monstera").assertIsDisplayed()
+        composeTestRule.onNodeWithText(string(R.string.navigation_notices)).assertDoesNotExist()
+    }
+
+    @Test
+    fun detailConfigureCare_opensDedicatedScreenWithoutBottomNavigation() {
+        clickListPlant("Monstera")
+        composeTestRule.onNodeWithText(string(R.string.configure_care)).performScrollTo().performClick()
+
+        composeTestRule.onNodeWithText(string(R.string.configure_care)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(string(R.string.navigation_plants)).assertDoesNotExist()
+        composeTestRule.onNodeWithText(string(R.string.navigation_notices)).assertDoesNotExist()
     }
 
     @Test
@@ -180,4 +225,16 @@ class NavigationTest {
 
     private fun string(id: Int, vararg arguments: Any): String =
         composeTestRule.activity.getString(id, *arguments)
+
+    private fun testNotice() = AppNotice(
+        id = "notice-id",
+        ruleId = "rule-id",
+        plantId = "monstera-id",
+        plantName = "Monstera",
+        careType = CareType.WATERING,
+        dueEpochDay = 21_000,
+        createdAt = 1_800_000_000_000,
+        readAt = null,
+        deliveryState = NoticeDeliveryState.DELIVERED,
+    )
 }

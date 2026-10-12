@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -38,6 +39,10 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.miguelrodriguez19.stayleafy.R
 import com.miguelrodriguez19.stayleafy.model.Plant
+import com.miguelrodriguez19.stayleafy.model.CareDueStatus
+import com.miguelrodriguez19.stayleafy.model.CareStatusSummary
+import com.miguelrodriguez19.stayleafy.ui.reminder.PlantCareSummaryViewModel
+import com.miguelrodriguez19.stayleafy.ui.reminder.localizedName
 import com.miguelrodriguez19.stayleafy.ui.theme.StayLeafyTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -47,10 +52,12 @@ fun PlantListRoute(
     onPlantClick: (String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: PlantViewModel = hiltViewModel(),
+    careSummaryViewModel: PlantCareSummaryViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val filter by viewModel.filter.collectAsStateWithLifecycle()
     val mutationError by viewModel.mutationError.collectAsStateWithLifecycle()
+    val careSummaries by careSummaryViewModel.summaries.collectAsStateWithLifecycle()
 
     PlantListScreen(
         state = state,
@@ -65,6 +72,11 @@ fun PlantListRoute(
         onPlantClick = onPlantClick,
         onFavoriteClick = viewModel::setFavorite,
         onDismissMutationError = viewModel::clearMutationError,
+        upcomingOnly = filter.upcomingOnly,
+        overdueOnly = filter.overdueOnly,
+        onUpcomingOnlyChange = viewModel::updateUpcomingOnly,
+        onOverdueOnlyChange = viewModel::updateOverdueOnly,
+        careSummaries = careSummaries.groupBy(CareStatusSummary::plantId),
         modifier = modifier,
     )
 }
@@ -85,6 +97,11 @@ fun PlantListScreen(
     onFavoriteClick: (String, Boolean) -> Unit,
     onDismissMutationError: () -> Unit,
     modifier: Modifier = Modifier,
+    upcomingOnly: Boolean = false,
+    overdueOnly: Boolean = false,
+    onUpcomingOnlyChange: (Boolean) -> Unit = {},
+    onOverdueOnlyChange: (Boolean) -> Unit = {},
+    careSummaries: Map<String, List<CareStatusSummary>> = emptyMap(),
 ) {
     Scaffold(
         modifier = modifier,
@@ -114,19 +131,31 @@ fun PlantListScreen(
                 label = { Text(stringResource(R.string.search_plants)) },
                 singleLine = true,
             )
-            Row(
+            FlowRow(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 12.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
+                verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 FilterChip(
                     selected = favoritesOnly,
                     onClick = { onFavoritesOnlyChange(!favoritesOnly) },
                     label = { Text(stringResource(R.string.favorites_only)) },
                 )
-                if (filterQuery.isNotBlank() || favoritesOnly) {
+                FilterChip(
+                    selected = upcomingOnly,
+                    onClick = { onUpcomingOnlyChange(!upcomingOnly) },
+                    label = { Text(stringResource(R.string.upcoming_filter)) },
+                )
+                FilterChip(
+                    selected = overdueOnly,
+                    onClick = { onOverdueOnlyChange(!overdueOnly) },
+                    label = { Text(stringResource(R.string.overdue_filter)) },
+                )
+            }
+            if (filterQuery.isNotBlank() || favoritesOnly || upcomingOnly || overdueOnly) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                     TextButton(onClick = onClearFilters) {
                         Text(stringResource(R.string.clear_filters))
                     }
@@ -158,6 +187,7 @@ fun PlantListScreen(
                     plants = state.plants,
                     onPlantClick = onPlantClick,
                     onFavoriteClick = onFavoriteClick,
+                    careSummaries = careSummaries,
                 )
             }
         }
@@ -226,6 +256,7 @@ private fun PlantListContent(
     plants: List<Plant>,
     onPlantClick: (String) -> Unit,
     onFavoriteClick: (String, Boolean) -> Unit,
+    careSummaries: Map<String, List<CareStatusSummary>>,
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -236,6 +267,7 @@ private fun PlantListContent(
                 plant = plant,
                 onClick = { onPlantClick(plant.id) },
                 onFavoriteClick = { onFavoriteClick(plant.id, !plant.isFavorite) },
+                careSummaries = careSummaries[plant.id].orEmpty(),
             )
         }
     }
@@ -246,6 +278,7 @@ private fun PlantListItem(
     plant: Plant,
     onClick: () -> Unit,
     onFavoriteClick: () -> Unit,
+    careSummaries: List<CareStatusSummary>,
 ) {
     val favoriteDescription = stringResource(
         if (plant.isFavorite) R.string.remove_favorite else R.string.add_favorite,
@@ -300,9 +333,35 @@ private fun PlantListItem(
                 HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
                 Text(location, style = MaterialTheme.typography.bodySmall)
             }
+            CareStatusCompact(careSummaries)
         }
     }
 }
+
+@Composable
+private fun CareStatusCompact(summaries: List<CareStatusSummary>) {
+    val active = summaries.sortedBy(CareStatusSummary::nextDueEpochDay)
+    val urgent = active.firstOrNull() ?: return
+    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            text = stringResource(
+                R.string.compact_care_status,
+                urgent.careType.localizedName(),
+                formatEpochDay(urgent.nextDueEpochDay),
+            ),
+            color = when (urgent.status) {
+                CareDueStatus.OVERDUE -> MaterialTheme.colorScheme.error
+                CareDueStatus.DUE_TODAY -> MaterialTheme.colorScheme.primary
+                CareDueStatus.UPCOMING, CareDueStatus.LATER -> MaterialTheme.colorScheme.onSurfaceVariant
+            },
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.weight(1f),
+        )
+        if (active.size > 1) Text(stringResource(R.string.more_care_rules, active.size - 1))
+    }
+}
+
 
 @Composable
 private fun InlineError(

@@ -9,6 +9,8 @@ import com.miguelrodriguez19.stayleafy.data.photo.PhotoInputSource
 import com.miguelrodriguez19.stayleafy.data.photo.PhotoOrphanReconciliation
 import com.miguelrodriguez19.stayleafy.data.photo.StoredPhoto
 import java.io.File
+import java.time.ZoneId
+import java.time.ZoneOffset
 import com.miguelrodriguez19.stayleafy.model.PlantDraft
 import com.miguelrodriguez19.stayleafy.model.PlantListFilter
 import com.miguelrodriguez19.stayleafy.model.PlantNoteDraft
@@ -246,16 +248,38 @@ class DefaultPlantRepositoryTest {
         assertEquals("árbol", dao.lastEscapedQuery)
     }
 
+    @Test
+    fun observePlants_passesCareFiltersAndInjectedLocalDateToRoom() = runTest {
+        val dao = RecordingPlantDao()
+        val repository = createRepository(dao)
+
+        repository.observePlants(
+            PlantListFilter(upcomingOnly = true, overdueOnly = true),
+        ).first()
+
+        val today = epochDayAt(fixedNow, ZoneOffset.UTC)
+        assertTrue(dao.lastUpcomingOnly)
+        assertTrue(dao.lastOverdueOnly)
+        assertEquals(today, dao.lastTodayEpochDay)
+        assertEquals(today + 7, dao.lastUpcomingEndEpochDay)
+    }
+
     private fun createRepository(
         dao: PlantDao,
         photoFileStore: PhotoFileStore = NoOpPhotoFileStore,
         uuidProvider: UuidProvider = FixedUuidProvider(fixedUuid),
+        zoneIdProvider: ZoneIdProvider = FixedPlantZoneIdProvider(ZoneOffset.UTC),
     ) = DefaultPlantRepository(
         plantDao = dao,
         epochMillisProvider = FixedEpochMillisProvider(fixedNow),
         uuidProvider = uuidProvider,
         photoFileStore = photoFileStore,
+        zoneIdProvider = zoneIdProvider,
     )
+}
+
+private class FixedPlantZoneIdProvider(private val zoneId: ZoneId) : ZoneIdProvider {
+    override fun currentZoneId(): ZoneId = zoneId
 }
 
 private class FixedEpochMillisProvider(private val value: Long) : EpochMillisProvider {
@@ -289,10 +313,29 @@ private class RecordingPlantDao(initialPlants: List<PlantEntity> = emptyList()) 
         private set
     var lastFavoritesOnly: Boolean = false
         private set
+    var lastUpcomingOnly: Boolean = false
+        private set
+    var lastOverdueOnly: Boolean = false
+        private set
+    var lastTodayEpochDay: Long? = null
+        private set
+    var lastUpcomingEndEpochDay: Long? = null
+        private set
 
-    override fun observePlants(escapedQuery: String, favoritesOnly: Boolean): Flow<List<PlantEntity>> {
+    override fun observePlants(
+        escapedQuery: String,
+        favoritesOnly: Boolean,
+        upcomingOnly: Boolean,
+        overdueOnly: Boolean,
+        todayEpochDay: Long,
+        upcomingEndEpochDay: Long,
+    ): Flow<List<PlantEntity>> {
         lastEscapedQuery = escapedQuery
         lastFavoritesOnly = favoritesOnly
+        lastUpcomingOnly = upcomingOnly
+        lastOverdueOnly = overdueOnly
+        lastTodayEpochDay = todayEpochDay
+        lastUpcomingEndEpochDay = upcomingEndEpochDay
         return data.map { it.toList() }
     }
 

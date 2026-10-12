@@ -84,4 +84,4 @@ internal fun Plant.toPlantForm(): PlantForm = PlantForm(
 )
 
 internal val PlantListFilter.isFiltered: Boolean
-    get() = query.isNotBlank() || favoritesOnly
+    get() = query.isNotBlank() || favoritesOnly || upcomingOnly || overdueOnly

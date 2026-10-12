@@ -2,8 +2,11 @@ package com.miguelrodriguez19.stayleafy.data
 
 import com.miguelrodriguez19.stayleafy.data.local.database.CareEventDao
 import com.miguelrodriguez19.stayleafy.data.local.database.CareEventEntity
+import com.miguelrodriguez19.stayleafy.data.local.database.ReminderRuleEntity
 import com.miguelrodriguez19.stayleafy.model.CareEventDraft
 import com.miguelrodriguez19.stayleafy.model.CareType
+import java.time.ZoneId
+import java.time.ZoneOffset
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
@@ -77,6 +80,45 @@ class DefaultCareEventRepositoryTest {
         assertEquals("performedAt must not be in the future", error?.message)
         assertEquals(0, uuidProvider.calls)
         assertEquals(null, dao.insertedEvent)
+    }
+
+    @Test
+    fun createEvent_latestCareAdvancesRuleAndResolvesCurrentOccurrence() = runTest {
+        val rule = reminderRule(nextDueEpochDay = 20_000L)
+        val dao = RecordingCareEventDao(
+            initialEvents = listOf(eventEntity()),
+            reminderRule = rule,
+        )
+        val repository = createRepository(dao)
+
+        repository.createEvent(
+            "plant-1",
+            CareEventDraft(CareType.WATERING, fixedNow - 1_000L, null),
+        )
+
+        assertEquals(rule.id, dao.resolvedRuleId)
+        assertEquals(
+            epochDayAt(fixedNow - 1_000L, ZoneOffset.UTC) + rule.intervalDays,
+            dao.updatedRuleDueEpochDay,
+        )
+    }
+
+    @Test
+    fun createEvent_backdatedBeforeLatestCareDoesNotRegressRule() = runTest {
+        val latest = eventEntity().copy(performedAt = fixedNow - 1_000L)
+        val dao = RecordingCareEventDao(
+            initialEvents = listOf(latest),
+            reminderRule = reminderRule(nextDueEpochDay = 20_000L),
+        )
+        val repository = createRepository(dao)
+
+        repository.createEvent(
+            "plant-1",
+            CareEventDraft(CareType.WATERING, fixedNow - 10_000L, null),
+        )
+
+        assertEquals(null, dao.updatedRuleDueEpochDay)
+        assertEquals(null, dao.resolvedRuleId)
     }
 
     @Test
@@ -193,7 +235,12 @@ class DefaultCareEventRepositoryTest {
         careEventDao = dao,
         epochMillisProvider = FixedCareEventEpochMillisProvider(fixedNow),
         uuidProvider = uuidProvider,
+        zoneIdProvider = FixedCareEventZoneIdProvider(ZoneOffset.UTC),
     )
+}
+
+private class FixedCareEventZoneIdProvider(private val zoneId: ZoneId) : ZoneIdProvider {
+    override fun currentZoneId(): ZoneId = zoneId
 }
 
 private class FixedCareEventEpochMillisProvider(private val value: Long) : EpochMillisProvider {
@@ -214,7 +261,10 @@ private class RecordingUuidProvider(private val value: String) : UuidProvider {
     }
 }
 
-private class RecordingCareEventDao(initialEvents: List<CareEventEntity> = emptyList()) : CareEventDao {
+private class RecordingCareEventDao(
+    initialEvents: List<CareEventEntity> = emptyList(),
+    private val reminderRule: ReminderRuleEntity? = null,
+) : CareEventDao {
     private val data = MutableStateFlow(initialEvents)
 
     var insertedEvent: CareEventEntity? = null
@@ -228,6 +278,10 @@ private class RecordingCareEventDao(initialEvents: List<CareEventEntity> = empty
     var lastObservedPlantId: String? = null
         private set
     var lastObservedEvent: EventKey? = null
+        private set
+    var updatedRuleDueEpochDay: Long? = null
+        private set
+    var resolvedRuleId: String? = null
         private set
 
     val currentEvent: CareEventEntity?
@@ -246,6 +300,32 @@ private class RecordingCareEventDao(initialEvents: List<CareEventEntity> = empty
     override suspend fun insertEvent(event: CareEventEntity) {
         insertedEvent = event
         data.value = data.value + event
+    }
+
+    override suspend fun getLatestPerformedAt(plantId: String, careType: String): Long? =
+        data.value
+            .filter { it.plantId == plantId && it.careType == careType }
+            .maxOfOrNull(CareEventEntity::performedAt)
+
+    override suspend fun getIntervalRule(
+        plantId: String,
+        careType: String,
+    ): ReminderRuleEntity? = reminderRule?.takeIf {
+        it.plantId == plantId && it.careType == careType
+    }
+
+    override suspend fun updateRuleDueDate(
+        ruleId: String,
+        nextDueEpochDay: Long,
+        updatedAt: Long,
+    ): Int {
+        updatedRuleDueEpochDay = nextDueEpochDay
+        return if (reminderRule?.id == ruleId) 1 else 0
+    }
+
+    override suspend fun markRuleNoticesRead(ruleId: String, readAt: Long): Int {
+        resolvedRuleId = ruleId
+        return 1
     }
 
     override suspend fun updateEvent(
@@ -307,6 +387,18 @@ private fun eventEntity() = CareEventEntity(
     note = "Initial watering",
     createdAt = 1_700_000_000_000L,
     updatedAt = 1_700_000_100_000L,
+)
+
+private fun reminderRule(nextDueEpochDay: Long) = ReminderRuleEntity(
+    id = "rule-1",
+    plantId = "plant-1",
+    careType = CareType.WATERING.name,
+    scheduleType = "INTERVAL",
+    enabled = true,
+    intervalDays = 7,
+    nextDueEpochDay = nextDueEpochDay,
+    createdAt = 1_000L,
+    updatedAt = 1_000L,
 )
 
 private fun CareEventEntity.toModelForTest() = com.miguelrodriguez19.stayleafy.model.CareEvent(

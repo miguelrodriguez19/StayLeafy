@@ -193,3 +193,22 @@ Phase 3 does not create reminder rules, calculate next-due dates, reschedule not
 This decision supersedes only the UI workflow in D-020 and does not change schema v5. Plant detail keeps an always-visible Care history section with one cell for watering, pruning, and fertilizing. Each cell shows only its latest localized date. A short press on its action records the injected current time immediately; a long press opens a date picker and records the chosen local date. Reminder frequencies and the Configure care destination remain owned by Phase 4 and are not exposed as a non-functional button.
 
 Pressing a cell opens a read-only bottom sheet containing only that care type for the current plant, ordered by `performedAt DESC, id DESC`. Individual events cannot be edited or deleted from this view. Its contextual menu can clear the complete selected-type history after confirmation. The delete query is constrained by both `plantId` and `careType`, so no other plant or care type is modified. Existing optional notes remain readable for compatibility, while new inline events store `NULL` notes.
+
+## D-022 — Phase 4 interval rules, persistent Notices, and daily local delivery
+
+- **Date:** 2026-10-11
+- **Status:** Accepted
+
+Phase 4 introduces interval scheduling only. One rule may exist for each Plant, care type, and schedule type; schema v6 accepts only `INTERVAL`. The user configures watering, pruning, and fertilizing together on a dedicated screen and saves all three atomically. Every enabled rule requires a positive interval and an explicit basis: the latest matching care event or a directly selected first due date. Existing manual due dates are never silently reinterpreted against care history.
+
+Matching care advances the rule from the newest matching event in the same Room transaction. Older retroactive events cannot move the next due date backwards, and clearing the plant-and-type-scoped care history preserves the stored due date. Upcoming means today through seven local days ahead, inclusive; Overdue means before today. Their inventory chips are independent and use union semantics when both are selected, while Favorites and search continue to intersect with the result.
+
+Each due occurrence creates one persistent in-app Notice, keyed uniquely as `interval:<ruleId>:<dueEpochDay>`, before Android delivery is attempted. Notices have one-way read state and `PENDING`, `DELIVERED`, or `SUPPRESSED` delivery state. Opening a Notice, marking all Notices read, satisfying care, disabling or rescheduling the rule, or deleting its Plant cancels any displayed notification associated with that occurrence. Individual Notices are not deleted or returned to unread; Plant deletion cascades through rules to Notices.
+
+Plants and Notices are peer bottom-navigation roots with independent state. Notification taps open the matching Notice detail under the Notices root, superseding D-009's earlier unspecified destination and the earlier plan to open Plant detail directly. Notice detail marks the item read and offers an explicit action to navigate to the Plant.
+
+WorkManager runs unique periodic evaluation approximately once per day around 09:00 local time. This is a best-effort morning cadence, not an exact-time promise. A rule saved after that day's evaluation waits until the next daily run. Stable occurrence-specific notification identifiers and the unique Notice key make retries idempotent.
+
+On Android versions requiring notification permission, the app explains and requests it contextually after the first active rule is saved. The rule and in-app Notice behavior do not depend on permission. An occurrence evaluated without permission becomes `SUPPRESSED`; granting permission later does not deliver it retroactively. When rules are active but notifications are blocked, guidance and an application-settings action appear only in the Notices root.
+
+This decision refines D-008 and D-009 without adding seasonal behavior. Annual windows, cross-year calculations, seasonal satisfaction, and seasonal notifications remain exclusively in Phase 5. Phase 4 implementation and local plus connected-emulator verification completed on 2026-10-11.

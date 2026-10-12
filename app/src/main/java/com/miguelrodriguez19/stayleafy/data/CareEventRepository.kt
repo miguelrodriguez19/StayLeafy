@@ -27,6 +27,7 @@ class DefaultCareEventRepository @Inject constructor(
     private val careEventDao: CareEventDao,
     private val epochMillisProvider: EpochMillisProvider,
     private val uuidProvider: UuidProvider,
+    private val zoneIdProvider: ZoneIdProvider,
 ) : CareEventRepository {
 
     override fun observeEvents(plantId: String): Flow<List<CareEvent>> =
@@ -40,16 +41,18 @@ class DefaultCareEventRepository @Inject constructor(
         require(draft.performedAt <= now) { "performedAt must not be in the future" }
 
         val id = uuidProvider.newUuid()
-        careEventDao.insertEvent(
-            CareEventEntity(
-                id = id,
-                plantId = plantId,
-                careType = draft.careType.name,
-                performedAt = draft.performedAt,
-                note = draft.note.normalizeNullable(),
-                createdAt = now,
-                updatedAt = now,
-            ),
+        val event = CareEventEntity(
+            id = id,
+            plantId = plantId,
+            careType = draft.careType.name,
+            performedAt = draft.performedAt,
+            note = draft.note.normalizeNullable(),
+            createdAt = now,
+            updatedAt = now,
+        )
+        careEventDao.insertEventAndAdvanceReminder(
+            event = event,
+            performedEpochDay = epochDayAt(draft.performedAt, zoneIdProvider.currentZoneId()),
         )
         return id
     }

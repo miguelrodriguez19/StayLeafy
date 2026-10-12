@@ -30,8 +30,8 @@ android {
         applicationId = "com.miguelrodriguez19.stayleafy"
         minSdk = 24
         targetSdk = 37
-        versionCode = 8
-        versionName = "0.4.2"
+        versionCode = 9
+        versionName = "0.5.0"
 
         testInstrumentationRunner = "com.miguelrodriguez19.stayleafy.HiltTestRunner"
         vectorDrawables {
@@ -91,7 +91,9 @@ dependencies {
 
     // Hilt Dependency Injection
     implementation(libs.hilt.android)
+    implementation(libs.androidx.hilt.work)
     ksp(libs.hilt.compiler)
+    ksp(libs.androidx.hilt.compiler)
     // Hilt and instrumented tests.
     androidTestImplementation(libs.hilt.android.testing)
     kspAndroidTest(libs.hilt.android.compiler)
@@ -106,6 +108,7 @@ dependencies {
     implementation(libs.kotlinx.serialization.core)
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
+    implementation(libs.androidx.work.runtime.ktx)
     ksp(libs.androidx.room.compiler)
     androidTestImplementation(libs.androidx.room.testing)
     androidTestImplementation(libs.kotlinx.serialization.json)

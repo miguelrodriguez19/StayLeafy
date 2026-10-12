@@ -106,12 +106,19 @@ class PlantViewModelTest {
 
         viewModel.updateQuery(" Ficus ")
         viewModel.updateFavoritesOnly(true)
+        viewModel.updateUpcomingOnly(true)
+        viewModel.updateOverdueOnly(true)
 
         viewModel.uiState.first { it is PlantListUiState.Content }
         advanceUntilIdle()
 
         assertEquals(
-            PlantListFilter(query = " Ficus ", favoritesOnly = true),
+            PlantListFilter(
+                query = " Ficus ",
+                favoritesOnly = true,
+                upcomingOnly = true,
+                overdueOnly = true,
+            ),
             viewModel.filter.value,
         )
         assertEquals(viewModel.filter.value, repository.observedFilters.last())

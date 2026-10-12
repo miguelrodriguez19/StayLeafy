@@ -17,6 +17,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.miguelrodriguez19.stayleafy.R
 import com.miguelrodriguez19.stayleafy.model.Plant
+import com.miguelrodriguez19.stayleafy.model.CareDueStatus
+import com.miguelrodriguez19.stayleafy.model.CareStatusSummary
+import com.miguelrodriguez19.stayleafy.model.CareType
 import com.miguelrodriguez19.stayleafy.ui.theme.StayLeafyTheme
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -153,6 +156,42 @@ class PlantScreenTest {
     }
 
     @Test
+    fun careFilters_forwardIndependentSelections() {
+        var upcoming = false
+        var overdue = false
+        setScreen(
+            state = PlantListUiState.Content(listOf(testPlant("fern-id", "Fern"))),
+            onUpcomingOnlyChange = { upcoming = it },
+            onOverdueOnlyChange = { overdue = it },
+        )
+
+        composeTestRule.onNodeWithText(string(R.string.upcoming_filter)).performClick()
+        composeTestRule.onNodeWithText(string(R.string.overdue_filter)).performClick()
+
+        assertEquals(true, upcoming)
+        assertEquals(true, overdue)
+    }
+
+    @Test
+    fun careSummary_displaysMostUrgentAndAdditionalCount() {
+        val plant = testPlant("fern-id", "Fern")
+        setScreen(
+            state = PlantListUiState.Content(listOf(plant)),
+            careSummaries = mapOf(
+                plant.id to listOf(
+                    CareStatusSummary(plant.id, CareType.PRUNING, 21_001, CareDueStatus.UPCOMING),
+                    CareStatusSummary(plant.id, CareType.WATERING, 21_000, CareDueStatus.OVERDUE),
+                ),
+            ),
+        )
+
+        composeTestRule.onNodeWithText(
+            string(R.string.compact_care_status, string(R.string.care_watering), formatEpochDay(21_000)),
+        ).assertIsDisplayed()
+        composeTestRule.onNodeWithText(string(R.string.more_care_rules, 1)).assertIsDisplayed()
+    }
+
+    @Test
     fun emptyState_usesSpanishResources() {
         val configuration = Configuration(
             composeTestRule.activity.resources.configuration,
@@ -202,6 +241,11 @@ class PlantScreenTest {
         onPlantClick: (String) -> Unit = {},
         onFavoriteClick: (String, Boolean) -> Unit = { _, _ -> },
         onDismissMutationError: () -> Unit = {},
+        upcomingOnly: Boolean = false,
+        overdueOnly: Boolean = false,
+        onUpcomingOnlyChange: (Boolean) -> Unit = {},
+        onOverdueOnlyChange: (Boolean) -> Unit = {},
+        careSummaries: Map<String, List<CareStatusSummary>> = emptyMap(),
     ) {
         composeTestRule.setContent {
             StayLeafyTheme(dynamicColor = false) {
@@ -218,13 +262,19 @@ class PlantScreenTest {
                     onPlantClick = onPlantClick,
                     onFavoriteClick = onFavoriteClick,
                     onDismissMutationError = onDismissMutationError,
+                    upcomingOnly = upcomingOnly,
+                    overdueOnly = overdueOnly,
+                    onUpcomingOnlyChange = onUpcomingOnlyChange,
+                    onOverdueOnlyChange = onOverdueOnlyChange,
+                    careSummaries = careSummaries,
                 )
             }
         }
         composeTestRule.waitForIdle()
     }
 
-    private fun string(id: Int): String = composeTestRule.activity.getString(id)
+    private fun string(id: Int, vararg arguments: Any): String =
+        composeTestRule.activity.getString(id, *arguments)
 }
 
 private fun testPlant(

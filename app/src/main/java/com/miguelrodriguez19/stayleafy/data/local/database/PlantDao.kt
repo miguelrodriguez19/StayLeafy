@@ -9,6 +9,18 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface PlantDao {
+    fun observePlants(
+        escapedQuery: String,
+        favoritesOnly: Boolean,
+    ): Flow<List<PlantEntity>> = observePlants(
+        escapedQuery = escapedQuery,
+        favoritesOnly = favoritesOnly,
+        upcomingOnly = false,
+        overdueOnly = false,
+        todayEpochDay = 0,
+        upcomingEndEpochDay = 0,
+    )
+
     @Query(
         """
         SELECT * FROM plants
@@ -18,10 +30,38 @@ interface PlantDao {
             OR nameSearch LIKE '%' || :escapedQuery || '%' ESCAPE '\'
             OR scientificNameSearch LIKE '%' || :escapedQuery || '%' ESCAPE '\'
           )
+          AND (
+            (:upcomingOnly = 0 AND :overdueOnly = 0)
+            OR (
+              :upcomingOnly = 1 AND EXISTS (
+                SELECT 1 FROM reminder_rules
+                WHERE reminder_rules.plantId = plants.id
+                  AND reminder_rules.scheduleType = 'INTERVAL'
+                  AND reminder_rules.enabled = 1
+                  AND reminder_rules.nextDueEpochDay BETWEEN :todayEpochDay AND :upcomingEndEpochDay
+              )
+            )
+            OR (
+              :overdueOnly = 1 AND EXISTS (
+                SELECT 1 FROM reminder_rules
+                WHERE reminder_rules.plantId = plants.id
+                  AND reminder_rules.scheduleType = 'INTERVAL'
+                  AND reminder_rules.enabled = 1
+                  AND reminder_rules.nextDueEpochDay < :todayEpochDay
+              )
+            )
+          )
         ORDER BY name COLLATE NOCASE ASC, id ASC
         """,
     )
-    fun observePlants(escapedQuery: String, favoritesOnly: Boolean): Flow<List<PlantEntity>>
+    fun observePlants(
+        escapedQuery: String,
+        favoritesOnly: Boolean,
+        upcomingOnly: Boolean,
+        overdueOnly: Boolean,
+        todayEpochDay: Long,
+        upcomingEndEpochDay: Long,
+    ): Flow<List<PlantEntity>>
 
     @Query("SELECT * FROM plants WHERE id = :id")
     fun observePlant(id: String): Flow<PlantEntity?>

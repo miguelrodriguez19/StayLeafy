@@ -57,6 +57,14 @@ class PlantViewModel @Inject constructor(
         _filter.update { it.copy(favoritesOnly = favoritesOnly) }
     }
 
+    fun updateUpcomingOnly(upcomingOnly: Boolean) {
+        _filter.update { it.copy(upcomingOnly = upcomingOnly) }
+    }
+
+    fun updateOverdueOnly(overdueOnly: Boolean) {
+        _filter.update { it.copy(overdueOnly = overdueOnly) }
+    }
+
     fun clearFilters() {
         _filter.value = PlantListFilter()
     }

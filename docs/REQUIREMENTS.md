@@ -7,10 +7,12 @@
 - **Interval rule** — A care rule due every configured number of days after completion.
 - **Seasonal rule** — An annual care window defined by a start month/day and an optional end month/day.
 - **Due date** — The local calendar date on which interval-based care becomes due.
+- **Notice** — A persistent in-app record that one reminder-rule occurrence became due, independently of whether Android displayed a system notification.
+- **Occurrence** — One due instance of a rule, identified for interval rules by the rule ID and due epoch day.
 
 ## Functional requirements
 
-Phase delivery note: Phase 1 implements the Plant inventory. Phase 2 implements notes plus one app-managed primary photo. The independent correction pass raises Room to schema v4, removes the redundant common-name field, and unifies plant creation, viewing, and editing. Phase 3 implements Room v5 care events, their history, UI, tests, and cascade. Reminder rules, due-date calculations, notifications, and care-status filtering remain planned for Phase 4.
+Phase delivery note: Phase 1 implements the Plant inventory. Phase 2 implements notes plus one app-managed primary photo. The independent correction pass raises Room to schema v4, removes the redundant common-name field, and unifies plant creation, viewing, and editing. Phase 3 implements Room v5 care events, their history, UI, tests, and cascade. Phase 4 implements schema v6 interval rules, persistent Notices, due-date calculations, care-status filtering, bottom navigation, WorkManager, and local notifications. Annual seasonal rules remain Phase 5 work.
 
 ### Plant inventory
 
@@ -21,10 +23,10 @@ Phase delivery note: Phase 1 implements the Plant inventory. Phase 2 implements 
 - **FR-PLANT-005** — The user can open a plant detail screen.
 - **FR-PLANT-006** — The user can edit plant information.
 - **FR-PLANT-007** — The user can delete a plant after confirmation.
-- **FR-PLANT-008** — Deleting a plant ultimately removes its notes, care events, reminder rules, and app-managed photo. Delivery is incremental: Phase 1 removes the Plant row, Phase 2 adds photo cleanup and the notes cascade, Phase 3 adds the care-event cascade, and Phase 4 adds the reminder-rule cascade.
+- **FR-PLANT-008** — Deleting a plant ultimately removes its notes, care events, reminder rules, Notices, and app-managed photo. Delivery is incremental: Phase 1 removes the Plant row, Phase 2 adds photo cleanup and the notes cascade, Phase 3 adds the care-event cascade, and Phase 4 adds the reminder-rule and Notice cascades.
 - **FR-PLANT-009** — The user can mark or unmark a plant as a favorite.
 - **FR-PLANT-010** — The user can search plants by name or scientific name using literal, case-insensitive substring matching.
-- **FR-PLANT-011** — The user can filter plants by favorites and care status. Phase 1 implements the favorites-only filter; the care-status filter is delivered with care and reminder data in Phase 4.
+- **FR-PLANT-011** — The user can combine search and favorites with independent Upcoming and Overdue care filters. Upcoming means today through seven local calendar days ahead, inclusive; Overdue means strictly before today. Selecting both care filters uses union semantics, while search and favorites continue to intersect with that result.
 - **FR-PLANT-012** — Plant creation, viewing, and editing use one shared screen with the same plant information sections.
 - **FR-PLANT-013** — Before a new plant is saved, the user can stage its favorite state and one primary photo. Notes are available only after the Plant row exists. Saving uses compensating cleanup if file or database persistence fails.
 - **FR-PLANT-014** — The software keyboard advances through the editable plant text fields in form order and finishes from the final field.
@@ -69,10 +71,18 @@ Phase delivery note: Phase 1 implements the Plant inventory. Phase 2 implements 
 - **FR-INTERVAL-002** — An interval rule belongs to one plant and one care type.
 - **FR-INTERVAL-003** — Completing matching care recalculates the next due date as the completion date plus `N` days.
 - **FR-INTERVAL-004** — Example: if `Ficus Living Room` is configured for watering every 15 days and is watered on October 10, its next watering due date is October 25.
-- **FR-INTERVAL-005** — Changing an interval recalculates the next due date from the latest matching care event, or from a user-selected starting date when no event exists.
-- **FR-INTERVAL-006** — Disabling a rule prevents future notifications without deleting its care history.
+- **FR-INTERVAL-005** — Saving an enabled rule requires an explicit due-date source: either the latest matching care event or a directly selected first due date. The UI does not silently reinterpret a manual date when editing a rule.
+- **FR-INTERVAL-006** — A directly selected first due date may be in the past, making the rule immediately overdue in the UI.
+- **FR-INTERVAL-007** — Watering, pruning, and fertilizing rules are configured together on a dedicated screen and saved atomically with one Save action.
+- **FR-INTERVAL-008** — Disabling a rule prevents future due-state evaluation, Notices, and system notifications without deleting its configuration or care history.
+- **FR-INTERVAL-009** — A disabled care type that has never been configured does not require a persisted rule row.
+- **FR-INTERVAL-010** — A retroactive care event older than the latest matching event does not move the next due date backwards.
+- **FR-INTERVAL-011** — Clearing one care type's history for the current plant preserves that rule's currently stored next due date.
+- **FR-INTERVAL-012** — Plant detail shows the last-care date, next due date, and due state for each supported type. Inventory rows show the most urgent active rule and `+N` when more active rules exist.
 
 ### Seasonal reminders
+
+The following requirements are owned by Phase 5. Phase 4 must not expose or claim seasonal configuration or delivery.
 
 - **FR-SEASON-001** — The user can configure an annually recurring care season.
 - **FR-SEASON-002** — A seasonal rule has a start month/day and may have an end month/day.
@@ -85,12 +95,27 @@ Phase delivery note: Phase 1 implements the Plant inventory. Phase 2 implements 
 ### Notifications
 
 - **FR-NOTIFICATION-001** — Notifications are generated locally; no push service is used.
-- **FR-NOTIFICATION-002** — Android notification permission is requested contextually on versions that require it.
+- **FR-NOTIFICATION-002** — On Android versions requiring runtime notification permission, the app explains the benefit and requests permission contextually after the first active interval rule is saved. Saving the rule does not depend on the permission result.
 - **FR-NOTIFICATION-003** — A notification identifies the plant and the care action.
-- **FR-NOTIFICATION-004** — Tapping a notification opens the related plant detail.
+- **FR-NOTIFICATION-004** — Tapping a notification selects the Notices root and opens the matching Notice detail; the detail provides a separate action to open the plant.
 - **FR-NOTIFICATION-005** — The scheduler avoids duplicate notifications for the same rule occurrence.
 - **FR-NOTIFICATION-006** — Reminders survive normal application restarts and device reboots through WorkManager persistence.
-- **FR-NOTIFICATION-007** — The MVP does not promise an exact clock time for delivery.
+- **FR-NOTIFICATION-007** — Unique periodic WorkManager evaluation runs approximately once per day around 09:00 in the device's local time. Delivery is best effort and does not promise an exact clock time.
+- **FR-NOTIFICATION-008** — Saving a rule that is already due after the day's approximate 09:00 evaluation does not trigger an immediate system notification; it is eligible at the next daily evaluation.
+- **FR-NOTIFICATION-009** — If permission is unavailable, the due occurrence still creates a Notice and records system delivery as suppressed. Granting permission later does not retroactively notify suppressed occurrences.
+- **FR-NOTIFICATION-010** — When at least one rule is enabled but Android notifications are blocked, the Notices screen shows a localized explanation and an action to open application notification settings.
+
+### Notices and navigation
+
+- **FR-NOTICE-001** — The application has `Plants` and `Notices` bottom-navigation roots with independent navigation state. Bottom navigation is hidden on detail, editor, and configuration destinations.
+- **FR-NOTICE-002** — The Notices root lists persistent due occurrences newest first and shows loading, error/retry, empty, and content states.
+- **FR-NOTICE-003** — The Notices tab shows the unread count, visually capped at `99+`, and unread rows have a distinct indicator.
+- **FR-NOTICE-004** — Opening a Notice marks it read. A read Notice cannot be manually returned to unread.
+- **FR-NOTICE-005** — The user can mark all unread Notices as read. This action and read-on-open cancel any associated displayed Android notifications.
+- **FR-NOTICE-006** — Notices cannot be deleted individually. Deleting their plant removes them through the reminder-rule cascade.
+- **FR-NOTICE-007** — A Notice detail shows its care type, plant, due date, and generation time, handles a missing Notice with localized state, and can navigate to the current plant detail.
+- **FR-NOTICE-008** — Completing matching care, disabling its rule, or replacing its due occurrence resolves the previous Notice by marking it read and cancelling its displayed Android notification.
+- **FR-NOTICE-009** — Notice text is derived from stored semantic values and current localized resources; translated display strings are not persisted.
 
 ### Preferences and localization
 
@@ -125,6 +150,15 @@ Phase delivery note: Phase 1 implements the Plant inventory. Phase 2 implements 
 - Reads order events by `performedAt DESC, id DESC`, and all timestamps use UTC epoch milliseconds.
 - The migration is non-destructive for existing plants, notes, favorites, photos, and timestamps; existing rows simply receive no care events.
 
+## Planned schema v5-to-v6 migration requirements
+
+- The database filename remains `Plant`, and the complete explicit migration chain becomes `1→2→3→4→5→6`.
+- Room v6 adds interval-only `reminder_rules` and persistent `notices`; existing plants, notes, photos, favorites, timestamps, and care events remain unchanged.
+- A reminder rule has a Plant foreign key with `ON DELETE CASCADE` and is unique for `(plantId, careType, scheduleType)`. Phase 4 accepts only `scheduleType=INTERVAL`.
+- A Notice has a reminder-rule foreign key with `ON DELETE CASCADE`, a globally unique occurrence key, semantic care and due-date fields, read state, and Android delivery state.
+- Deleting a Plant cascades to its rules and then to their Notices.
+- Seasonal scheduling fields and data are not introduced by schema v6; Phase 5 owns that migration and behavior.
+
 ## Phase 2 and correction acceptance scenarios
 
 1. The user creates a plant named `Ficus Living Room`, captures or selects one photo, and later sees the original image after restarting the application.
@@ -138,8 +172,6 @@ Phase delivery note: Phase 1 implements the Plant inventory. Phase 2 implements 
 9. A successful save persists the plant; a failed save removes the newly materialized photo and leaves no partial Room data.
 10. The v3-to-v4 migration discards common-name values while preserving the remaining plant, note, and photo data.
 
-## Later-phase acceptance scenarios
-
 ### Phase 3 care history
 
 1. From plant detail, a short press on watering, pruning, or fertilizing records that care immediately with the injected current time.
@@ -150,13 +182,19 @@ Phase delivery note: Phase 1 implements the Plant inventory. Phase 2 implements 
 
 ### Phase 4 reminders
 
-1. The user configures watering every 15 days, records watering, and sees the calculated next due date.
-2. A due interval rule produces one local notification and does not duplicate it during subsequent checks.
-3. The user configures an annual pruning season and receives a notification when the window begins.
-4. The user can complete the care and reminder flows while the device is offline.
+These verified scenarios define the implemented Phase 4 behavior.
+
+1. The user atomically configures watering every 15 days from the latest watering or a selected first due date and sees the calculated due state.
+2. Matching care advances the date, while an older retroactive event and clearing the scoped history do not move the stored date backwards.
+3. Upcoming and Overdue filters combine correctly with each other, search, and favorites.
+4. A due occurrence creates one Notice and at most one system notification across repeated worker runs.
+5. Opening a Notice or marking all read updates the badge and cancels related displayed notifications.
+6. Denied permission keeps the rule and Notice usable, shows guidance in Notices, and does not cause retroactive delivery after permission is granted.
+7. A notification tap opens the matching Notice detail, and its plant action opens the related plant detail.
+8. Deleting a plant cascades its interval rules and Notices.
+9. The complete interval reminder flow works offline in English and Spanish and in light and dark themes.
 
 ## Open product questions
 
-- Whether the user can choose a preferred notification time in the MVP.
 - Whether an incomplete seasonal action should receive a second reminder before the season ends.
 - Whether export and restore should be included before the first personally used release.

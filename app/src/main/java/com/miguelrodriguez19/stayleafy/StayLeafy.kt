@@ -17,23 +17,63 @@
 package com.miguelrodriguez19.stayleafy
 
 import android.app.Application
+import androidx.hilt.work.HiltWorkerFactory
+import androidx.work.Configuration
+import com.miguelrodriguez19.stayleafy.data.NoticeRepository
 import com.miguelrodriguez19.stayleafy.data.photo.PlantPhotoRepository
+import com.miguelrodriguez19.stayleafy.model.NoticeDeliveryState
+import com.miguelrodriguez19.stayleafy.platform.reminder.ReminderNotificationGateway
+import com.miguelrodriguez19.stayleafy.platform.reminder.ReminderScheduler
 import dagger.hilt.android.HiltAndroidApp
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.collect
 
 @HiltAndroidApp
-class StayLeafy : Application() {
+class StayLeafy : Application(), Configuration.Provider {
     @Inject
     lateinit var plantPhotoRepository: PlantPhotoRepository
 
+    @Inject
+    lateinit var reminderNotificationGateway: ReminderNotificationGateway
+
+    @Inject
+    lateinit var reminderScheduler: ReminderScheduler
+
+    @Inject
+    lateinit var noticeRepository: NoticeRepository
+
+    @Inject
+    lateinit var workerFactory: HiltWorkerFactory
+
     private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    override val workManagerConfiguration: Configuration
+        get() = Configuration.Builder()
+            .setWorkerFactory(workerFactory)
+            .build()
 
     override fun onCreate() {
         super.onCreate()
+        reminderNotificationGateway.ensureChannel()
+        reminderScheduler.ensureDailyEvaluationScheduled()
+        applicationScope.launch {
+            var displayedNoticeIds = emptySet<String>()
+            noticeRepository.observeNotices().collect { notices ->
+                val currentlyDisplayed = notices
+                    .filter { it.deliveryState == NoticeDeliveryState.DELIVERED && it.readAt == null }
+                    .mapTo(mutableSetOf()) { it.id }
+                val resolvedOrRemoved = displayedNoticeIds - currentlyDisplayed
+                val staleAfterRestart = notices
+                    .filter { it.deliveryState == NoticeDeliveryState.DELIVERED && it.readAt != null }
+                    .map { it.id }
+                (resolvedOrRemoved + staleAfterRestart).forEach(reminderNotificationGateway::cancel)
+                displayedNoticeIds = currentlyDisplayed
+            }
+        }
         applicationScope.launch {
             runCatching { plantPhotoRepository.reconcileOrphans() }
         }

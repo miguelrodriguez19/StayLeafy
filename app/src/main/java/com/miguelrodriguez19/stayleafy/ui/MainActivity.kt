@@ -17,6 +17,7 @@
 package com.miguelrodriguez19.stayleafy.ui
 
 import android.os.Bundle
+import android.content.Intent
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
@@ -49,5 +50,12 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+        AndroidNoticeNavigation.handleIntent(intent)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        AndroidNoticeNavigation.handleIntent(intent)
     }
 }

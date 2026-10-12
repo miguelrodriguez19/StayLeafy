@@ -2,11 +2,11 @@
 
 ## Implementation status
 
-The implemented baseline is Room schema version 5. Phase 1 persists the `Plant` entity, Phase 2 adds `PlantNote` and one primary photo, the independent correction pass unifies the plant screen and removes the redundant common-name fields, and Phase 3 adds `CareEvent`. The database filename remains `Plant` for compatibility with the template's schema version 1 and its migration path.
+The implemented baseline is Room schema version 6. Phase 1 persists the `Plant` entity, Phase 2 adds `PlantNote` and one primary photo, the independent correction pass unifies the plant screen and removes the redundant common-name fields, Phase 3 adds `CareEvent`, and Phase 4 adds interval `ReminderRule` and persistent `Notice` rows. The database filename remains `Plant` for compatibility with the template's schema version 1 and its migration path.
 
-The complete registered migration chain is `1→2→3→4→5`. The non-destructive `4→5` migration preserves all existing rows and adds an empty care-event table for existing plants.
+The complete registered migration chain is `1→2→3→4→5→6`. The non-destructive `5→6` migration preserves all existing rows and adds empty reminder-rule and Notice tables for existing plants.
 
-`CareEvent` is implemented in schema v5. `ReminderRule` remains a planned Phase 4 table and is not part of schema v5. Care-event cleanup belongs to Phase 3; reminder-rule cleanup belongs to Phase 4.
+`CareEvent`, interval-only `ReminderRule`, and persistent `Notice` tables are implemented. Care-event cleanup belongs to Phase 3; reminder-rule and Notice cleanup belongs to Phase 4. Seasonal rule fields and behavior remain a Phase 5 concern.
 
 ## Principles
 
@@ -21,16 +21,17 @@ The complete registered migration chain is `1→2→3→4→5`. The non-destruct
 ## Relationships
 
 ```text
-Implemented in schema v5: Plant 1 ─── 0..* PlantNote
-Implemented in schema v5: Plant 1 ─── 0..* CareEvent
-Planned: Plant 1 ─── 0..* ReminderRule
+Implemented in schema v6: Plant 1 ─── 0..* PlantNote
+Implemented in schema v6: Plant 1 ─── 0..* CareEvent
+Implemented in schema v6: Plant 1 ─── 0..* ReminderRule
+Implemented in schema v6: ReminderRule 1 ─── 0..* Notice
 ```
 
-Phase 1 deletion removed only the `Plant` row. Phase 2 adds the notes cascade and primary-photo cleanup. Phase 3 adds the care-event cascade; Phase 4 will add the reminder-rule cascade.
+Phase 1 deletion removed only the `Plant` row. Phase 2 adds the notes cascade and primary-photo cleanup. Phase 3 adds the care-event cascade; Phase 4 cascades Plant deletion through reminder rules to Notices.
 
 ## Plant
 
-Represents one physical household plant. This entity is retained in implemented schema v5.
+Represents one physical household plant. This entity is retained in implemented schema v6.
 
 | Field | Type | Required | Notes |
 |---|---|---:|---|
@@ -93,54 +94,75 @@ Represents completed care and forms the historical record. The immutable model, 
 
 The foreign key references `Plant.id` with `ON DELETE CASCADE`. Required indexes are `(plantId, performedAt)` for history reads and `(plantId, careType, performedAt)` for per-type summaries and future care queries. Repository reads order by `performedAt DESC, id DESC`, giving deterministic newest-first history even when events share a timestamp.
 
-Supported `careType` values are `WATERING`, `PRUNING`, and `FERTILIZING`. A short press records the injected current time, while a long press records the selected local date using the current local time. New inline events have no note; the nullable column remains compatible with events created before this interaction was simplified. Type history is queried from the plant-scoped newest-first stream, and clearing uses both `plantId` and `careType`. Phase 3 does not calculate reminder due dates or schedule notifications.
+Supported `careType` values are `WATERING`, `PRUNING`, and `FERTILIZING`. A short press records the injected current time, while a long press records the selected local date using the current local time. New inline events have no note; the nullable column remains compatible with events created before this interaction was simplified. Type history is queried from the plant-scoped newest-first stream, and clearing uses both `plantId` and `careType`. Phase 4 adds transactional interval rescheduling while preserving the stored due date when this scoped history is cleared.
 
-## ReminderRule
+## ReminderRule — implemented in schema v6
 
-Represents user-configured interval or seasonal care behavior.
+Represents user-configured interval care. Phase 4 uses one row at most for each Plant, care type, and schedule type. A card that has never been configured and remains disabled does not require a row; disabling an existing rule retains its settings.
 
 | Field | Type | Required | Notes |
 |---|---|---:|---|
 | `id` | String UUID | Yes | Primary key |
 | `plantId` | String UUID | Yes | Foreign key to Plant |
-| `careType` | String enum | Yes | Watering, pruning, or fertilizing |
-| `scheduleType` | String enum | Yes | `INTERVAL` or `SEASONAL` |
-| `enabled` | Boolean | Yes | Defaults to `true` |
-| `intervalDays` | Int? | Conditional | Positive for interval rules |
-| `nextDueEpochDay` | Long? | Conditional | Current interval occurrence |
-| `seasonStartMonth` | Int? | Conditional | `1..12` for seasonal rules |
-| `seasonStartDay` | Int? | Conditional | Valid day for month |
-| `seasonEndMonth` | Int? | No | Optional end of seasonal window |
-| `seasonEndDay` | Int? | No | Required when end month is present |
-| `lastNotifiedOccurrence` | String? | No | Deduplication key |
+| `careType` | String enum | Yes | `WATERING`, `PRUNING`, or `FERTILIZING` |
+| `scheduleType` | String enum | Yes | Phase 4 accepts only `INTERVAL`; Phase 5 owns seasonal support |
+| `enabled` | Boolean | Yes | Disabled rows retain their configuration but do not contribute due state |
+| `intervalDays` | Int | Yes | Positive number of local calendar days |
+| `nextDueEpochDay` | Long | Yes | Current interval occurrence as a local epoch day |
 | `createdAt` | Long | Yes | UTC epoch milliseconds |
 | `updatedAt` | Long | Yes | UTC epoch milliseconds |
 
-Suggested uniqueness constraint: `(plantId, careType, scheduleType)` for the MVP. This can be relaxed later if multiple rules of the same type become useful.
+The Plant foreign key uses `ON DELETE CASCADE`. A unique index on `(plantId, careType, scheduleType)` prevents duplicate rules, and an index beginning with `(enabled, nextDueEpochDay)` supports daily evaluation and care-status filtering.
 
-The repository validates schedule-specific fields:
+The repository validates `intervalDays > 0`, a valid Plant and care type, `scheduleType=INTERVAL`, and a required next due date. The configuration draft also contains an explicit, non-persisted due source:
 
-- `INTERVAL` requires `intervalDays > 0` and `nextDueEpochDay`.
-- `SEASONAL` requires a valid start month/day.
-- A seasonal end date must be complete and valid when present.
-- Cross-year windows, such as November through February, are valid.
+- `LatestCare` calculates the due date from the newest matching `CareEvent` plus the interval and is unavailable when no matching event exists.
+- `Date(epochDay)` stores the selected first due date directly and may be in the past.
+
+On edit, the draft starts from the stored due date rather than silently reinterpreting it against history. The user must explicitly choose `LatestCare` to recalculate from an event.
+
+## Notice — implemented in schema v6
+
+Represents one due rule occurrence in the in-app Notices inbox. It exists independently of Android notification permission, and it stores semantic values rather than localized display text.
+
+| Field | Type | Required | Notes |
+|---|---|---:|---|
+| `id` | String UUID | Yes | Primary key |
+| `ruleId` | String UUID | Yes | Foreign key to `ReminderRule` with `ON DELETE CASCADE` |
+| `occurrenceKey` | String | Yes | Globally unique key `interval:<ruleId>:<dueEpochDay>` |
+| `careType` | String enum | Yes | Semantic action used for localized rendering |
+| `dueEpochDay` | Long | Yes | Due local calendar date captured for this occurrence |
+| `createdAt` | Long | Yes | UTC epoch milliseconds used for deterministic newest-first ordering |
+| `readAt` | Long? | No | `NULL` while unread; set once when opened, resolved, or marked read |
+| `deliveryState` | String enum | Yes | `PENDING`, `DELIVERED`, or `SUPPRESSED` |
+
+The unique `occurrenceKey` is the primary deduplication boundary. Indexes support `createdAt DESC, id DESC`, unread counting, and rule-scoped resolution. Plant name is resolved through the Notice's rule and Plant so renamed plants use their current localized presentation.
+
+Delivery-state meaning:
+
+- `PENDING` means the Notice exists and system-delivery resolution has not completed.
+- `DELIVERED` means the stable Android notification tag/ID was posted.
+- `SUPPRESSED` means Android permission was unavailable for that occurrence. It is never replayed retroactively if permission is later granted.
+
+Opening a Notice, marking all Notices read, completing matching care, disabling a rule, or replacing its occurrence sets `readAt` when necessary and causes any displayed notification for that occurrence to be cancelled. Read state is one-way; individual Notices are neither deleted nor returned to unread.
 
 ## Deduplication keys
 
-An interval occurrence key can be `interval:<ruleId>:<nextDueEpochDay>`.
+An interval occurrence key is `interval:<ruleId>:<nextDueEpochDay>`. Persisting it as a unique Notice makes repeated worker checks idempotent. A stable Android notification tag/ID derived from the occurrence ensures that a retry after posting but before updating `deliveryState` replaces the same system notification rather than creating another one.
 
-A seasonal occurrence key can be `season:<ruleId>:<seasonStartYear>`.
+Seasonal occurrence keys are deliberately not part of schema v6. Phase 5 defines their data and migration once seasonal rules are implemented.
 
-Persisting the last notified key makes reminder checks idempotent.
+## Transaction boundaries
 
-## Planned future transaction boundaries
+The correction pass keeps plant and favorite creation within the shared plant-save boundary, with compensating cleanup for a staged photo. Phase 4 adds these Room transaction requirements:
 
-The correction pass keeps the plant and favorite creation within the shared plant-save boundary, with compensating cleanup for a staged photo. The following operations must be transactional:
+1. Saving the three interval-rule cards for one Plant is atomic.
+2. Recording matching care inserts the `CareEvent`, calculates from the newest matching event, updates `nextDueEpochDay`, and resolves the old occurrence together. An older retroactive event cannot move the date backwards.
+3. Disabling or rescheduling a rule resolves the replaced occurrence in the same transaction. Android notification cancellation follows from the committed database state and is safe to retry.
+4. Worker evaluation inserts or retrieves the Notice by its unique occurrence key before attempting system delivery, then records `DELIVERED` or `SUPPRESSED`.
+5. Deleting a Plant cascades notes, care events, reminder rules, and Notices. Primary-photo file cleanup happens immediately after the database transaction and remains safe to retry.
 
-1. Recording, correcting, or deleting care events once reminder rules exist in Phase 4; Phase 3 persists the event itself without reminder recalculation.
-2. Deleting a plant and its structured child data. Room cascades notes and care events; file cleanup happens immediately after the database transaction and is safe to retry.
-
-Reminder-rule recalculation, next-due dates, and notification scheduling remain Phase 4 responsibilities.
+Clearing a plant-and-type-scoped care history intentionally does not recalculate or clear the current `nextDueEpochDay`.
 
 For Phase 2, deleting a plant cascades `PlantNote` rows inside Room; deleting the associated primary-photo file is a compensating file operation after the Room transaction. Reconciliation is the recovery path for a failed or interrupted file cleanup.
 
@@ -152,5 +174,6 @@ These are deliberately excluded from the initial schema:
 - User-defined care types
 - Tags or plant groups
 - Backup metadata
-- Notification delivery history beyond the current deduplication key
+- Seasonal rule fields and seasonal occurrence data, owned by Phase 5
+- Notification delivery history beyond persistent due Notices
 - Remote identifiers or synchronization state

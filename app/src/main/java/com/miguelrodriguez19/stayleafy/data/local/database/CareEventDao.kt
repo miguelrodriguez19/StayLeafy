@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -22,6 +23,56 @@ interface CareEventDao {
 
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertEvent(event: CareEventEntity)
+
+    @Query(
+        """
+        SELECT MAX(performedAt) FROM care_events
+        WHERE plantId = :plantId AND careType = :careType
+        """,
+    )
+    suspend fun getLatestPerformedAt(plantId: String, careType: String): Long?
+
+    @Query(
+        """
+        SELECT * FROM reminder_rules
+        WHERE plantId = :plantId AND careType = :careType AND scheduleType = 'INTERVAL'
+        LIMIT 1
+        """,
+    )
+    suspend fun getIntervalRule(plantId: String, careType: String): ReminderRuleEntity?
+
+    @Query(
+        """
+        UPDATE reminder_rules
+        SET nextDueEpochDay = :nextDueEpochDay, updatedAt = :updatedAt
+        WHERE id = :ruleId
+        """,
+    )
+    suspend fun updateRuleDueDate(ruleId: String, nextDueEpochDay: Long, updatedAt: Long): Int
+
+    @Query(
+        """
+        UPDATE notices
+        SET readAt = :readAt
+        WHERE ruleId = :ruleId AND readAt IS NULL
+        """,
+    )
+    suspend fun markRuleNoticesRead(ruleId: String, readAt: Long): Int
+
+    @Transaction
+    suspend fun insertEventAndAdvanceReminder(event: CareEventEntity, performedEpochDay: Long) {
+        val latestBeforeInsert = getLatestPerformedAt(event.plantId, event.careType)
+        insertEvent(event)
+        if (latestBeforeInsert != null && event.performedAt < latestBeforeInsert) return
+
+        val rule = getIntervalRule(event.plantId, event.careType) ?: return
+        markRuleNoticesRead(rule.id, event.updatedAt)
+        updateRuleDueDate(
+            ruleId = rule.id,
+            nextDueEpochDay = Math.addExact(performedEpochDay, rule.intervalDays.toLong()),
+            updatedAt = event.updatedAt,
+        )
+    }
 
     @Query(
         """
