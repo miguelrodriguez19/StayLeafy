@@ -6,7 +6,7 @@ The application is intended for a single user. It stores plant inventory records
 
 ## Project status
 
-Phases 1 through 5 and the independent plant-screen correction are implemented. The app provides the complete offline plant inventory, Room schema v7 with dated notes, care events, interval and annual seasonal reminder rules, persistent Notices, and one app-managed primary photo per plant. The current plant model has one `name` field, and search covers `name` and scientific name.
+Phases 1 through 6 and the independent plant-screen correction are implemented. The app provides the complete offline plant inventory, Room schema v7 with dated notes, care events, interval and annual seasonal reminder rules, persistent Notices, one app-managed primary photo per plant, and the Stay Leafy light/dark visual identity. The current plant model has one `name` field, and search covers `name` and scientific name.
 
 Plant creation, viewing, and editing use one shared screen. A new plant can stage its photo and favorite state before saving; notes are added only after the plant exists. The final Room write is atomic, with file compensation when persistence fails.
 
@@ -34,9 +34,11 @@ The project was created from the official Android `architecture-templates` singl
 - Keep a persistent read/unread Notices inbox with notification-to-Notice and Notice-to-Plant navigation.
 - Evaluate due rules with unique daily WorkManager work and deliver at most one Android notification per occurrence.
 
+Phase 6 adds the fixed botanical palette, local Lora display typography, deterministic vector iconography, accessible care-status colors, and cactus launcher artwork while preserving every existing flow and its offline behavior.
+
 ## Planned capabilities
 
-- Personal-use hardening, accessibility review, export/restore design, and signed release work in Phase 6.
+- Personal-use hardening, final accessibility review, export/restore design, and signed release work in Phase 7.
 
 ## Technology
 

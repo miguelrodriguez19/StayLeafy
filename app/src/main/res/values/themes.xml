@@ -17,5 +17,11 @@
 
 <resources>
 
-    <style name="Theme.StayLeafy" parent="android:Theme.Material.Light.NoActionBar" />
+    <color name="leafy_window_background">#FBF8F1</color>
+
+    <style name="Theme.StayLeafy" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowActionModeOverlay">true</item>
+        <item name="android:windowBackground">@color/leafy_window_background</item>
+    </style>
 </resources>

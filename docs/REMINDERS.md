@@ -179,4 +179,4 @@ Reminder verification must cover at least:
 - Seasonal satisfaction by matching care, late in-window evaluation, occurrence deduplication, and no delivery outside the window.
 - Atomic and mutually exclusive Off/Interval/Season configuration with retained inactive settings.
 
-These checks are covered by the Phase 4 and Phase 5 JVM, Room, Compose, navigation, and connected-emulator suites. Reliability on the owner's physical device remains a Phase 6 hardening item.
+These checks are covered by the Phase 4 and Phase 5 JVM, Room, Compose, navigation, and connected-emulator suites. Reliability on the owner's physical device remains a Phase 7 hardening item.

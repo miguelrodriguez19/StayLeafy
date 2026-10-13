@@ -4,7 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -17,6 +17,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.miguelrodriguez19.stayleafy.R
@@ -72,12 +73,12 @@ private fun PlantPhotoPlaceholder(
         modifier = modifier.background(background),
         contentAlignment = Alignment.Center,
     ) {
-        Text(
-            text = stringResource(
-                if (hasPhoto) R.string.plant_photo_preview_symbol
-                else R.string.plant_photo_placeholder_symbol,
+        Icon(
+            painter = painterResource(R.drawable.ic_leaf),
+            contentDescription = stringResource(
+                if (hasPhoto) R.string.plant_photo else R.string.no_plant_photo,
             ),
-            color = if (hasPhoto) {
+            tint = if (hasPhoto) {
                 MaterialTheme.colorScheme.onPrimaryContainer
             } else {
                 MaterialTheme.colorScheme.onSurfaceVariant

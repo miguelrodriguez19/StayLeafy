@@ -58,10 +58,16 @@ class PlantDetailScreenTest {
         composeTestRule.onNodeWithText(string(R.string.plant_name)).assertIsDisplayed()
         composeTestRule.onNodeWithText(string(R.string.scientific_name)).assertIsDisplayed()
         composeTestRule.onNodeWithText(string(R.string.location)).assertIsDisplayed()
-        composeTestRule.onNodeWithText(string(R.string.acquisition_date)).assertIsDisplayed()
-        composeTestRule.onNodeWithText(string(R.string.description)).assertIsDisplayed()
         composeTestRule.onNodeWithText(string(R.string.notes)).assertDoesNotExist()
         composeTestRule.onNodeWithText(string(R.string.take_photo)).assertIsDisplayed()
+        composeTestRule
+            .onNodeWithText(string(R.string.acquisition_date))
+            .performScrollTo()
+            .assertIsDisplayed()
+        composeTestRule
+            .onNodeWithText(string(R.string.description))
+            .performScrollTo()
+            .assertIsDisplayed()
     }
 
     @Test
@@ -110,7 +116,10 @@ class PlantDetailScreenTest {
         composeTestRule.onNodeWithText(string(R.string.plant_name)).assertIsDisplayed()
         composeTestRule.onNodeWithText(string(R.string.scientific_name)).assertIsDisplayed()
         composeTestRule.onNodeWithText(string(R.string.location)).assertIsDisplayed()
-        composeTestRule.onNodeWithText(string(R.string.description)).assertIsDisplayed()
+        composeTestRule
+            .onNodeWithText(string(R.string.description))
+            .performScrollTo()
+            .assertIsDisplayed()
         composeTestRule.onNodeWithContentDescription(string(R.string.save)).performClick()
         composeTestRule.onAllNodesWithText(string(R.string.cancel)).onLast().performClick()
 
@@ -142,10 +151,13 @@ class PlantDetailScreenTest {
         composeTestRule.onAllNodesWithText("Monstera").onFirst().assertIsDisplayed()
         composeTestRule.onNodeWithText("Monstera deliciosa").assertIsDisplayed()
         composeTestRule.onNodeWithText("Living room").assertIsDisplayed()
-        composeTestRule.onNodeWithText(formatEpochDay(0L)).assertIsDisplayed()
+        composeTestRule
+            .onNodeWithText(formatEpochDay(0L))
+            .performScrollTo()
+            .assertIsDisplayed()
         composeTestRule.onNodeWithText("Bright indirect light").performScrollTo().assertIsDisplayed()
-        composeTestRule.onNodeWithText(string(R.string.add_favorite)).performClick()
-        composeTestRule.onNodeWithText(string(R.string.edit_plant)).performClick()
+        composeTestRule.onNodeWithText(string(R.string.add_favorite)).performScrollTo().performClick()
+        composeTestRule.onNodeWithText(string(R.string.edit_plant)).performScrollTo().performClick()
 
         assertEquals(true, favorite)
         assertEquals(1, editClicks)

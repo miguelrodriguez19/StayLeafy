@@ -55,8 +55,7 @@
     <string name="remove_photo_title">¿Quitar esta foto?</string>
     <string name="remove_photo_message">La foto principal se quitará de esta planta.</string>
     <string name="plant_photo">Foto de la planta</string>
-    <string name="plant_photo_placeholder_symbol">🌿</string>
-    <string name="plant_photo_preview_symbol">🪴</string>
+    <string name="no_plant_photo">Sin foto de la planta</string>
     <string name="photo_import_error">No se ha podido guardar esta foto.</string>
     <string name="photo_delete_error">No se ha podido quitar esta foto.</string>
     <string name="notes">Notas</string>
@@ -95,8 +94,6 @@
     <string name="clear_care_history_message">Se eliminarán todos los eventos registrados de este tipo para esta planta. El resto de plantas no se verá afectado.</string>
     <string name="navigation_plants">Plantas</string>
     <string name="navigation_notices">Avisos</string>
-    <string name="navigation_plants_symbol">🌿</string>
-    <string name="navigation_notices_symbol">🔔</string>
     <string name="upcoming_filter">Próximas</string>
     <string name="overdue_filter">Vencidas</string>
     <string name="compact_care_status">%1$s · %2$s</string>

@@ -220,11 +220,13 @@ class NavigationTest {
         clickListPlant("Monstera")
         composeTestRule.onNodeWithText(string(R.string.add_note)).performScrollTo().performClick()
         composeTestRule.onNode(hasSetTextAction()).performTextReplacement("Watered today")
-        composeTestRule.onAllNodesWithText(string(R.string.save)).onFirst().performClick()
-        composeTestRule.waitForIdle()
+        composeTestRule.onAllNodesWithText(string(R.string.save)).onLast().performClick()
+        composeTestRule.waitUntil(timeoutMillis = 5_000) {
+            composeTestRule.onAllNodesWithText("Monstera").fetchSemanticsNodes().isNotEmpty()
+        }
 
         composeTestRule.onNodeWithText("Watered today").performScrollTo().assertIsDisplayed()
-        composeTestRule.onNodeWithText("Monstera deliciosa").assertExists()
+        composeTestRule.onAllNodesWithText("Monstera").onFirst().assertExists()
     }
 
     @Test

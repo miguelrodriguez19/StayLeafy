@@ -129,6 +129,8 @@ The following Phase 5 requirements are implemented.
 - **FR-PREF-001** — The UI supports English and Spanish.
 - **FR-PREF-002** — The app initially follows the device language.
 - **FR-PREF-003** — The app follows the system light or dark theme.
+- **FR-PREF-004** — The app uses the fixed Stay Leafy brand palette in both themes. Device dynamic color does not replace the brand or semantic care-status colors.
+- **FR-PREF-005** — Important status differences remain understandable through localized text and semantics as well as color.
 
 ## Non-functional requirements
 

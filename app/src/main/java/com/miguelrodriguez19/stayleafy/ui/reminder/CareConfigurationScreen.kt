@@ -15,6 +15,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
@@ -22,6 +23,7 @@ import androidx.compose.material3.DateRangePicker
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -59,6 +61,7 @@ import com.miguelrodriguez19.stayleafy.model.CareType
 import com.miguelrodriguez19.stayleafy.ui.plant.formatEpochDay
 import com.miguelrodriguez19.stayleafy.ui.plant.initialAcquisitionDatePickerMillis
 import com.miguelrodriguez19.stayleafy.ui.plant.pickerMillisToEpochDay
+import com.miguelrodriguez19.stayleafy.ui.components.LeafyCareIcon
 import com.miguelrodriguez19.stayleafy.ui.theme.StayLeafyTheme
 import java.time.LocalDate
 import java.time.Year
@@ -123,10 +126,18 @@ fun CareConfigurationScreen(
         modifier = modifier,
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.configure_care)) },
+                title = {
+                    Text(
+                        stringResource(R.string.configure_care),
+                        style = MaterialTheme.typography.headlineSmall,
+                    )
+                },
                 navigationIcon = {
-                    TextButton(onClick = onBack, enabled = content?.isSaving != true) {
-                        Text(stringResource(R.string.back))
+                    IconButton(onClick = onBack, enabled = content?.isSaving != true) {
+                        Icon(
+                            painterResource(R.drawable.ic_back),
+                            contentDescription = stringResource(R.string.back),
+                        )
                     }
                 },
             )
@@ -230,7 +241,11 @@ private fun CareRuleCard(
         onEnabledChange(mode != CareScheduleMode.DISABLED)
         onModeChange(mode)
     }
-    Card(Modifier.fillMaxWidth()) {
+    Card(
+        Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+    ) {
         Column(
             Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -239,6 +254,11 @@ private fun CareRuleCard(
                 Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
+                LeafyCareIcon(
+                    careType = form.careType,
+                    contentDescription = null,
+                    modifier = Modifier.padding(end = 12.dp),
+                )
                 Text(form.careType.localizedName(), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
             }
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {

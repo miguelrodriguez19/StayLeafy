@@ -11,9 +11,10 @@ The roadmap orders work by dependency and user value. It is not a commitment to 
 - [x] Phase 3 — Care history
 - [x] Phase 4 — Interval reminders
 - [x] Phase 5 — Seasonal care
-- [ ] Phase 6 — Personal-use hardening
+- [x] Phase 6 — Visual identity and UI redesign
+- [ ] Phase 7 — Personal-use hardening
 
-Current milestone: Phase 5 is complete. Phase 6 personal-use hardening is next.
+Current milestone: Phase 6 is complete. Phase 7 personal-use hardening is next.
 
 ## Phase 0 — Foundation
 
@@ -125,7 +126,95 @@ Phase 5 extends the existing offline reminder system with mutually exclusive ann
 
 Exit condition met: annual rules such as a hydrangea pruning season recur correctly, deduplicate by occurrence, and are satisfied only by matching care inside the active window.
 
-## Phase 6 — Personal-use hardening
+## Phase 6 — Visual identity and UI redesign
+
+Phase 6 applies the approved Stay Leafy visual identity to every existing screen without changing product behavior, navigation topology, persistence, or reminder rules. The root navigation remains `Plants | Notices`, and the existing ViewModels, immutable UI states, repositories, and Room data remain the behavioral source of truth.
+
+### Visual design reference
+
+- [x] Use [`design/references/stay_leafy_ui_direction.png`](../design/references/stay_leafy_ui_direction.png) as the primary visual-direction reference for Phase 6.
+- [x] Treat the reference as guidance for hierarchy, botanical palette, warm neutral surfaces, typography character, spacing, card treatment, photography, icon weight, controls, and the overall light/dark visual atmosphere.
+- [x] Use its six compositions—Plants, Notices, Plant details, Notice details, Configure care, and Add note—to guide the redesign of the corresponding implemented destinations and states.
+- [x] Reconcile every referenced composition against the current application before implementation. Existing navigation, fields, actions, scheduling rules, state ownership, accessibility semantics, and localized copy take precedence over illustrative content in the mockup.
+- [x] Do not infer unimplemented functionality from illustrative details such as sample filters, badges, dates, plant data, care summaries, buttons, or decorative copy. Any observable behavior not already documented must be proposed separately before it is built.
+- [x] Preserve the reference image unchanged as a historical design input. Record later explorations or production-ready screen specifications as separate, clearly named files rather than overwriting it.
+
+### Brand assets and launcher identity
+
+- [x] Preserve the approved SVG master under `design/brand/stay_leafy_master.svg` as a design source, not as a packaged Android resource.
+- [x] Clean the automatically traced SVG by removing residual micro-paths, simplifying redundant points, and preserving the approved cactus, flowers, pot, proportions, and colors.
+- [x] Keep the unmodified master available for comparison and create derived, clearly named production artwork instead of overwriting the source.
+- [x] Record the canonical brand palette and asset derivation rules so later changes remain reproducible.
+- [x] Convert the cleaned artwork into an Android VectorDrawable foreground with an explicit adaptive-icon safe zone.
+- [x] Replace the template launcher background with a flat branded background that preserves contrast across launcher masks.
+- [x] Add adaptive and round launcher icons plus a monochrome Android themed icon.
+- [x] Regenerate legacy density-specific launcher resources for devices below Android 8 without packaging the raw SVG in the application.
+- [x] Verify the launcher icon under circle, square, rounded-square, squircle, and teardrop masks, including Android themed-icon rendering.
+
+### Material 3 visual system
+
+- [x] Replace the template purple palette with explicit Stay Leafy light and dark color schemes based on dark botanical green, warm neutral surfaces, sage accents, and restrained terracotta status accents.
+- [x] Decide and record whether Material You dynamic color is disabled by default or offered as an intentional opt-in; it must not silently erase the approved brand identity.
+- [x] Define semantic colors for primary actions, containers, borders, disabled states, unread Notices, upcoming care, due-today care, overdue care, success, warnings, and errors with sufficient contrast in both themes.
+- [x] Define the typography scale, font weights, line heights, and truncation behavior for app bars, plant names, scientific names, metadata, statuses, labels, body text, and supporting text.
+- [x] Define shared shape, spacing, elevation, divider, and motion conventions instead of scattering visual constants through screens.
+- [x] Keep the system light/dark setting as the theme source and avoid a settings screen or per-app theme selector in this phase.
+
+### Shared Compose components
+
+- [x] Create reusable branded app bars, navigation items, cards, buttons, icon buttons, filter chips, badges, status labels, form fields, photo containers, list rows, section headers, and dividers.
+- [x] Replace emoji navigation symbols with deterministic vector icons and preserve localized accessibility labels.
+- [x] Create consistent loading, empty, filtered-empty, not-found, inline-error, retry, and disabled states.
+- [x] Create consistent confirmation dialogs, date-picker entry points, menus, bottom sheets, and permission-education surfaces.
+- [x] Keep composables stateless where practical and continue passing immutable state plus event lambdas upward.
+
+### Plants flow
+
+- [x] Redesign the Plants root while preserving Add plant, literal search, Favorites, Upcoming, Overdue, Clear filters, and their existing combination semantics.
+- [x] Redesign plant rows around the primary photo or deterministic placeholder, plant name, optional scientific name, location, favorite action, and compact most-urgent interval-care summary.
+- [x] Redesign loading, empty inventory, filtered-empty, content, and error states in both themes.
+- [x] Redesign the shared create/view/edit plant destination without splitting it into separate screens.
+- [x] Redesign photo capture, photo selection, replacement, removal, staged-photo, busy, error, and retry states while preserving current platform contracts.
+- [x] Redesign plant metadata fields, acquisition-date selection, favorite state, save/cancel behavior, unsaved-create confirmation, edit actions, and delete confirmation.
+- [x] Redesign the Care history section with always-visible Watering, Pruning, and Fertilizing actions, latest dates, interval due states, seasonal states, long-press date behavior, histories, and scoped clearing.
+- [x] Redesign Notes content, empty/error states, dated note cards, add/edit/delete actions, and the note editor destination.
+- [x] Preserve the current order, semantics, and offline behavior of all plant interactions while improving hierarchy and scanability.
+
+### Care configuration and Notices flow
+
+- [x] Redesign care configuration for Watering, Pruning, and Fertilizing while preserving the mutually exclusive Off, Interval, and Once-a-year modes and the single atomic Save action.
+- [x] Redesign interval source selection, validation, latest-care context, direct due-date selection, and the annual day-or-period calendar field without changing scheduling rules.
+- [x] Redesign notification-permission education while preserving the rule that denial never disables in-app reminders or Notices.
+- [x] Redesign the Notices root list, unread markers, unread badge, blocked-notification warning, Mark all as read action, loading, empty, error, and content states.
+- [x] Redesign Notice detail while preserving read-on-open behavior, schedule metadata, and View plant navigation.
+- [x] Preserve independent back stacks and state for the `Plants` and `Notices` root tabs.
+
+### Localization, accessibility, and visual verification
+
+- [x] Keep every user-visible string in Android resources and verify each redesigned surface in English and Spanish.
+- [x] Add or update deterministic light and dark previews for all important content, loading, empty, error, not-found, dialog, sheet, and form states.
+- [x] Verify layouts on compact and normal phone widths, long Spanish text, large font scales, edge-to-edge system bars, and software-keyboard interaction.
+- [x] Verify minimum touch targets, contrast, focus order, screen-reader labels, selected states, icon semantics, and non-color status cues as part of the redesign; Phase 7 retains the final whole-app accessibility review.
+- [x] Preserve or update Compose UI tests around semantics and behavior without coupling them unnecessarily to implementation-specific layout details.
+- [x] Perform manual visual checks for launcher icon masks, light/dark themes, English/Spanish, photo and placeholder rendering, dialogs, sheets, and system-owned picker/calendar UI.
+
+### Documentation and completion gates
+
+- [x] Update `docs/PRODUCT.md` with the finalized palette, icon usage, and visual principles once implemented.
+- [x] Record durable theme, dynamic-color, icon-resource, and reusable-component decisions in `docs/DECISIONS.md`.
+- [x] Update `docs/TESTING.md` with the final visual verification matrix and any new deterministic UI coverage.
+- [x] Update `docs/REQUIREMENTS.md` only if the redesign changes observable behavior; do not describe visual plans as implemented behavior.
+- [x] Keep `README.md` limited to project status, verified setup, and links to the detailed design documentation.
+- [x] Complete `./gradlew test`, `./gradlew lint`, and `./gradlew assembleDebug`.
+- [x] Complete `./gradlew connectedDebugAndroidTest` when an emulator or device is available.
+
+Phase 6 boundary: this phase does not add root tabs, a dashboard, a calendar overview, a settings destination, new persisted fields, care types, reminder behavior, database migrations, authentication, network services, or cloud functionality. It does not move state or business logic into composables.
+
+Phase 6 status: complete. The fixed light/dark brand system, launcher assets, vector iconography, redesigned screens, localized semantics, visual checks, and automated regression coverage are implemented.
+
+Exit condition met: every currently implemented Stay Leafy flow uses the approved visual identity consistently in English and Spanish and in light and dark themes; the launcher icon renders correctly across supported Android icon modes; existing behavior remains covered; and the full local verification suite passes.
+
+## Phase 7 — Personal-use hardening
 
 - [ ] Complete Spanish localization.
 - [ ] Review accessibility basics despite the personal-use scope.

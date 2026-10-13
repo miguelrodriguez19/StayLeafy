@@ -29,10 +29,13 @@ The user opens Stay Leafy and sees their plants, including each plant's primary 
 
 ## Visual direction
 
-- Material 3 foundation.
-- Light, simple, and fluid interactions.
-- System-aware light and dark themes.
-- Leaf-inspired dark green, warm neutral backgrounds, and a restrained fresh-green accent.
+- Material 3 provides the interaction and accessibility foundation, while the visual identity remains recognizably Stay Leafy.
+- The canonical brand anchors are botanical green `#115129`, terracotta `#DF6645`, warm light background `#FBF8F1`, dark botanical background `#0D1712`, and launcher cream `#F7F1E6`.
+- Light and dark schemes are explicit and follow the system theme. Dynamic system color is deliberately disabled so the identity and care-status meanings remain stable.
+- Lora is bundled locally and reserved for display headings; platform sans-serif typography keeps body copy, forms, and controls compact and readable.
+- Cards use warm tonal surfaces, rounded 12/16/24 dp shapes, low elevation, and a 4/8/12/16/24/32 dp spacing rhythm.
+- Terracotta is restrained to identity accents and unread/favorite emphasis. Upcoming, due-today, and overdue care each combine distinct wording with accessible semantic colors rather than relying on color alone.
+- Navigation and actions use deterministic local vector icons. The cactus-and-pot master artwork is preserved under `design/brand/`; production launcher assets are derived from it without packaging the source SVG.
 - The product name remains `Stay Leafy` in both supported languages.
 
 ## Supported languages

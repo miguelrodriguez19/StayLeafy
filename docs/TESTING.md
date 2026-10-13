@@ -35,6 +35,8 @@ Phase 4 pure tests cover:
 
 Phase 5 pure tests add same-year, one-day, cross-year, inclusive-boundary, next-occurrence, and February 29 calculations; exclusive mode switching; retained inactive configurations; and active/satisfied summary state.
 
+Phase 6 adds deterministic contrast tests for the light/dark brand pairs, care-status containers, and unread accent. The tests enforce WCAG AA contrast for text and at least 3:1 for the non-text unread indicator.
+
 These tests should be fast and make up most of the suite.
 
 ### Repository tests
@@ -195,9 +197,24 @@ Later phases should maintain a small smoke suite for:
 11. Deny notification permission, verify the in-app Notice and guidance, then grant permission and verify that the suppressed occurrence is not delivered retroactively.
 12. Delete the Plant and verify reminder-rule and Notice cascades.
 
-Automated equivalents of steps 1–12 are covered by the local and connected-emulator suites completed on 2026-10-11. Physical-device notification timing and vendor battery behavior remain manual Phase 6 hardening checks.
+Automated equivalents of steps 1–12 are covered by the local and connected-emulator suites completed on 2026-10-11. Physical-device notification timing and vendor battery behavior remain manual Phase 7 hardening checks.
 
 Camera and photo-picker flows may require targeted manual verification because system UI behavior varies by device. The acceptance target is cancellation, handler unavailability, URI failure, and process recreation; a runtime permission-denial test is intentionally not required for the permissionless contracts.
+
+### Phase 6 visual verification matrix
+
+Check the existing deterministic previews and an emulator/device in this matrix without changing product data or behavior:
+
+| Surface | Light | Dark | English | Spanish | Compact / large text |
+| --- | --- | --- | --- | --- | --- |
+| Plants: loading, empty, filtered, content, error | Required | Required | Required | Required | Required |
+| Shared plant create/view/edit, photo and confirmations | Required | Required | Required | Required | Required |
+| Care history rows, history sheet and clear confirmation | Required | Required | Required | Required | Required |
+| Notes list and note editor | Required | Required | Required | Required | Required |
+| Care configuration, interval and annual calendar entry | Required | Required | Required | Required | Required |
+| Notices list, warning, unread state and detail | Required | Required | Required | Required | Required |
+
+Also inspect the launcher under circle, square, rounded-square, squircle, teardrop, and themed-icon masks. Verify photo and placeholder rendering, bottom-navigation selected states and badge, software-keyboard traversal, dialogs/sheets, edge-to-edge bars, and system-owned picker/calendar surfaces. Compose tests continue to assert localized semantics and callbacks instead of pixel output.
 
 ## Commands
 
@@ -295,3 +312,4 @@ A change is complete when:
 - Phase 4 Room v6 migration, interval rules, care filtering, Notices, WorkManager, permission, navigation, localization, and notification checks pass `./gradlew test`, `./gradlew lint`, `./gradlew assembleDebug`, and `./gradlew connectedDebugAndroidTest` on 2026-10-11.
 - Phase 5 Room v7 migration, seasonal calculations, editor, satisfaction, detail state, Notice delivery, localization, and deduplication pass the same local and connected-device gates before Phase 5 is marked complete.
 - Phase 5 passed `./gradlew test lint assembleDebug` and all 97 connected debug tests on the `Pixel_8a` API 36 emulator on 2026-10-13.
+- Phase 6 passed `./gradlew test lint assembleDebug`, deterministic theme-contrast tests, and manual light/dark visual review on 2026-10-14. Android Gradle Plugin classified the running local emulator as an external Gradle-managed device, so `connectedDebugAndroidTest` completed without selecting it; installing the same debug and test APKs and invoking `HiltTestRunner` directly passed all 97 instrumented tests.

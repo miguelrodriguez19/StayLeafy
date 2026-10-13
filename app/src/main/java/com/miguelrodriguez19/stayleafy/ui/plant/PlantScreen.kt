@@ -1,6 +1,7 @@
 package com.miguelrodriguez19.stayleafy.ui.plant
 
 import android.content.res.Configuration
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -15,10 +16,13 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -30,6 +34,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
@@ -44,6 +49,7 @@ import com.miguelrodriguez19.stayleafy.model.CareStatusSummary
 import com.miguelrodriguez19.stayleafy.ui.reminder.PlantCareSummaryViewModel
 import com.miguelrodriguez19.stayleafy.ui.reminder.localizedName
 import com.miguelrodriguez19.stayleafy.ui.theme.StayLeafyTheme
+import com.miguelrodriguez19.stayleafy.ui.theme.leafyColors
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -107,7 +113,12 @@ fun PlantListScreen(
         modifier = modifier,
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.plants_title)) },
+                title = {
+                    Text(
+                        stringResource(R.string.plants_title),
+                        style = MaterialTheme.typography.headlineMedium,
+                    )
+                },
                 actions = {
                     TextButton(onClick = onAddPlant) {
                         Text(stringResource(R.string.add_plant))
@@ -129,6 +140,13 @@ fun PlantListScreen(
                     .fillMaxWidth()
                     .padding(top = 12.dp),
                 label = { Text(stringResource(R.string.search_plants)) },
+                leadingIcon = {
+                    Icon(
+                        painterResource(R.drawable.ic_search),
+                        contentDescription = null,
+                    )
+                },
+                shape = MaterialTheme.shapes.large,
                 singleLine = true,
             )
             FlowRow(
@@ -287,6 +305,10 @@ private fun PlantListItem(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
@@ -315,17 +337,23 @@ private fun PlantListItem(
                         )
                     }
                 }
-                TextButton(
+                IconButton(
                     onClick = onFavoriteClick,
                     modifier = Modifier.semantics {
                         contentDescription = favoriteDescription
                     },
                 ) {
-                    Text(
-                        stringResource(
-                            if (plant.isFavorite) R.string.favorite_marker_on
-                            else R.string.favorite_marker_off,
+                    Icon(
+                        painterResource(
+                            if (plant.isFavorite) R.drawable.ic_favorite
+                            else R.drawable.ic_favorite_border,
                         ),
+                        contentDescription = null,
+                        tint = if (plant.isFavorite) {
+                            MaterialTheme.leafyColors.accent
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
                     )
                 }
             }
@@ -344,19 +372,29 @@ private fun CareStatusCompact(summaries: List<CareStatusSummary>) {
     val urgent = active.firstOrNull() ?: return
     HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        val statusColors = MaterialTheme.leafyColors
+        val container = when (urgent.status) {
+            CareDueStatus.OVERDUE -> statusColors.overdueContainer
+            CareDueStatus.DUE_TODAY -> statusColors.dueContainer
+            CareDueStatus.UPCOMING, CareDueStatus.LATER -> statusColors.upcomingContainer
+        }
+        val foreground = when (urgent.status) {
+            CareDueStatus.OVERDUE -> statusColors.onOverdue
+            CareDueStatus.DUE_TODAY -> statusColors.onDue
+            CareDueStatus.UPCOMING, CareDueStatus.LATER -> statusColors.onUpcoming
+        }
         Text(
             text = stringResource(
                 R.string.compact_care_status,
                 urgent.careType.localizedName(),
                 formatEpochDay(urgent.nextDueEpochDay),
             ),
-            color = when (urgent.status) {
-                CareDueStatus.OVERDUE -> MaterialTheme.colorScheme.error
-                CareDueStatus.DUE_TODAY -> MaterialTheme.colorScheme.primary
-                CareDueStatus.UPCOMING, CareDueStatus.LATER -> MaterialTheme.colorScheme.onSurfaceVariant
-            },
+            color = foreground,
             style = MaterialTheme.typography.bodySmall,
-            modifier = Modifier.weight(1f),
+            modifier = Modifier
+                .weight(1f)
+                .background(container, MaterialTheme.shapes.small)
+                .padding(horizontal = 10.dp, vertical = 6.dp),
         )
         if (active.size > 1) Text(stringResource(R.string.more_care_rules, active.size - 1))
     }

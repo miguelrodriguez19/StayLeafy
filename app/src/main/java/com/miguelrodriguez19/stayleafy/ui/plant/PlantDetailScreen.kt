@@ -24,6 +24,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
@@ -31,6 +32,8 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -54,6 +57,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.Role
@@ -74,6 +78,7 @@ import com.miguelrodriguez19.stayleafy.model.SeasonalCareSummary
 import com.miguelrodriguez19.stayleafy.model.CareType
 import com.miguelrodriguez19.stayleafy.ui.reminder.CareReminderUiState
 import com.miguelrodriguez19.stayleafy.ui.reminder.PlantCareStatusViewModel
+import com.miguelrodriguez19.stayleafy.ui.components.LeafyCareIcon
 import com.miguelrodriguez19.stayleafy.ui.theme.StayLeafyTheme
 import java.io.File
 
@@ -294,12 +299,20 @@ fun PlantDetailScreen(
         modifier = modifier,
         topBar = {
             TopAppBar(
-                title = { Text(title) },
+                title = {
+                    Text(
+                        title,
+                        style = MaterialTheme.typography.headlineSmall,
+                        maxLines = 1,
+                    )
+                },
                 navigationIcon = {
-                    TextButton(
+                    IconButton(
                         onClick = requestBack,
                         modifier = Modifier.semantics { contentDescription = navigationLabel },
-                    ) { Text(navigationLabel) }
+                    ) {
+                        Icon(painterResource(R.drawable.ic_back), contentDescription = null)
+                    }
                 },
                 actions = {
                     if (content?.mode == PlantDetailMode.Create || content?.mode == PlantDetailMode.Edit) {
@@ -761,7 +774,11 @@ private fun CareSection(
     val events = (state as? CareEventsUiState.Content)?.events.orEmpty()
     val summaries = (reminderState as? CareReminderUiState.Content)?.summaries.orEmpty()
     val seasonalSummaries = (reminderState as? CareReminderUiState.Content)?.seasonalSummaries.orEmpty()
-    Card(Modifier.fillMaxWidth()) {
+    Card(
+        Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+    ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text(
@@ -841,12 +858,17 @@ private fun CareSummaryRow(
         Modifier
             .fillMaxWidth()
             .clickable(enabled = enabled, onClick = onOpenHistory),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
     ) {
         Row(
             Modifier.fillMaxWidth().padding(12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            LeafyCareIcon(
+                careType = type,
+                contentDescription = null,
+            )
             Column(Modifier.weight(1f)) {
                 Text(type.historyLabel(), style = MaterialTheme.typography.titleSmall)
                 Text(
@@ -983,13 +1005,13 @@ private fun CareHistoryContent(
                 modifier = Modifier.weight(1f),
             )
             Box {
-                TextButton(
+                IconButton(
                     onClick = { menuExpanded = true },
                     enabled = events.isNotEmpty() && !mutating,
                     modifier = Modifier.semantics {
                         contentDescription = moreOptionsLabel
                     },
-                ) { Text("⋮") }
+                ) { Icon(painterResource(R.drawable.ic_more), contentDescription = null) }
                 DropdownMenu(
                     expanded = menuExpanded,
                     onDismissRequest = { menuExpanded = false },
@@ -1051,7 +1073,11 @@ private fun NotesSection(
     onDeleteRequest: (String) -> Unit,
     onRetry: () -> Unit,
 ) {
-    Card(Modifier.fillMaxWidth()) {
+    Card(
+        Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+    ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text(stringResource(R.string.notes), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
@@ -1109,7 +1135,10 @@ private fun RemovePhotoDialog(isBusy: Boolean, onDismiss: () -> Unit, onConfirm:
 
 @Composable
 private fun DetailField(label: Int, value: String) {
-    Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(16.dp)) { Text(stringResource(label), style = MaterialTheme.typography.labelLarge); Text(value, Modifier.padding(top = 4.dp)) } }
+    Card(
+        Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+    ) { Column(Modifier.padding(16.dp)) { Text(stringResource(label), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary); Text(value, Modifier.padding(top = 4.dp)) } }
 }
 
 @Composable

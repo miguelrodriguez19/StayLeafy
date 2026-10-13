@@ -234,3 +234,14 @@ This phase remains fully offline and does not add exact alarms, network services
 The configuration UI names the seasonal mode “Once a year” and presents its persisted start and optional end as one read-only Day or period field. Pressing the field or its calendar icon opens a range calendar: accepting only a start represents one annual day, while accepting start and end represents an inclusive annual period. The localized field value shows the resulting day or range without asking the user to reason about separate start/end controls.
 
 This is a presentation refinement to D-023, not a data-model change. Room remains at schema v7, stores only month/day components, and continues to interpret an end before the start as a period crossing into the following year. Existing annual rules therefore require no migration.
+
+## D-025 — Fixed Stay Leafy visual identity and local assets
+
+- **Date:** 2026-10-14
+- **Status:** Accepted
+
+Phase 6 replaces the Android template palette with explicit light and dark Stay Leafy Material 3 schemes. The system light/dark setting remains authoritative, but Material You dynamic color is disabled: botanical green `#115129`, terracotta `#DF6645`, cream `#FBF8F1`, and dark botanical `#0D1712` must remain stable identity anchors. Upcoming, due-today, overdue, unread, error, and container roles use named semantic colors with non-color labels and WCAG AA text contrast.
+
+Lora is bundled under the SIL Open Font License and used only for display headings; body text and controls retain the platform sans-serif. Shared Compose primitives provide care icons and state presentation, while Material 3 owns standard interaction behavior, dialogs, menus, sheets, calendar pickers, and motion. Screen state and callbacks remain outside these visual components.
+
+The approved `design/brand/stay_leafy_master.svg` remains unchanged. `stay_leafy_clean.svg` is its nine-path production derivative. Android packages a VectorDrawable foreground, a flat cream background, an Android 13 monochrome layer, and generated density-specific legacy icons. UI icons are local vectors rather than emoji or an extended icon dependency. These decisions introduce no database, navigation-topology, reminder, or network change.

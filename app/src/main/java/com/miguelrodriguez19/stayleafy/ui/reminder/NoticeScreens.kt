@@ -6,6 +6,7 @@ import android.net.Uri
 import android.os.Build
 import android.provider.Settings
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,14 +14,18 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -34,8 +39,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.shape.CircleShape
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.LifecycleResumeEffect
@@ -46,7 +53,10 @@ import com.miguelrodriguez19.stayleafy.model.NoticeDeliveryState
 import com.miguelrodriguez19.stayleafy.model.ReminderScheduleType
 import com.miguelrodriguez19.stayleafy.ui.plant.formatEpochDay
 import com.miguelrodriguez19.stayleafy.ui.plant.formatTimestamp
+import com.miguelrodriguez19.stayleafy.ui.components.LeafyCareIcon
+import com.miguelrodriguez19.stayleafy.ui.components.LeafyStateContent
 import com.miguelrodriguez19.stayleafy.ui.theme.StayLeafyTheme
+import com.miguelrodriguez19.stayleafy.ui.theme.leafyColors
 
 @Composable
 fun NoticeListRoute(
@@ -100,7 +110,12 @@ fun NoticeListScreen(
         modifier = modifier,
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.notices_title)) },
+                title = {
+                    Text(
+                        stringResource(R.string.notices_title),
+                        style = MaterialTheme.typography.headlineMedium,
+                    )
+                },
                 actions = {
                     TextButton(onClick = { showOptions = true }) {
                         Text(stringResource(R.string.more_options))
@@ -170,28 +185,52 @@ fun NoticeListScreen(
 
 @Composable
 private fun NoticeRow(notice: AppNotice, onClick: () -> Unit) {
-    Card(Modifier.fillMaxWidth().clickable(onClick = onClick)) {
+    Card(
+        Modifier.fillMaxWidth().clickable(onClick = onClick),
+        colors = CardDefaults.cardColors(
+            containerColor = if (notice.isRead) {
+                MaterialTheme.colorScheme.surfaceContainerLow
+            } else {
+                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f)
+            },
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+    ) {
         Row(
             Modifier.fillMaxWidth().padding(16.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.Top,
         ) {
-            if (!notice.isRead) {
-                Text("●", color = MaterialTheme.colorScheme.primary)
+            Box(
+                Modifier
+                    .size(40.dp)
+                    .background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                LeafyCareIcon(
+                    careType = notice.careType,
+                    contentDescription = notice.careType.localizedName(),
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                )
             }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(
-                    stringResource(
-                        if (notice.scheduleType == ReminderScheduleType.SEASONAL) {
-                            R.string.season_notice_row_title
-                        } else {
-                            R.string.notice_row_title
-                        },
-                        notice.careType.localizedName(),
-                        notice.plantName,
-                    ),
-                    style = MaterialTheme.typography.titleMedium,
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        stringResource(
+                            if (notice.scheduleType == ReminderScheduleType.SEASONAL) R.string.season_notice_row_title
+                            else R.string.notice_row_title,
+                            notice.careType.localizedName(),
+                            notice.plantName,
+                        ),
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.weight(1f),
+                    )
+                    if (!notice.isRead) {
+                        Box(
+                            Modifier.size(9.dp).background(MaterialTheme.leafyColors.accent, CircleShape),
+                        )
+                    }
+                }
                 Text(
                     stringResource(
                         if (notice.scheduleType == ReminderScheduleType.SEASONAL) {
@@ -243,7 +282,12 @@ fun NoticeDetailScreen(
             TopAppBar(
                 title = { Text(stringResource(R.string.notice_details)) },
                 navigationIcon = {
-                    TextButton(onClick = onBack) { Text(stringResource(R.string.back)) }
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            painterResource(R.drawable.ic_back),
+                            contentDescription = stringResource(R.string.back),
+                        )
+                    }
                 },
             )
         },
@@ -309,17 +353,7 @@ private fun NoticeMessage(
     supporting: String? = null,
     action: String? = null,
     onAction: () -> Unit = {},
-) {
-    Column(
-        modifier.fillMaxSize().padding(32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-    ) {
-        Text(message, style = MaterialTheme.typography.titleMedium)
-        supporting?.let { Text(it, Modifier.padding(top = 8.dp)) }
-        action?.let { Button(onClick = onAction, Modifier.padding(top = 16.dp)) { Text(it) } }
-    }
-}
+) = LeafyStateContent(message, modifier, supporting, action, onAction)
 
 private val previewNotice = AppNotice(
     id = "notice",
