@@ -2,8 +2,11 @@ package com.miguelrodriguez19.stayleafy.ui.reminder
 
 import androidx.compose.runtime.Immutable
 import com.miguelrodriguez19.stayleafy.model.AppNotice
+import com.miguelrodriguez19.stayleafy.model.AnnualDate
+import com.miguelrodriguez19.stayleafy.model.CareScheduleMode
 import com.miguelrodriguez19.stayleafy.model.CareStatusSummary
 import com.miguelrodriguez19.stayleafy.model.CareType
+import com.miguelrodriguez19.stayleafy.model.SeasonalCareSummary
 
 enum class ReminderDueSourceChoice {
     LatestCare,
@@ -19,12 +22,19 @@ data class CareRuleForm(
     val selectedEpochDay: Long? = null,
     val intervalError: Boolean = false,
     val sourceError: Boolean = false,
+    val mode: CareScheduleMode = if (enabled) CareScheduleMode.INTERVAL else CareScheduleMode.DISABLED,
+    val seasonStart: AnnualDate? = null,
+    val seasonEnd: AnnualDate? = null,
+    val seasonStartError: Boolean = false,
 )
 
 sealed interface CareReminderUiState {
     data object Loading : CareReminderUiState
     data object Error : CareReminderUiState
-    data class Content(val summaries: List<CareStatusSummary>) : CareReminderUiState
+    data class Content(
+        val summaries: List<CareStatusSummary>,
+        val seasonalSummaries: List<SeasonalCareSummary> = emptyList(),
+    ) : CareReminderUiState
 }
 
 sealed interface CareConfigurationUiState {

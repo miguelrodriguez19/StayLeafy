@@ -2,8 +2,11 @@ package com.miguelrodriguez19.stayleafy.ui.reminder
 
 import com.miguelrodriguez19.stayleafy.model.AppNotice
 import com.miguelrodriguez19.stayleafy.model.CareStatusSummary
+import com.miguelrodriguez19.stayleafy.model.CareScheduleDraft
 import com.miguelrodriguez19.stayleafy.model.IntervalReminderDraft
 import com.miguelrodriguez19.stayleafy.model.IntervalReminderRule
+import com.miguelrodriguez19.stayleafy.model.SeasonalCareSummary
+import com.miguelrodriguez19.stayleafy.model.SeasonalReminderRule
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.components.SingletonComponent
@@ -33,8 +36,14 @@ class FakePhase4UiGateway @Inject constructor() : Phase4UiGateway {
     override fun observeRules(plantId: String): Flow<List<IntervalReminderRule>> =
         rules.map { values -> values.filter { it.plantId == plantId } }
 
+    override fun observeSeasonalRules(plantId: String): Flow<List<SeasonalReminderRule>> =
+        MutableStateFlow(emptyList())
+
     override fun observeCareSummaries(): Flow<List<CareStatusSummary>> = summaries
+    override fun observeSeasonalSummaries(plantId: String): Flow<List<SeasonalCareSummary>> =
+        MutableStateFlow(emptyList())
     override suspend fun saveRules(plantId: String, drafts: List<IntervalReminderDraft>) = Unit
+    override suspend fun saveSchedules(plantId: String, drafts: List<CareScheduleDraft>) = Unit
     override fun observeNotices(): Flow<List<AppNotice>> = notices
     override fun observeNotice(noticeId: String): Flow<AppNotice?> =
         notices.map { values -> values.firstOrNull { it.id == noticeId } }

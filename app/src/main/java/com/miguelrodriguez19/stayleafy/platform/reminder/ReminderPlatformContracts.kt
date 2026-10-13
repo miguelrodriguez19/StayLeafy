@@ -1,6 +1,7 @@
 package com.miguelrodriguez19.stayleafy.platform.reminder
 
 import com.miguelrodriguez19.stayleafy.model.CareType
+import com.miguelrodriguez19.stayleafy.model.ReminderScheduleType
 import java.time.Clock
 import java.time.Duration
 import java.time.Instant
@@ -19,6 +20,7 @@ data class PendingReminderDelivery(
     val plantId: String,
     val plantName: String,
     val careType: CareType,
+    val scheduleType: ReminderScheduleType = ReminderScheduleType.INTERVAL,
     val dueEpochDay: Long,
 )
 

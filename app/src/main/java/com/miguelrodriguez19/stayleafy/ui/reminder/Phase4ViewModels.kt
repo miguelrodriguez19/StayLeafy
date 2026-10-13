@@ -6,12 +6,18 @@ import com.miguelrodriguez19.stayleafy.data.CareEventRepository
 import com.miguelrodriguez19.stayleafy.data.PlantRepository
 import com.miguelrodriguez19.stayleafy.data.ZoneIdProvider
 import com.miguelrodriguez19.stayleafy.model.AppNotice
+import com.miguelrodriguez19.stayleafy.model.AnnualDate
 import com.miguelrodriguez19.stayleafy.model.CareEvent
+import com.miguelrodriguez19.stayleafy.model.CareScheduleDraft
+import com.miguelrodriguez19.stayleafy.model.CareScheduleMode
 import com.miguelrodriguez19.stayleafy.model.CareStatusSummary
 import com.miguelrodriguez19.stayleafy.model.CareType
 import com.miguelrodriguez19.stayleafy.model.IntervalReminderDraft
+import com.miguelrodriguez19.stayleafy.model.IntervalReminderConfiguration
 import com.miguelrodriguez19.stayleafy.model.IntervalReminderRule
 import com.miguelrodriguez19.stayleafy.model.ReminderDueSource
+import com.miguelrodriguez19.stayleafy.model.SeasonalReminderConfiguration
+import com.miguelrodriguez19.stayleafy.model.SeasonalReminderRule
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
@@ -51,10 +57,15 @@ class PlantCareStatusViewModel @AssistedInject constructor(
     private val reload = MutableStateFlow(0)
 
     val uiState: StateFlow<CareReminderUiState> = reload.flatMapLatest {
-        gateway.observeCareSummaries()
-            .map<List<CareStatusSummary>, CareReminderUiState> { summaries ->
-                CareReminderUiState.Content(summaries.filter { it.plantId == plantId })
-            }
+        combine(
+            gateway.observeCareSummaries(),
+            gateway.observeSeasonalSummaries(plantId),
+        ) { summaries, seasonal ->
+            CareReminderUiState.Content(
+                summaries = summaries.filter { it.plantId == plantId },
+                seasonalSummaries = seasonal,
+            ) as CareReminderUiState
+        }
             .onStart { emit(CareReminderUiState.Loading) }
             .catch { emit(CareReminderUiState.Error) }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), CareReminderUiState.Loading)
@@ -88,7 +99,23 @@ class CareConfigurationViewModel @AssistedInject constructor(
     }
 
     fun setEnabled(type: CareType, enabled: Boolean) = updateForm(type) {
-        copy(enabled = enabled, intervalError = false, sourceError = false)
+        copy(
+            enabled = enabled,
+            mode = if (enabled) CareScheduleMode.INTERVAL else CareScheduleMode.DISABLED,
+            intervalError = false,
+            sourceError = false,
+            seasonStartError = false,
+        )
+    }
+
+    fun setMode(type: CareType, mode: CareScheduleMode) = updateForm(type) {
+        copy(
+            enabled = mode != CareScheduleMode.DISABLED,
+            mode = mode,
+            intervalError = false,
+            sourceError = false,
+            seasonStartError = false,
+        )
     }
 
     fun setInterval(type: CareType, value: String) = updateForm(type) {
@@ -103,20 +130,32 @@ class CareConfigurationViewModel @AssistedInject constructor(
         copy(selectedEpochDay = epochDay, dueSource = ReminderDueSourceChoice.Date, sourceError = false)
     }
 
+    fun setSeasonStart(type: CareType, date: AnnualDate) = updateForm(type) {
+        copy(seasonStart = date, seasonStartError = false)
+    }
+
+    fun setSeasonEnd(type: CareType, date: AnnualDate?) = updateForm(type) {
+        copy(seasonEnd = date)
+    }
+
     fun save() {
         val state = _uiState.value as? CareConfigurationUiState.Content ?: return
         if (state.isSaving) return
         val validated = state.forms.map { form ->
             val interval = form.intervalDays.toIntOrNull()
-            val invalidInterval = form.enabled && (interval == null || interval <= 0)
-            val invalidSource = form.enabled && when (form.dueSource) {
+            val invalidInterval = form.mode == CareScheduleMode.INTERVAL && (interval == null || interval <= 0)
+            val invalidSource = form.mode == CareScheduleMode.INTERVAL && when (form.dueSource) {
                 ReminderDueSourceChoice.LatestCare -> state.latestCareEpochDays[form.careType] == null
                 ReminderDueSourceChoice.Date -> form.selectedEpochDay == null
                 null -> true
             }
-            form.copy(intervalError = invalidInterval, sourceError = invalidSource)
+            form.copy(
+                intervalError = invalidInterval,
+                sourceError = invalidSource,
+                seasonStartError = form.mode == CareScheduleMode.SEASONAL && form.seasonStart == null,
+            )
         }
-        if (validated.any { it.intervalError || it.sourceError }) {
+        if (validated.any { it.intervalError || it.sourceError || it.seasonStartError }) {
             _uiState.value = state.copy(forms = validated, saveError = false)
             return
         }
@@ -133,15 +172,19 @@ class CareConfigurationViewModel @AssistedInject constructor(
                         ReminderDueSourceChoice.Date -> form.selectedEpochDay?.let(ReminderDueSource::Date)
                         null -> null
                     }
-                    IntervalReminderDraft(
+                    CareScheduleDraft(
                         careType = form.careType,
-                        enabled = form.enabled,
-                        intervalDays = interval.takeIf { source != null },
-                        dueSource = source,
+                        mode = form.mode,
+                        interval = interval?.takeIf { source != null && it > 0 }?.let { days ->
+                            IntervalReminderConfiguration(days, requireNotNull(source))
+                        },
+                        seasonal = form.seasonStart?.let { start ->
+                            SeasonalReminderConfiguration(start, form.seasonEnd)
+                        },
                     )
                 }
-                gateway.saveRules(plantId, drafts)
-                val active = drafts.any(IntervalReminderDraft::enabled)
+                gateway.saveSchedules(plantId, drafts)
+                val active = drafts.any { it.mode != CareScheduleMode.DISABLED }
                 val explain = active && gateway.shouldShowPermissionEducation()
                 val current = _uiState.value as? CareConfigurationUiState.Content ?: return@launch
                 _uiState.value = current.copy(
@@ -173,10 +216,13 @@ class CareConfigurationViewModel @AssistedInject constructor(
             combine(
                 plantRepository.observePlant(plantId),
                 gateway.observeRules(plantId),
+                gateway.observeSeasonalRules(plantId),
                 careEventRepository.observeEvents(plantId),
-            ) { plant, rules, events -> Triple(plant, rules, events) }
+            ) { plant, rules, seasonalRules, events ->
+                ConfigurationObservation(plant, rules, seasonalRules, events)
+            }
                 .catch { _uiState.value = CareConfigurationUiState.Error }
-                .collect { (plant, rules, events) ->
+                .collect { (plant, rules, seasonalRules, events) ->
                     if (plant == null) {
                         _uiState.value = CareConfigurationUiState.NotFound
                         return@collect
@@ -185,7 +231,9 @@ class CareConfigurationViewModel @AssistedInject constructor(
                     val current = _uiState.value as? CareConfigurationUiState.Content
                     val forms = if (initialized && current != null) current.forms else {
                         initialized = true
-                        CareType.values().map { type -> rules.toForm(type, latest[type]) }
+                        CareType.values().map { type ->
+                            rules.toForm(type, latest[type], seasonalRules)
+                        }
                     }
                     _uiState.value = CareConfigurationUiState.Content(
                         plantName = plant.name,
@@ -277,19 +325,39 @@ class RootNavigationViewModel @Inject constructor(gateway: Phase4UiGateway) : Vi
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
 }
 
-private fun List<IntervalReminderRule>.toForm(type: CareType, latestCareEpochDay: Long?): CareRuleForm {
+private fun List<IntervalReminderRule>.toForm(
+    type: CareType,
+    latestCareEpochDay: Long?,
+    seasonalRules: List<SeasonalReminderRule>,
+): CareRuleForm {
     val rule = firstOrNull { it.careType == type }
+    val seasonal = seasonalRules.firstOrNull { it.careType == type }
+    val mode = when {
+        seasonal?.enabled == true -> CareScheduleMode.SEASONAL
+        rule?.enabled == true -> CareScheduleMode.INTERVAL
+        else -> CareScheduleMode.DISABLED
+    }
     return CareRuleForm(
         careType = type,
-        enabled = rule?.enabled == true,
+        enabled = mode != CareScheduleMode.DISABLED,
         intervalDays = rule?.intervalDays?.toString().orEmpty(),
         dueSource = when {
             rule != null -> ReminderDueSourceChoice.Date
             else -> null
         },
         selectedEpochDay = rule?.nextDueEpochDay,
+        mode = mode,
+        seasonStart = seasonal?.start,
+        seasonEnd = seasonal?.end,
     )
 }
+
+private data class ConfigurationObservation(
+    val plant: com.miguelrodriguez19.stayleafy.model.Plant?,
+    val intervalRules: List<IntervalReminderRule>,
+    val seasonalRules: List<SeasonalReminderRule>,
+    val events: List<CareEvent>,
+)
 
 private fun List<CareEvent>.latestEpochDays(zoneId: java.time.ZoneId): Map<CareType, Long> =
     groupBy(CareEvent::careType).mapValues { (_, values) ->

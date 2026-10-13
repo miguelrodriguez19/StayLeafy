@@ -6,13 +6,15 @@ The application is intended for a single user. It stores plant inventory records
 
 ## Project status
 
-Phases 1 through 4 and the independent plant-screen correction are implemented. The app provides the complete offline plant inventory, Room schema v6 with dated notes, care events, interval reminder rules, persistent Notices, and one app-managed primary photo per plant. The v3-to-v4 migration removes the redundant common-name fields and discards their stored values. The current model has one `name` field, and search covers `name` and scientific name.
+Phases 1 through 5 and the independent plant-screen correction are implemented. The app provides the complete offline plant inventory, Room schema v7 with dated notes, care events, interval and annual seasonal reminder rules, persistent Notices, and one app-managed primary photo per plant. The current plant model has one `name` field, and search covers `name` and scientific name.
 
 Plant creation, viewing, and editing use one shared screen. A new plant can stage its photo and favorite state before saving; notes are added only after the plant exists. The final Room write is atomic, with file compensation when persistence fails.
 
 Phase 3 adds `CareEvent` rows for watering, pruning, and fertilizing, UTC epoch-millisecond timestamps, optional trimmed legacy notes, stable newest-first ordering, and a cascade from Plant deletion. Plant detail keeps three always-visible care cells: a short press records today, a long press selects another date, and pressing the cell opens a read-only, newest-first history for that type and plant. The history menu can clear that scoped history after confirmation.
 
 Phase 4 adds interval care configuration, transactional next-due updates, Upcoming/Overdue inventory filters, `Plants | Notices` bottom navigation, and approximately daily WorkManager evaluation around 09:00 local time. Notices remain available when Android notification permission is unavailable, and suppressed occurrences are not delivered retroactively.
+
+Phase 5 adds mutually exclusive annual seasonal schedules with optional inclusive end dates, cross-year windows, matching-care satisfaction, and one deduplicated Notice/notification per occurrence. Seasonal state appears in Plant detail while inventory due filters remain interval-only.
 
 The project was created from the official Android `architecture-templates` single-module template and remains a personal, single-user application with no account, backend, synchronization, analytics, advertising, or paid-service dependency.
 
@@ -26,14 +28,15 @@ The project was created from the official Android `architecture-templates` singl
 - Record watering, pruning, and fertilizing inline from plant detail in Room schema v5.
 - Show each type's latest date and a read-only, deterministic reverse-chronological history scoped to that plant and type.
 - Configure interval rules for watering, pruning, and fertilizing atomically in Room schema v6.
+- Configure annual seasonal windows in Room schema v7 while retaining inactive interval settings.
+- Show upcoming, active, and satisfied seasonal state and deliver one localized Notice per unsatisfied occurrence.
 - Show next-due state in plant detail and filter the inventory by Upcoming or Overdue care.
 - Keep a persistent read/unread Notices inbox with notification-to-Notice and Notice-to-Plant navigation.
 - Evaluate due rules with unique daily WorkManager work and deliver at most one Android notification per occurrence.
 
 ## Planned capabilities
 
-- Configure annual seasonal windows in Phase 5, such as the ideal pruning season for hydrangeas.
-- Continue following the system light or dark theme across future flows.
+- Personal-use hardening, accessibility review, export/restore design, and signed release work in Phase 6.
 
 ## Technology
 

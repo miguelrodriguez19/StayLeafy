@@ -5,6 +5,9 @@ import com.miguelrodriguez19.stayleafy.data.local.database.CareEventEntity
 import com.miguelrodriguez19.stayleafy.data.local.database.ReminderRuleEntity
 import com.miguelrodriguez19.stayleafy.model.CareEventDraft
 import com.miguelrodriguez19.stayleafy.model.CareType
+import com.miguelrodriguez19.stayleafy.platform.reminder.PendingReminderDelivery
+import com.miguelrodriguez19.stayleafy.platform.reminder.ReminderNotificationGateway
+import com.miguelrodriguez19.stayleafy.platform.reminder.ReminderNotificationResult
 import java.time.ZoneId
 import java.time.ZoneOffset
 import kotlinx.coroutines.flow.Flow
@@ -98,7 +101,7 @@ class DefaultCareEventRepositoryTest {
 
         assertEquals(rule.id, dao.resolvedRuleId)
         assertEquals(
-            epochDayAt(fixedNow - 1_000L, ZoneOffset.UTC) + rule.intervalDays,
+            epochDayAt(fixedNow - 1_000L, ZoneOffset.UTC) + requireNotNull(rule.intervalDays),
             dao.updatedRuleDueEpochDay,
         )
     }
@@ -236,6 +239,7 @@ class DefaultCareEventRepositoryTest {
         epochMillisProvider = FixedCareEventEpochMillisProvider(fixedNow),
         uuidProvider = uuidProvider,
         zoneIdProvider = FixedCareEventZoneIdProvider(ZoneOffset.UTC),
+        notificationGateway = NoOpCareNotificationGateway,
     )
 }
 
@@ -307,12 +311,29 @@ private class RecordingCareEventDao(
             .filter { it.plantId == plantId && it.careType == careType }
             .maxOfOrNull(CareEventEntity::performedAt)
 
+    override suspend fun countEventsInWindow(
+        plantId: String,
+        careType: String,
+        startInclusive: Long,
+        endExclusive: Long,
+    ): Int = data.value.count {
+        it.plantId == plantId && it.careType == careType && it.performedAt in startInclusive..<endExclusive
+    }
+
     override suspend fun getIntervalRule(
         plantId: String,
         careType: String,
     ): ReminderRuleEntity? = reminderRule?.takeIf {
         it.plantId == plantId && it.careType == careType
     }
+
+    override suspend fun getSeasonalRule(plantId: String, careType: String): ReminderRuleEntity? = null
+
+    override suspend fun getUnreadNoticeIds(ruleId: String): List<String> = emptyList()
+
+    override suspend fun markOccurrenceNoticeRead(occurrenceKey: String, readAt: Long): Int = 0
+
+    override suspend fun getUnreadOccurrenceNoticeIds(occurrenceKey: String): List<String> = emptyList()
 
     override suspend fun updateRuleDueDate(
         ruleId: String,
@@ -400,6 +421,14 @@ private fun reminderRule(nextDueEpochDay: Long) = ReminderRuleEntity(
     createdAt = 1_000L,
     updatedAt = 1_000L,
 )
+
+private object NoOpCareNotificationGateway : ReminderNotificationGateway {
+    override fun ensureChannel() = Unit
+    override fun canPostNotifications(): Boolean = true
+    override fun publish(delivery: PendingReminderDelivery): ReminderNotificationResult =
+        ReminderNotificationResult.POSTED
+    override fun cancel(noticeId: String) = Unit
+}
 
 private fun CareEventEntity.toModelForTest() = com.miguelrodriguez19.stayleafy.model.CareEvent(
     id = id,

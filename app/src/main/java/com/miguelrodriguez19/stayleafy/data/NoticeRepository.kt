@@ -5,6 +5,7 @@ import com.miguelrodriguez19.stayleafy.data.local.database.NoticeRecord
 import com.miguelrodriguez19.stayleafy.model.AppNotice
 import com.miguelrodriguez19.stayleafy.model.CareType
 import com.miguelrodriguez19.stayleafy.model.NoticeDeliveryState
+import com.miguelrodriguez19.stayleafy.model.ReminderScheduleType
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
@@ -68,6 +69,7 @@ private fun NoticeRecord.toModel(): AppNotice = AppNotice(
     plantId = plantId,
     plantName = plantName,
     careType = CareType.valueOf(careType),
+    scheduleType = ReminderScheduleType.valueOf(scheduleType),
     dueEpochDay = dueEpochDay,
     createdAt = createdAt,
     readAt = readAt,

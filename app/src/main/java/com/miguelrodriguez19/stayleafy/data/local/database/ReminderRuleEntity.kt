@@ -18,6 +18,7 @@ import androidx.room.PrimaryKey
     indices = [
         Index(value = ["plantId", "careType", "scheduleType"], unique = true),
         Index(value = ["enabled", "nextDueEpochDay"]),
+        Index(value = ["enabled", "scheduleType"]),
     ],
 )
 data class ReminderRuleEntity(
@@ -27,10 +28,15 @@ data class ReminderRuleEntity(
     val careType: String,
     val scheduleType: String,
     val enabled: Boolean,
-    val intervalDays: Int,
-    val nextDueEpochDay: Long,
+    val intervalDays: Int?,
+    val nextDueEpochDay: Long?,
+    val seasonStartMonth: Int? = null,
+    val seasonStartDay: Int? = null,
+    val seasonEndMonth: Int? = null,
+    val seasonEndDay: Int? = null,
     val createdAt: Long,
     val updatedAt: Long,
 )
 
 const val INTERVAL_SCHEDULE_TYPE = "INTERVAL"
+const val SEASONAL_SCHEDULE_TYPE = "SEASONAL"

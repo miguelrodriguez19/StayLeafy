@@ -4,17 +4,24 @@ import com.miguelrodriguez19.stayleafy.data.CareEventRepository
 import com.miguelrodriguez19.stayleafy.data.PlantRepository
 import com.miguelrodriguez19.stayleafy.data.ZoneIdProvider
 import com.miguelrodriguez19.stayleafy.model.AppNotice
+import com.miguelrodriguez19.stayleafy.model.AnnualDate
 import com.miguelrodriguez19.stayleafy.model.CareEvent
 import com.miguelrodriguez19.stayleafy.model.CareEventDraft
+import com.miguelrodriguez19.stayleafy.model.CareScheduleDraft
+import com.miguelrodriguez19.stayleafy.model.CareScheduleMode
 import com.miguelrodriguez19.stayleafy.model.CareStatusSummary
 import com.miguelrodriguez19.stayleafy.model.CareType
 import com.miguelrodriguez19.stayleafy.model.IntervalReminderDraft
+import com.miguelrodriguez19.stayleafy.model.IntervalReminderConfiguration
 import com.miguelrodriguez19.stayleafy.model.IntervalReminderRule
 import com.miguelrodriguez19.stayleafy.model.NoticeDeliveryState
 import com.miguelrodriguez19.stayleafy.model.Plant
 import com.miguelrodriguez19.stayleafy.model.PlantDraft
 import com.miguelrodriguez19.stayleafy.model.PlantListFilter
 import com.miguelrodriguez19.stayleafy.model.ReminderDueSource
+import com.miguelrodriguez19.stayleafy.model.SeasonalCareSummary
+import com.miguelrodriguez19.stayleafy.model.SeasonalReminderConfiguration
+import com.miguelrodriguez19.stayleafy.model.SeasonalReminderRule
 import com.miguelrodriguez19.stayleafy.test.MainDispatcherRule
 import java.time.ZoneId
 import kotlinx.coroutines.flow.Flow
@@ -87,25 +94,27 @@ class Phase4ViewModelsTest {
 
         val invalid = viewModel.uiState.value as CareConfigurationUiState.Content
         assertTrue(invalid.forms.single { it.careType == CareType.WATERING }.sourceError)
-        assertTrue(gateway.savedRules.isEmpty())
+        assertTrue(gateway.savedSchedules.isEmpty())
 
         viewModel.setDate(CareType.WATERING, 21_000)
         viewModel.save()
         advanceUntilIdle()
 
-        val (plantId, drafts) = gateway.savedRules.single()
+        val (plantId, drafts) = gateway.savedSchedules.single()
         assertEquals("plant", plantId)
         assertEquals(CareType.values().size, drafts.size)
         assertEquals(
-            IntervalReminderDraft(
+            CareScheduleDraft(
                 careType = CareType.WATERING,
-                enabled = true,
-                intervalDays = 7,
-                dueSource = ReminderDueSource.Date(21_000),
+                mode = CareScheduleMode.INTERVAL,
+                interval = IntervalReminderConfiguration(7, ReminderDueSource.Date(21_000)),
             ),
             drafts.single { it.careType == CareType.WATERING },
         )
-        assertTrue(drafts.filterNot { it.careType == CareType.WATERING }.all { !it.enabled })
+        assertTrue(
+            drafts.filterNot { it.careType == CareType.WATERING }
+                .all { it.mode == CareScheduleMode.DISABLED },
+        )
         assertTrue((viewModel.uiState.value as CareConfigurationUiState.Content).saved)
     }
 
@@ -123,6 +132,40 @@ class Phase4ViewModelsTest {
 
         assertEquals(CareConfigurationUiState.NotFound, viewModel.uiState.value)
     }
+
+    @Test
+    fun careConfiguration_requiresSeasonStartAndSavesCrossYearSeason() = runTest {
+        val gateway = FakePhase4Gateway()
+        val viewModel = CareConfigurationViewModel(
+            plantId = "plant",
+            plantRepository = FakePlantRepository(plant()),
+            careEventRepository = FakeCareEventRepository(),
+            gateway = gateway,
+            zoneIdProvider = FixedZoneIdProvider,
+        )
+        advanceUntilIdle()
+
+        viewModel.setMode(CareType.PRUNING, CareScheduleMode.SEASONAL)
+        viewModel.save()
+        assertTrue(
+            (viewModel.uiState.value as CareConfigurationUiState.Content)
+                .forms.single { it.careType == CareType.PRUNING }.seasonStartError,
+        )
+
+        viewModel.setSeasonStart(CareType.PRUNING, AnnualDate(11, 15))
+        viewModel.setSeasonEnd(CareType.PRUNING, AnnualDate(2, 10))
+        viewModel.save()
+        advanceUntilIdle()
+
+        assertEquals(
+            CareScheduleDraft(
+                careType = CareType.PRUNING,
+                mode = CareScheduleMode.SEASONAL,
+                seasonal = SeasonalReminderConfiguration(AnnualDate(11, 15), AnnualDate(2, 10)),
+            ),
+            gateway.savedSchedules.single().second.single { it.careType == CareType.PRUNING },
+        )
+    }
 }
 
 private suspend fun <T> kotlinx.coroutines.flow.StateFlow<T>.firstMatching(
@@ -138,13 +181,23 @@ private class FakePhase4Gateway(
         private set
     val markedRead = mutableListOf<String>()
     val savedRules = mutableListOf<Pair<String, List<IntervalReminderDraft>>>()
+    val savedSchedules = mutableListOf<Pair<String, List<CareScheduleDraft>>>()
 
     override fun observeRules(plantId: String): Flow<List<IntervalReminderRule>> = flowOf(emptyList())
 
+    override fun observeSeasonalRules(plantId: String): Flow<List<SeasonalReminderRule>> = flowOf(emptyList())
+
     override fun observeCareSummaries(): Flow<List<CareStatusSummary>> = flowOf(emptyList())
+
+    override fun observeSeasonalSummaries(plantId: String): Flow<List<SeasonalCareSummary>> =
+        flowOf(emptyList())
 
     override suspend fun saveRules(plantId: String, drafts: List<IntervalReminderDraft>) {
         savedRules += plantId to drafts
+    }
+
+    override suspend fun saveSchedules(plantId: String, drafts: List<CareScheduleDraft>) {
+        savedSchedules += plantId to drafts
     }
 
     override fun observeNotices(): Flow<List<AppNotice>> = flow {

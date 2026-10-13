@@ -14,6 +14,7 @@ import com.miguelrodriguez19.stayleafy.data.local.database.MIGRATION_2_3
 import com.miguelrodriguez19.stayleafy.data.local.database.MIGRATION_3_4
 import com.miguelrodriguez19.stayleafy.data.local.database.MIGRATION_4_5
 import com.miguelrodriguez19.stayleafy.data.local.database.MIGRATION_5_6
+import com.miguelrodriguez19.stayleafy.data.local.database.MIGRATION_6_7
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -85,7 +86,7 @@ class CareEventDatabaseMigrationTest {
         ).close()
 
         val database = Room.databaseBuilder(context, AppDatabase::class.java, databaseName)
-            .addMigrations(MIGRATION_5_6)
+            .addMigrations(MIGRATION_5_6, MIGRATION_6_7)
             .allowMainThreadQueries()
             .build()
         try {
@@ -106,7 +107,7 @@ class CareEventDatabaseMigrationTest {
     }
 
     @Test
-    fun migrate1To6_registersFullChainAndAllowsCareEvents() = runBlocking {
+    fun migrate1To7_registersFullChainAndAllowsCareEvents() = runBlocking {
         val context = ApplicationProvider.getApplicationContext<Context>()
         migrationTestHelper.createDatabase(databaseName, 1).use { version1Database ->
             version1Database.execSQL("INSERT INTO Plant(uid, name) VALUES (42, 'Legacy plant')")
@@ -114,13 +115,14 @@ class CareEventDatabaseMigrationTest {
 
         migrationTestHelper.runMigrationsAndValidate(
             databaseName,
-            6,
+            7,
             true,
             MIGRATION_1_2,
             MIGRATION_2_3,
             MIGRATION_3_4,
             MIGRATION_4_5,
             MIGRATION_5_6,
+            MIGRATION_6_7,
         ).close()
 
         val database = Room.databaseBuilder(context, AppDatabase::class.java, databaseName)

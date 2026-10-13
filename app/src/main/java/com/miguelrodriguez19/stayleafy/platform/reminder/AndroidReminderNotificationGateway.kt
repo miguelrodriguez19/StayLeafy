@@ -15,6 +15,7 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.miguelrodriguez19.stayleafy.R
 import com.miguelrodriguez19.stayleafy.model.CareType
+import com.miguelrodriguez19.stayleafy.model.ReminderScheduleType
 import com.miguelrodriguez19.stayleafy.ui.MainActivity
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.time.LocalDate
@@ -58,10 +59,23 @@ class AndroidReminderNotificationGateway @Inject constructor(
         )
         val notification = NotificationCompat.Builder(context, REMINDER_NOTIFICATION_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_launcher_foreground)
-            .setContentTitle(context.getString(R.string.notification_due_title, careName))
+            .setContentTitle(
+                context.getString(
+                    if (delivery.scheduleType == ReminderScheduleType.SEASONAL) {
+                        R.string.notification_season_title
+                    } else {
+                        R.string.notification_due_title
+                    },
+                    careName,
+                ),
+            )
             .setContentText(
                 context.getString(
-                    R.string.notification_due_body,
+                    if (delivery.scheduleType == ReminderScheduleType.SEASONAL) {
+                        R.string.notification_season_body
+                    } else {
+                        R.string.notification_due_body
+                    },
                     delivery.plantName,
                     careName.lowercase(locale),
                     dueDate,

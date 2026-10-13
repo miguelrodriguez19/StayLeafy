@@ -10,6 +10,8 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.miguelrodriguez19.stayleafy.R
+import com.miguelrodriguez19.stayleafy.model.AnnualDate
+import com.miguelrodriguez19.stayleafy.model.CareScheduleMode
 import com.miguelrodriguez19.stayleafy.model.CareType
 import com.miguelrodriguez19.stayleafy.ui.theme.StayLeafyTheme
 import org.junit.Assert.assertEquals
@@ -84,6 +86,31 @@ class CareConfigurationScreenTest {
         composeTestRule.onNodeWithText(string(R.string.continue_action)).performClick()
 
         assertEquals(1, continues)
+    }
+
+    @Test
+    fun seasonalRule_displaysAnnualWindowAndCrossYearHint() {
+        setScreen(
+            CareConfigurationUiState.Content(
+                plantName = "Hydrangea",
+                forms = listOf(
+                    CareRuleForm(
+                        careType = CareType.PRUNING,
+                        mode = CareScheduleMode.SEASONAL,
+                        enabled = true,
+                        seasonStart = AnnualDate(11, 15),
+                        seasonEnd = AnnualDate(2, 10),
+                    ),
+                    CareRuleForm(CareType.WATERING),
+                    CareRuleForm(CareType.FERTILIZING),
+                ),
+                latestCareEpochDays = emptyMap(),
+            ),
+        )
+
+        composeTestRule.onNodeWithText(string(R.string.season_start)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(string(R.string.season_end_optional)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(string(R.string.season_crosses_year)).assertIsDisplayed()
     }
 
     @Test

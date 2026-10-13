@@ -11,6 +11,7 @@ import com.miguelrodriguez19.stayleafy.data.local.database.AppDatabase
 import com.miguelrodriguez19.stayleafy.data.local.database.MIGRATION_3_4
 import com.miguelrodriguez19.stayleafy.data.local.database.MIGRATION_4_5
 import com.miguelrodriguez19.stayleafy.data.local.database.MIGRATION_5_6
+import com.miguelrodriguez19.stayleafy.data.local.database.MIGRATION_6_7
 import com.miguelrodriguez19.stayleafy.data.local.database.PlantNoteEntity
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -102,7 +103,7 @@ class PlantV4MigrationTest {
         ).close()
 
         val database = Room.databaseBuilder(context, AppDatabase::class.java, databaseName)
-            .addMigrations(MIGRATION_4_5, MIGRATION_5_6)
+            .addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
             .allowMainThreadQueries()
             .build()
         try {

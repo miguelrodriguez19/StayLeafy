@@ -14,9 +14,11 @@ interface NoticeDao {
         SELECT
             notices.id AS id,
             notices.ruleId AS ruleId,
+            notices.occurrenceKey AS occurrenceKey,
             reminder_rules.plantId AS plantId,
             plants.name AS plantName,
             notices.careType AS careType,
+            reminder_rules.scheduleType AS scheduleType,
             notices.dueEpochDay AS dueEpochDay,
             notices.createdAt AS createdAt,
             notices.readAt AS readAt,
@@ -34,9 +36,11 @@ interface NoticeDao {
         SELECT
             notices.id AS id,
             notices.ruleId AS ruleId,
+            notices.occurrenceKey AS occurrenceKey,
             reminder_rules.plantId AS plantId,
             plants.name AS plantName,
             notices.careType AS careType,
+            reminder_rules.scheduleType AS scheduleType,
             notices.dueEpochDay AS dueEpochDay,
             notices.createdAt AS createdAt,
             notices.readAt AS readAt,
@@ -57,9 +61,11 @@ interface NoticeDao {
         SELECT
             notices.id AS id,
             notices.ruleId AS ruleId,
+            notices.occurrenceKey AS occurrenceKey,
             reminder_rules.plantId AS plantId,
             plants.name AS plantName,
             notices.careType AS careType,
+            reminder_rules.scheduleType AS scheduleType,
             notices.dueEpochDay AS dueEpochDay,
             notices.createdAt AS createdAt,
             notices.readAt AS readAt,
@@ -70,7 +76,10 @@ interface NoticeDao {
         WHERE notices.deliveryState = 'PENDING'
           AND notices.readAt IS NULL
           AND reminder_rules.enabled = 1
-          AND reminder_rules.nextDueEpochDay = notices.dueEpochDay
+          AND (
+            (reminder_rules.scheduleType = 'INTERVAL' AND reminder_rules.nextDueEpochDay = notices.dueEpochDay)
+            OR reminder_rules.scheduleType = 'SEASONAL'
+          )
         ORDER BY notices.createdAt ASC, notices.id ASC
         """,
     )
@@ -90,13 +99,15 @@ interface NoticeDao {
         deliveryState: String,
     ): Boolean {
         val rule = getEnabledRule(ruleId) ?: return false
+        if (rule.scheduleType != INTERVAL_SCHEDULE_TYPE) return false
+        val due = requireNotNull(rule.nextDueEpochDay)
         return insertNotice(
             NoticeEntity(
                 id = id,
                 ruleId = rule.id,
-                occurrenceKey = "interval:${rule.id}:${rule.nextDueEpochDay}",
+                occurrenceKey = "interval:${rule.id}:$due",
                 careType = rule.careType,
-                dueEpochDay = rule.nextDueEpochDay,
+                dueEpochDay = due,
                 createdAt = createdAt,
                 readAt = null,
                 deliveryState = deliveryState,

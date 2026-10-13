@@ -72,7 +72,9 @@ class ReminderDaoTest {
         val rule = daoRule("rule-1", plant.id, 200L)
         database.plantDao().insertPlant(plant)
         database.reminderRuleDao().upsertRule(rule)
-        database.noticeDao().insertNotice(daoNotice("notice-1", rule.id, rule.nextDueEpochDay))
+        database.noticeDao().insertNotice(
+            daoNotice("notice-1", rule.id, requireNotNull(rule.nextDueEpochDay)),
+        )
         database.careEventDao().insertEvent(careEvent("latest", plant.id, 10_000L))
 
         database.careEventDao().insertEventAndAdvanceReminder(
@@ -101,6 +103,57 @@ class ReminderDaoTest {
         database.careEventDao().deleteEventsByType(plant.id, "WATERING")
 
         assertEquals(250L, database.reminderRuleDao().getRule(rule.id)?.nextDueEpochDay)
+    }
+
+    @Test
+    fun matchingSeasonalCare_resolvesOnlyCurrentOccurrenceNotice() = runBlocking {
+        val plant = testPlant("plant-1", "Hydrangea")
+        val rule = ReminderRuleEntity(
+            id = "season-1",
+            plantId = plant.id,
+            careType = "PRUNING",
+            scheduleType = "SEASONAL",
+            enabled = true,
+            intervalDays = null,
+            nextDueEpochDay = null,
+            seasonStartMonth = 3,
+            seasonStartDay = 1,
+            seasonEndMonth = 5,
+            seasonEndDay = 31,
+            createdAt = 1L,
+            updatedAt = 1L,
+        )
+        val occurrenceStart = java.time.LocalDate.of(2026, 3, 1).toEpochDay()
+        database.plantDao().insertPlant(plant)
+        database.reminderRuleDao().upsertRule(rule)
+        database.noticeDao().insertNotice(
+            NoticeEntity(
+                id = "season-notice",
+                ruleId = rule.id,
+                occurrenceKey = "seasonal:${rule.id}:$occurrenceStart",
+                careType = rule.careType,
+                dueEpochDay = occurrenceStart,
+                createdAt = 1L,
+                readAt = null,
+                deliveryState = "DELIVERED",
+            ),
+        )
+
+        val resolved = database.careEventDao().insertEventAndAdvanceReminder(
+            CareEventEntity(
+                id = "season-care",
+                plantId = plant.id,
+                careType = rule.careType,
+                performedAt = 2L,
+                note = null,
+                createdAt = 2L,
+                updatedAt = 2L,
+            ),
+            performedEpochDay = java.time.LocalDate.of(2026, 4, 10).toEpochDay(),
+        )
+
+        assertEquals(listOf("season-notice"), resolved)
+        assertEquals(0, database.noticeDao().observeUnreadCount().first())
     }
 
     @Test

@@ -13,6 +13,7 @@ import com.miguelrodriguez19.stayleafy.data.local.database.MIGRATION_2_3
 import com.miguelrodriguez19.stayleafy.data.local.database.MIGRATION_3_4
 import com.miguelrodriguez19.stayleafy.data.local.database.MIGRATION_4_5
 import com.miguelrodriguez19.stayleafy.data.local.database.MIGRATION_5_6
+import com.miguelrodriguez19.stayleafy.data.local.database.MIGRATION_6_7
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -93,7 +94,7 @@ class PlantNoteDatabaseMigrationTest {
             context,
             AppDatabase::class.java,
             databaseName,
-        ).addMigrations(MIGRATION_4_5, MIGRATION_5_6).allowMainThreadQueries().build()
+        ).addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7).allowMainThreadQueries().build()
         val note = com.miguelrodriguez19.stayleafy.data.local.database.PlantNoteEntity(
             id = "note-1",
             plantId = plant.id,
@@ -126,7 +127,7 @@ class PlantNoteDatabaseMigrationTest {
         ).close()
 
         database = Room.databaseBuilder(context, AppDatabase::class.java, databaseName)
-            .addMigrations(MIGRATION_4_5, MIGRATION_5_6)
+            .addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
             .allowMainThreadQueries()
             .build()
         val plant = database!!.plantDao().observePlants("", false).first().single()

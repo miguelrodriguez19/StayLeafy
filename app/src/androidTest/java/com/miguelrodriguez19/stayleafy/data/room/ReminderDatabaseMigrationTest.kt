@@ -9,6 +9,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.miguelrodriguez19.stayleafy.data.local.database.AppDatabase
 import com.miguelrodriguez19.stayleafy.data.local.database.MIGRATION_5_6
+import com.miguelrodriguez19.stayleafy.data.local.database.MIGRATION_6_7
 import com.miguelrodriguez19.stayleafy.data.local.database.NoticeEntity
 import com.miguelrodriguez19.stayleafy.data.local.database.ReminderRuleEntity
 import kotlinx.coroutines.flow.first
@@ -42,7 +43,7 @@ class ReminderDatabaseMigrationTest {
     }
 
     @Test
-    fun migrate5To6_preservesPlantsAndAllowsRulesNoticesAndCascades() = runBlocking {
+    fun migrate5To7_preservesPlantsAndIntervalDataAndAllowsSeasonalRules() = runBlocking {
         helper.createDatabase(databaseName, 5).use { database ->
             database.execSQL(
                 """
@@ -54,7 +55,13 @@ class ReminderDatabaseMigrationTest {
             )
         }
 
-        helper.runMigrationsAndValidate(databaseName, 6, true, MIGRATION_5_6).close()
+        helper.runMigrationsAndValidate(
+            databaseName,
+            7,
+            true,
+            MIGRATION_5_6,
+            MIGRATION_6_7,
+        ).close()
 
         val database = Room.databaseBuilder(
             ApplicationProvider.getApplicationContext(),
@@ -65,7 +72,13 @@ class ReminderDatabaseMigrationTest {
             assertEquals("Ficus", database.plantDao().getPlant("plant-1")?.name)
             database.reminderRuleDao().upsertRule(reminderRule("rule-1", "plant-1", 21_000L))
             database.noticeDao().insertNotice(notice("notice-1", "rule-1", 21_000L))
+            database.reminderRuleDao().upsertRule(seasonalRule("season-1", "plant-1"))
             assertEquals(1, database.noticeDao().observeUnreadCount().first())
+            val rules = database.reminderRuleDao().getAllRules("plant-1")
+            assertEquals(2, rules.size)
+            assertEquals(21_000L, rules.single { it.id == "rule-1" }.nextDueEpochDay)
+            assertEquals(3, rules.single { it.id == "season-1" }.seasonStartMonth)
+            assertEquals(31, rules.single { it.id == "season-1" }.seasonEndDay)
 
             database.plantDao().deletePlant("plant-1")
 
@@ -76,6 +89,22 @@ class ReminderDatabaseMigrationTest {
         }
     }
 }
+
+private fun seasonalRule(id: String, plantId: String) = ReminderRuleEntity(
+    id = id,
+    plantId = plantId,
+    careType = "FERTILIZING",
+    scheduleType = "SEASONAL",
+    enabled = true,
+    intervalDays = null,
+    nextDueEpochDay = null,
+    seasonStartMonth = 3,
+    seasonStartDay = 1,
+    seasonEndMonth = 5,
+    seasonEndDay = 31,
+    createdAt = 2L,
+    updatedAt = 2L,
+)
 
 private fun reminderRule(id: String, plantId: String, due: Long) = ReminderRuleEntity(
     id = id,

@@ -43,6 +43,7 @@ import com.miguelrodriguez19.stayleafy.R
 import com.miguelrodriguez19.stayleafy.model.AppNotice
 import com.miguelrodriguez19.stayleafy.model.CareType
 import com.miguelrodriguez19.stayleafy.model.NoticeDeliveryState
+import com.miguelrodriguez19.stayleafy.model.ReminderScheduleType
 import com.miguelrodriguez19.stayleafy.ui.plant.formatEpochDay
 import com.miguelrodriguez19.stayleafy.ui.plant.formatTimestamp
 import com.miguelrodriguez19.stayleafy.ui.theme.StayLeafyTheme
@@ -180,10 +181,27 @@ private fun NoticeRow(notice: AppNotice, onClick: () -> Unit) {
             }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
-                    stringResource(R.string.notice_row_title, notice.careType.localizedName(), notice.plantName),
+                    stringResource(
+                        if (notice.scheduleType == ReminderScheduleType.SEASONAL) {
+                            R.string.season_notice_row_title
+                        } else {
+                            R.string.notice_row_title
+                        },
+                        notice.careType.localizedName(),
+                        notice.plantName,
+                    ),
                     style = MaterialTheme.typography.titleMedium,
                 )
-                Text(stringResource(R.string.notice_due_date, formatEpochDay(notice.dueEpochDay)))
+                Text(
+                    stringResource(
+                        if (notice.scheduleType == ReminderScheduleType.SEASONAL) {
+                            R.string.notice_season_start
+                        } else {
+                            R.string.notice_due_date
+                        },
+                        formatEpochDay(notice.dueEpochDay),
+                    ),
+                )
                 Text(formatTimestamp(notice.createdAt), style = MaterialTheme.typography.labelSmall)
             }
         }
@@ -253,6 +271,16 @@ fun NoticeDetailScreen(
             ) {
                 Text(state.notice.plantName, style = MaterialTheme.typography.headlineSmall)
                 NoticeDetailField(R.string.care_type, state.notice.careType.localizedName())
+                NoticeDetailField(
+                    R.string.schedule_type,
+                    stringResource(
+                        if (state.notice.scheduleType == ReminderScheduleType.SEASONAL) {
+                            R.string.schedule_seasonal
+                        } else {
+                            R.string.schedule_interval
+                        },
+                    ),
+                )
                 NoticeDetailField(R.string.scheduled_for, formatEpochDay(state.notice.dueEpochDay))
                 NoticeDetailField(R.string.notice_created, formatTimestamp(state.notice.createdAt))
                 Button(
@@ -298,6 +326,7 @@ private val previewNotice = AppNotice(
     plantId = "plant",
     plantName = "Monstera",
     careType = CareType.WATERING,
+    scheduleType = ReminderScheduleType.SEASONAL,
     dueEpochDay = 21_000,
     createdAt = 1_800_000_000_000,
     readAt = null,

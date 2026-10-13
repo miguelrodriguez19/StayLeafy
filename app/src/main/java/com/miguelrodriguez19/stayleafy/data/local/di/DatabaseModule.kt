@@ -29,6 +29,7 @@ import com.miguelrodriguez19.stayleafy.data.local.database.MIGRATION_2_3
 import com.miguelrodriguez19.stayleafy.data.local.database.MIGRATION_3_4
 import com.miguelrodriguez19.stayleafy.data.local.database.MIGRATION_4_5
 import com.miguelrodriguez19.stayleafy.data.local.database.MIGRATION_5_6
+import com.miguelrodriguez19.stayleafy.data.local.database.MIGRATION_6_7
 import com.miguelrodriguez19.stayleafy.data.local.database.CareEventDao
 import com.miguelrodriguez19.stayleafy.data.local.database.NoticeDao
 import com.miguelrodriguez19.stayleafy.data.local.database.PlantDao
@@ -78,6 +79,7 @@ class DatabaseModule {
             MIGRATION_3_4,
             MIGRATION_4_5,
             MIGRATION_5_6,
+            MIGRATION_6_7,
         ).build()
     }
 }

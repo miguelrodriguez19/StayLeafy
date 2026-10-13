@@ -5,6 +5,7 @@ import com.miguelrodriguez19.stayleafy.data.local.database.CareEventEntity
 import com.miguelrodriguez19.stayleafy.model.CareEvent
 import com.miguelrodriguez19.stayleafy.model.CareEventDraft
 import com.miguelrodriguez19.stayleafy.model.CareType
+import com.miguelrodriguez19.stayleafy.platform.reminder.ReminderNotificationGateway
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
@@ -28,6 +29,7 @@ class DefaultCareEventRepository @Inject constructor(
     private val epochMillisProvider: EpochMillisProvider,
     private val uuidProvider: UuidProvider,
     private val zoneIdProvider: ZoneIdProvider,
+    private val notificationGateway: ReminderNotificationGateway,
 ) : CareEventRepository {
 
     override fun observeEvents(plantId: String): Flow<List<CareEvent>> =
@@ -50,10 +52,11 @@ class DefaultCareEventRepository @Inject constructor(
             createdAt = now,
             updatedAt = now,
         )
-        careEventDao.insertEventAndAdvanceReminder(
+        val resolvedNoticeIds = careEventDao.insertEventAndAdvanceReminder(
             event = event,
             performedEpochDay = epochDayAt(draft.performedAt, zoneIdProvider.currentZoneId()),
         )
+        resolvedNoticeIds.forEach { noticeId -> runCatching { notificationGateway.cancel(noticeId) } }
         return id
     }
 

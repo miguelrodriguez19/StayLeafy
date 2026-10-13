@@ -12,7 +12,7 @@
 
 ## Functional requirements
 
-Phase delivery note: Phase 1 implements the Plant inventory. Phase 2 implements notes plus one app-managed primary photo. The independent correction pass raises Room to schema v4, removes the redundant common-name field, and unifies plant creation, viewing, and editing. Phase 3 implements Room v5 care events, their history, UI, tests, and cascade. Phase 4 implements schema v6 interval rules, persistent Notices, due-date calculations, care-status filtering, bottom navigation, WorkManager, and local notifications. Annual seasonal rules remain Phase 5 work.
+Phase delivery note: Phase 1 implements the Plant inventory. Phase 2 implements notes plus one app-managed primary photo. The independent correction pass raises Room to schema v4, removes the redundant common-name field, and unifies plant creation, viewing, and editing. Phase 3 implements Room v5 care events. Phase 4 implements schema v6 interval rules, Notices, filtering, navigation, WorkManager, and local notifications. Phase 5 implements Room v7 annual seasonal rules and reuses that local delivery pipeline.
 
 ### Plant inventory
 
@@ -82,7 +82,7 @@ Phase delivery note: Phase 1 implements the Plant inventory. Phase 2 implements 
 
 ### Seasonal reminders
 
-The following requirements are owned by Phase 5. Phase 4 must not expose or claim seasonal configuration or delivery.
+The following Phase 5 requirements are implemented.
 
 - **FR-SEASON-001** — The user can configure an annually recurring care season.
 - **FR-SEASON-002** — A seasonal rule has a start month/day and may have an end month/day.
@@ -91,11 +91,16 @@ The following requirements are owned by Phase 5. Phase 4 must not expose or clai
 - **FR-SEASON-005** — Example: a hydrangea pruning rule can announce the beginning of its ideal pruning season.
 - **FR-SEASON-006** — Completing matching care within the active window suppresses further notifications for that occurrence of the season.
 - **FR-SEASON-007** — A disabled seasonal rule produces no notification.
+- **FR-SEASON-008** — Interval and seasonal schedules are mutually exclusive for one Plant and care type; switching modes retains the inactive configuration.
+- **FR-SEASON-009** — A missing end date creates a one-day annual window. An end earlier than the start creates a cross-year window, and both bounds are inclusive.
+- **FR-SEASON-010** — February 29 is represented as an annual date and resolves to February 28 in non-leap years.
+- **FR-SEASON-011** — Late daily evaluation during an unsatisfied active window still creates that occurrence's Notice. Evaluation outside the window does not deliver it.
+- **FR-SEASON-012** — Plant detail shows upcoming, active, or satisfied seasonal state. Upcoming and Overdue inventory filters remain interval-only.
 
 ### Notifications
 
 - **FR-NOTIFICATION-001** — Notifications are generated locally; no push service is used.
-- **FR-NOTIFICATION-002** — On Android versions requiring runtime notification permission, the app explains the benefit and requests permission contextually after the first active interval rule is saved. Saving the rule does not depend on the permission result.
+- **FR-NOTIFICATION-002** — On Android versions requiring runtime notification permission, the app explains the benefit and requests permission contextually after the first active reminder rule is saved. Saving the rule does not depend on the permission result.
 - **FR-NOTIFICATION-003** — A notification identifies the plant and the care action.
 - **FR-NOTIFICATION-004** — Tapping a notification selects the Notices root and opens the matching Notice detail; the detail provides a separate action to open the plant.
 - **FR-NOTIFICATION-005** — The scheduler avoids duplicate notifications for the same rule occurrence.
@@ -152,7 +157,7 @@ The following requirements are owned by Phase 5. Phase 4 must not expose or clai
 - Reads order events by `performedAt DESC, id DESC`, and all timestamps use UTC epoch milliseconds.
 - The migration is non-destructive for existing plants, notes, favorites, photos, and timestamps; existing rows simply receive no care events.
 
-## Planned schema v5-to-v6 migration requirements
+## Schema v5-to-v6 migration requirements
 
 - The database filename remains `Plant`, and the complete explicit migration chain becomes `1→2→3→4→5→6`.
 - Room v6 adds interval-only `reminder_rules` and persistent `notices`; existing plants, notes, photos, favorites, timestamps, and care events remain unchanged.
@@ -160,6 +165,14 @@ The following requirements are owned by Phase 5. Phase 4 must not expose or clai
 - A Notice has a reminder-rule foreign key with `ON DELETE CASCADE`, a globally unique occurrence key, semantic care and due-date fields, read state, and Android delivery state.
 - Deleting a Plant cascades to its rules and then to their Notices.
 - Seasonal scheduling fields and data are not introduced by schema v6; Phase 5 owns that migration and behavior.
+
+## Schema v6-to-v7 migration requirements
+
+- The database filename remains `Plant`, and the complete explicit migration chain becomes `1→2→3→4→5→6→7`.
+- Room v7 makes interval fields nullable and adds nullable annual start/end month/day fields so `INTERVAL` and `SEASONAL` rows share `reminder_rules` without invalid placeholder values.
+- Existing interval rules and Notices are preserved unchanged; their seasonal columns are `NULL`.
+- Seasonal rows are unique under the existing `(plantId, careType, scheduleType)` key and use the existing Plant cascade.
+- An index on `(enabled, scheduleType)` supports daily seasonal evaluation.
 
 ## Phase 2 and correction acceptance scenarios
 
@@ -196,7 +209,15 @@ These verified scenarios define the implemented Phase 4 behavior.
 8. Deleting a plant cascades its interval rules and Notices.
 9. The complete interval reminder flow works offline in English and Spanish and in light and dark themes.
 
+### Phase 5 seasonal reminders
+
+1. The user selects Off, Interval, or Season independently for watering, pruning, and fertilizing and saves all cards atomically.
+2. A same-year, one-day, or cross-year annual window resolves correctly, including February 29 in non-leap years.
+3. Matching care inside the active window marks that occurrence satisfied and resolves its Notice; care outside the window does not.
+4. The daily worker creates one seasonal Notice per occurrence while the window is active, including a late first evaluation, and repeated runs do not duplicate it.
+5. Plant detail shows upcoming, active, and satisfied seasonal state; inventory Upcoming and Overdue filters remain based on interval rules.
+6. Seasonal configuration, Notice, and notification text work offline in English and Spanish and in light and dark themes.
+
 ## Open product questions
 
-- Whether an incomplete seasonal action should receive a second reminder before the season ends.
 - Whether export and restore should be included before the first personally used release.

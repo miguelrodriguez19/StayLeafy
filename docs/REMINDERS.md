@@ -4,9 +4,7 @@
 
 Stay Leafy reminders are generated entirely on the device. They do not use Firebase Cloud Messaging, a backend, or any other push-notification service.
 
-Phase 4 implements interval rules, due-state filtering, persistent in-app Notices, and best-effort Android notifications. The implementation and its local and connected-emulator verification are complete.
-
-Annual seasonal schedules remain exclusively in Phase 5. Phase 4 does not add seasonal fields, calculations, editor controls, occurrence keys, or notifications.
+Phase 4 implements interval rules, due-state filtering, persistent in-app Notices, and best-effort Android notifications. Phase 5 adds annual seasonal windows to the same offline Room, Notice, WorkManager, and notification pipeline.
 
 ## Interval rules
 
@@ -22,7 +20,7 @@ Next due date: October 25
 
 ### Configuration
 
-Plant detail opens one dedicated configuration screen containing watering, pruning, and fertilizing cards. One Save action persists all three cards atomically.
+Plant detail opens one dedicated configuration screen containing watering, pruning, and fertilizing cards. Each card selects Off, Interval, or Season, and one Save action persists all three cards atomically. Interval and seasonal modes cannot both be active for the same Plant/care pair, but the inactive configuration is retained.
 
 An enabled card requires a positive interval and an explicit source for its next occurrence:
 
@@ -67,6 +65,8 @@ interval:<ruleId>:<dueEpochDay>
 
 The key is unique, so repeated evaluation returns the same Notice rather than creating duplicates. Notices store care type and dates, not translated titles or bodies; UI text is generated from the current Plant name and active locale.
 
+An unsatisfied seasonal occurrence likewise creates one persistent Notice, with `dueEpochDay` representing its window start and schedule-specific localized wording. Interval and seasonal Notices share the same read, delivery, navigation, permission, and cascade behavior.
+
 The Notices inbox is a root destination beside Plants in bottom navigation:
 
 - Each root preserves its own navigation state.
@@ -86,11 +86,11 @@ Completing matching care, disabling a rule, or replacing its current occurrence 
 
 ## Background evaluation
 
-Phase 4 uses unique periodic WorkManager work to evaluate reminders approximately once per day around 09:00 in the device's current local time.
+Unique periodic WorkManager work evaluates interval and seasonal reminders approximately once per day around 09:00 in the device's current local time.
 
 - Room remains the source of truth.
 - Work is unique so parallel evaluators are not scheduled.
-- The worker reads enabled interval rules due on or before the current local date.
+- The worker reads enabled interval rules due on or before the current local date and enabled seasonal rules whose current annual window contains that date.
 - WorkManager persists work across normal process death and device reboot.
 - Delivery is best effort. The application does not promise an exact clock time or use exact alarms.
 - A rule saved after the day's approximate 09:00 run is evaluated the following morning, even when its selected date is already due or overdue.
@@ -109,7 +109,7 @@ An overdue rule retains one occurrence and remains visible as overdue until matc
 On Android versions requiring runtime notification permission:
 
 - Do not request permission on first launch.
-- After the first active interval rule is saved, show a contextual explanation and then the system prompt.
+- After the first active reminder rule is saved, show a contextual explanation and then the system prompt.
 - Remember that the contextual explanation was shown so subsequent saves do not automatically repeat it.
 - The saved rule remains active regardless of the permission result.
 - When permission is blocked and at least one rule is active, show guidance only in the Notices root, with an action to open the application's notification settings.
@@ -138,13 +138,28 @@ Stable occurrence-specific notification identifiers prevent one Plant or care ty
 - The next worker evaluation uses the new current local date and aims for the next local morning window.
 - Timestamps for rule audits, Notice generation, and Notice reads remain UTC epoch milliseconds.
 
-## Phase 5 seasonal boundary
+## Seasonal rules
 
-Phase 5 will define annual start dates, optional end dates, cross-year windows, seasonal satisfaction, and seasonal occurrence deduplication. No Phase 4 interface, schema, worker branch, or acceptance claim should imply that seasonal scheduling is already supported.
+A seasonal rule defines an annual start month/day and an optional inclusive end month/day:
+
+- Without an end, the occurrence lasts only on the start date.
+- An end on or after the start creates a same-year inclusive window.
+- An end before the start creates a window that crosses into the following year.
+- February 29 resolves to February 28 in non-leap years.
+
+The worker evaluates a seasonal rule only while its current window is active. A late first run during that window still creates the occurrence; no second reminder is generated before the end. Matching care already present anywhere inside the window satisfies it, and recording matching care later resolves the exact occurrence Notice and cancels its displayed notification. A stale `PENDING` delivery is suppressed rather than posted after its window closes.
+
+The seasonal occurrence key is:
+
+```text
+seasonal:<ruleId>:<startEpochDay>
+```
+
+Plant detail shows the current or next window as upcoming, active, or satisfied. Inventory Upcoming and Overdue filters intentionally remain interval-only.
 
 ## Verification requirements
 
-Phase 4 verification must cover at least:
+Reminder verification must cover at least:
 
 - Positive interval validation and explicit due-source selection.
 - Past first due dates, month/year boundaries, and leap years.
@@ -158,5 +173,8 @@ Phase 4 verification must cover at least:
 - Notification-to-Notice and Notice-to-Plant navigation.
 - Approximately 09:00 scheduling without tests that wait for real wall-clock execution.
 - English and Spanish text plus light and dark rendering.
+- Same-year, one-day, cross-year, inclusive-boundary, and February 29 seasonal calculations.
+- Seasonal satisfaction by matching care, late in-window evaluation, occurrence deduplication, and no delivery outside the window.
+- Atomic and mutually exclusive Off/Interval/Season configuration with retained inactive settings.
 
-These checks are covered by the Phase 4 JVM, Room, Compose, navigation, and connected-emulator suites. Reliability on the owner's physical device remains a Phase 6 hardening item.
+These checks are covered by the Phase 4 and Phase 5 JVM, Room, Compose, navigation, and connected-emulator suites. Reliability on the owner's physical device remains a Phase 6 hardening item.

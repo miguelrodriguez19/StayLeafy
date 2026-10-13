@@ -23,7 +23,6 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -37,6 +36,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
@@ -44,11 +44,15 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.miguelrodriguez19.stayleafy.R
+import com.miguelrodriguez19.stayleafy.model.AnnualDate
+import com.miguelrodriguez19.stayleafy.model.CareScheduleMode
 import com.miguelrodriguez19.stayleafy.model.CareType
 import com.miguelrodriguez19.stayleafy.ui.plant.formatEpochDay
 import com.miguelrodriguez19.stayleafy.ui.plant.initialAcquisitionDatePickerMillis
 import com.miguelrodriguez19.stayleafy.ui.plant.pickerMillisToEpochDay
 import com.miguelrodriguez19.stayleafy.ui.theme.StayLeafyTheme
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 
 @Composable
 fun CareConfigurationRoute(
@@ -72,9 +76,12 @@ fun CareConfigurationRoute(
         onBack = onBack,
         onRetry = viewModel::retry,
         onEnabledChange = viewModel::setEnabled,
+        onModeChange = viewModel::setMode,
         onIntervalChange = viewModel::setInterval,
         onSourceChange = viewModel::setSource,
         onDateChange = viewModel::setDate,
+        onSeasonStartChange = viewModel::setSeasonStart,
+        onSeasonEndChange = viewModel::setSeasonEnd,
         onSave = viewModel::save,
         onPermissionEducationContinue = {
             onRequestNotificationPermission()
@@ -97,6 +104,9 @@ fun CareConfigurationScreen(
     onSave: () -> Unit,
     onPermissionEducationContinue: () -> Unit,
     modifier: Modifier = Modifier,
+    onModeChange: (CareType, CareScheduleMode) -> Unit = { _, _ -> },
+    onSeasonStartChange: (CareType, AnnualDate) -> Unit = { _, _ -> },
+    onSeasonEndChange: (CareType, AnnualDate?) -> Unit = { _, _ -> },
 ) {
     val content = state as? CareConfigurationUiState.Content
     Scaffold(
@@ -151,9 +161,12 @@ fun CareConfigurationScreen(
                         latestCareEpochDay = state.latestCareEpochDays[form.careType],
                         enabled = !state.isSaving,
                         onEnabledChange = { onEnabledChange(form.careType, it) },
+                        onModeChange = { onModeChange(form.careType, it) },
                         onIntervalChange = { onIntervalChange(form.careType, it) },
                         onSourceChange = { onSourceChange(form.careType, it) },
                         onDateChange = { onDateChange(form.careType, it) },
+                        onSeasonStartChange = { onSeasonStartChange(form.careType, it) },
+                        onSeasonEndChange = { onSeasonEndChange(form.careType, it) },
                     )
                 }
                 if (state.saveError) {
@@ -194,11 +207,19 @@ private fun CareRuleCard(
     latestCareEpochDay: Long?,
     enabled: Boolean,
     onEnabledChange: (Boolean) -> Unit,
+    onModeChange: (CareScheduleMode) -> Unit,
     onIntervalChange: (String) -> Unit,
     onSourceChange: (ReminderDueSourceChoice) -> Unit,
     onDateChange: (Long) -> Unit,
+    onSeasonStartChange: (AnnualDate) -> Unit,
+    onSeasonEndChange: (AnnualDate?) -> Unit,
 ) {
     var showDatePicker by rememberSaveable { mutableStateOf(false) }
+    var seasonPicker by rememberSaveable { mutableStateOf<SeasonDateTarget?>(null) }
+    val selectMode = { mode: CareScheduleMode ->
+        onEnabledChange(mode != CareScheduleMode.DISABLED)
+        onModeChange(mode)
+    }
     Card(Modifier.fillMaxWidth()) {
         Column(
             Modifier.padding(16.dp),
@@ -209,13 +230,28 @@ private fun CareRuleCard(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(form.careType.localizedName(), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                Switch(
-                    checked = form.enabled,
-                    onCheckedChange = onEnabledChange,
-                    enabled = enabled,
-                )
             }
-            if (form.enabled) {
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                CareScheduleMode.entries.forEach { mode ->
+                    FilterChip(
+                        selected = form.mode == mode,
+                        onClick = { selectMode(mode) },
+                        enabled = enabled,
+                        label = {
+                            Text(
+                                stringResource(
+                                    when (mode) {
+                                        CareScheduleMode.DISABLED -> R.string.schedule_disabled
+                                        CareScheduleMode.INTERVAL -> R.string.schedule_interval
+                                        CareScheduleMode.SEASONAL -> R.string.schedule_seasonal
+                                    },
+                                ),
+                            )
+                        },
+                    )
+                }
+            }
+            if (form.mode == CareScheduleMode.INTERVAL) {
                 OutlinedTextField(
                     value = form.intervalDays,
                     onValueChange = onIntervalChange,
@@ -276,6 +312,61 @@ private fun CareRuleCard(
                     )
                 }
             }
+            if (form.mode == CareScheduleMode.SEASONAL) {
+                Text(stringResource(R.string.seasonal_schedule_help), style = MaterialTheme.typography.bodySmall)
+                Text(stringResource(R.string.season_start), style = MaterialTheme.typography.labelLarge)
+                Card(
+                    Modifier.fillMaxWidth().clickable(enabled = enabled) {
+                        seasonPicker = SeasonDateTarget.Start
+                    },
+                ) {
+                    Text(
+                        if (form.seasonStart != null) {
+                            formatAnnualDate(form.seasonStart)
+                        } else {
+                            stringResource(R.string.select_season_start)
+                        },
+                        Modifier.padding(16.dp),
+                        color = if (form.seasonStartError) {
+                            MaterialTheme.colorScheme.error
+                        } else {
+                            MaterialTheme.colorScheme.onSurface
+                        },
+                    )
+                }
+                if (form.seasonStartError) {
+                    Text(stringResource(R.string.season_start_required), color = MaterialTheme.colorScheme.error)
+                }
+                Text(stringResource(R.string.season_end_optional), style = MaterialTheme.typography.labelLarge)
+                Card(
+                    Modifier.fillMaxWidth().clickable(enabled = enabled) {
+                        seasonPicker = SeasonDateTarget.End
+                    },
+                ) {
+                    Text(
+                        if (form.seasonEnd != null) {
+                            formatAnnualDate(form.seasonEnd)
+                        } else {
+                            stringResource(R.string.select_season_end)
+                        },
+                        Modifier.padding(16.dp),
+                    )
+                }
+                if (form.seasonEnd != null) {
+                    TextButton(onClick = { onSeasonEndChange(null) }, enabled = enabled) {
+                        Text(stringResource(R.string.clear_season_end))
+                    }
+                }
+                if (form.seasonStart != null && form.seasonEnd != null &&
+                    annualDateComesBefore(form.seasonEnd, form.seasonStart)
+                ) {
+                    Text(
+                        stringResource(R.string.season_crosses_year),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
         }
     }
 
@@ -295,7 +386,50 @@ private fun CareRuleCard(
             },
         ) { DatePicker(state = pickerState, showModeToggle = false) }
     }
+    seasonPicker?.let { target ->
+        val selected = if (target == SeasonDateTarget.Start) form.seasonStart else form.seasonEnd
+        val pickerState = rememberDatePickerState(
+            initialSelectedDateMillis = initialAcquisitionDatePickerMillis(
+                selected?.atYear(ANNUAL_DATE_REFERENCE_YEAR)?.toEpochDay(),
+            ),
+        )
+        DatePickerDialog(
+            onDismissRequest = { seasonPicker = null },
+            confirmButton = {
+                TextButton(onClick = {
+                    pickerState.selectedDateMillis?.let(::pickerMillisToEpochDay)?.let(LocalDate::ofEpochDay)
+                        ?.let { date -> AnnualDate(date.monthValue, date.dayOfMonth) }
+                        ?.let { annualDate ->
+                            if (target == SeasonDateTarget.Start) {
+                                onSeasonStartChange(annualDate)
+                            } else {
+                                onSeasonEndChange(annualDate)
+                            }
+                        }
+                    seasonPicker = null
+                }) { Text(stringResource(R.string.select_date)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { seasonPicker = null }) { Text(stringResource(R.string.cancel)) }
+            },
+        ) { DatePicker(state = pickerState, showModeToggle = false) }
+    }
 }
+
+private enum class SeasonDateTarget { Start, End }
+
+@Composable
+private fun formatAnnualDate(date: AnnualDate): String {
+    val pattern = stringResource(R.string.annual_date_pattern)
+    val locale = LocalConfiguration.current.locales[0]
+    return date.atYear(ANNUAL_DATE_REFERENCE_YEAR)
+        .format(DateTimeFormatter.ofPattern(pattern, locale))
+}
+
+private fun annualDateComesBefore(left: AnnualDate, right: AnnualDate): Boolean =
+    left.month < right.month || left.month == right.month && left.day < right.day
+
+private const val ANNUAL_DATE_REFERENCE_YEAR = 2000
 
 @Composable
 private fun ConfigurationMessage(
@@ -331,7 +465,13 @@ private fun CareConfigurationPreview() {
                 plantName = "Monstera",
                 forms = listOf(
                     CareRuleForm(CareType.WATERING, true, "7", ReminderDueSourceChoice.LatestCare),
-                    CareRuleForm(CareType.PRUNING),
+                    CareRuleForm(
+                        careType = CareType.PRUNING,
+                        enabled = true,
+                        mode = CareScheduleMode.SEASONAL,
+                        seasonStart = AnnualDate(11, 15),
+                        seasonEnd = AnnualDate(2, 10),
+                    ),
                     CareRuleForm(CareType.FERTILIZING, true, "30", ReminderDueSourceChoice.Date, 21_000),
                 ),
                 latestCareEpochDays = mapOf(CareType.WATERING to 20_990),

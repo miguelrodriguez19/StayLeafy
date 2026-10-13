@@ -256,3 +256,110 @@ val MIGRATION_5_6 = object : Migration(5, 6) {
         )
     }
 }
+
+val MIGRATION_6_7 = object : Migration(6, 7) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE `notices_backup` (
+                `id` TEXT NOT NULL,
+                `ruleId` TEXT NOT NULL,
+                `occurrenceKey` TEXT NOT NULL,
+                `careType` TEXT NOT NULL,
+                `dueEpochDay` INTEGER NOT NULL,
+                `createdAt` INTEGER NOT NULL,
+                `readAt` INTEGER,
+                `deliveryState` TEXT NOT NULL,
+                PRIMARY KEY(`id`)
+            )
+            """.trimIndent(),
+        )
+        db.execSQL(
+            """
+            INSERT INTO `notices_backup`
+            SELECT `id`, `ruleId`, `occurrenceKey`, `careType`, `dueEpochDay`,
+                   `createdAt`, `readAt`, `deliveryState`
+            FROM `notices`
+            """.trimIndent(),
+        )
+        db.execSQL("DROP TABLE `notices`")
+        db.execSQL("ALTER TABLE `reminder_rules` RENAME TO `reminder_rules_v6`")
+        db.execSQL(
+            """
+            CREATE TABLE `reminder_rules` (
+                `id` TEXT NOT NULL,
+                `plantId` TEXT NOT NULL,
+                `careType` TEXT NOT NULL,
+                `scheduleType` TEXT NOT NULL,
+                `enabled` INTEGER NOT NULL,
+                `intervalDays` INTEGER,
+                `nextDueEpochDay` INTEGER,
+                `seasonStartMonth` INTEGER,
+                `seasonStartDay` INTEGER,
+                `seasonEndMonth` INTEGER,
+                `seasonEndDay` INTEGER,
+                `createdAt` INTEGER NOT NULL,
+                `updatedAt` INTEGER NOT NULL,
+                PRIMARY KEY(`id`),
+                FOREIGN KEY(`plantId`) REFERENCES `plants`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE
+            )
+            """.trimIndent(),
+        )
+        db.execSQL(
+            """
+            INSERT INTO `reminder_rules`(
+                `id`, `plantId`, `careType`, `scheduleType`, `enabled`,
+                `intervalDays`, `nextDueEpochDay`, `seasonStartMonth`, `seasonStartDay`,
+                `seasonEndMonth`, `seasonEndDay`, `createdAt`, `updatedAt`
+            )
+            SELECT `id`, `plantId`, `careType`, `scheduleType`, `enabled`,
+                   `intervalDays`, `nextDueEpochDay`, NULL, NULL, NULL, NULL,
+                   `createdAt`, `updatedAt`
+            FROM `reminder_rules_v6`
+            """.trimIndent(),
+        )
+        db.execSQL("DROP TABLE `reminder_rules_v6`")
+        db.execSQL(
+            "CREATE UNIQUE INDEX `index_reminder_rules_plantId_careType_scheduleType` " +
+                "ON `reminder_rules` (`plantId`, `careType`, `scheduleType`)",
+        )
+        db.execSQL(
+            "CREATE INDEX `index_reminder_rules_enabled_nextDueEpochDay` " +
+                "ON `reminder_rules` (`enabled`, `nextDueEpochDay`)",
+        )
+        db.execSQL(
+            "CREATE INDEX `index_reminder_rules_enabled_scheduleType` " +
+                "ON `reminder_rules` (`enabled`, `scheduleType`)",
+        )
+        db.execSQL(
+            """
+            CREATE TABLE `notices` (
+                `id` TEXT NOT NULL,
+                `ruleId` TEXT NOT NULL,
+                `occurrenceKey` TEXT NOT NULL,
+                `careType` TEXT NOT NULL,
+                `dueEpochDay` INTEGER NOT NULL,
+                `createdAt` INTEGER NOT NULL,
+                `readAt` INTEGER,
+                `deliveryState` TEXT NOT NULL,
+                PRIMARY KEY(`id`),
+                FOREIGN KEY(`ruleId`) REFERENCES `reminder_rules`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE
+            )
+            """.trimIndent(),
+        )
+        db.execSQL(
+            """
+            INSERT INTO `notices`
+            SELECT `id`, `ruleId`, `occurrenceKey`, `careType`, `dueEpochDay`,
+                   `createdAt`, `readAt`, `deliveryState`
+            FROM `notices_backup`
+            """.trimIndent(),
+        )
+        db.execSQL("DROP TABLE `notices_backup`")
+        db.execSQL("CREATE INDEX `index_notices_ruleId` ON `notices` (`ruleId`)")
+        db.execSQL("CREATE UNIQUE INDEX `index_notices_occurrenceKey` ON `notices` (`occurrenceKey`)")
+        db.execSQL(
+            "CREATE INDEX `index_notices_readAt_createdAt` ON `notices` (`readAt`, `createdAt`)",
+        )
+    }
+}

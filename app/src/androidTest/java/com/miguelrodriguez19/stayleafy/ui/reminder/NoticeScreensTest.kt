@@ -15,6 +15,7 @@ import com.miguelrodriguez19.stayleafy.R
 import com.miguelrodriguez19.stayleafy.model.AppNotice
 import com.miguelrodriguez19.stayleafy.model.CareType
 import com.miguelrodriguez19.stayleafy.model.NoticeDeliveryState
+import com.miguelrodriguez19.stayleafy.model.ReminderScheduleType
 import com.miguelrodriguez19.stayleafy.ui.theme.StayLeafyTheme
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -95,6 +96,19 @@ class NoticeScreensTest {
         composeTestRule.onNodeWithText(string(R.string.notifications_blocked_message)).assertIsDisplayed()
         composeTestRule.onNodeWithText(string(R.string.open_settings)).performClick()
         assertEquals(1, settings)
+    }
+
+    @Test
+    fun seasonalNotice_usesSeasonSpecificWording() {
+        val notice = notice().copy(scheduleType = ReminderScheduleType.SEASONAL)
+        setList(NoticeListUiState.Content(listOf(notice)))
+
+        composeTestRule.onNodeWithText(
+            string(R.string.season_notice_row_title, string(R.string.care_watering), "Monstera"),
+        ).assertIsDisplayed()
+        composeTestRule.onNodeWithText(
+            string(R.string.notice_season_start, com.miguelrodriguez19.stayleafy.ui.plant.formatEpochDay(21_000)),
+        ).assertIsDisplayed()
     }
 
     @Test

@@ -10,10 +10,10 @@ The roadmap orders work by dependency and user value. It is not a commitment to 
 - [x] Independent correction — Plant identity and unified plant screen
 - [x] Phase 3 — Care history
 - [x] Phase 4 — Interval reminders
-- [ ] Phase 5 — Seasonal care
+- [x] Phase 5 — Seasonal care
 - [ ] Phase 6 — Personal-use hardening
 
-Current milestone: Phase 4 is complete. Phase 5 is the next planned product phase.
+Current milestone: Phase 5 is complete. Phase 6 personal-use hardening is next.
 
 ## Phase 0 — Foundation
 
@@ -113,15 +113,17 @@ Exit condition met: interval care works fully offline end to end; due occurrence
 
 ## Phase 5 — Seasonal care
 
-Phase 5 remains the sole owner of seasonal schedules. Phase 4 may retain a schedule discriminator for forward compatibility, but it must not add seasonal fields, calculations, editor controls, or seasonal notifications.
+Phase 5 extends the existing offline reminder system with mutually exclusive annual seasonal schedules while retaining interval configuration for later reuse.
 
-- [ ] Add annual seasonal start and optional end dates.
-- [ ] Support seasons crossing the year boundary.
-- [ ] Mark a season occurrence satisfied by matching care.
-- [ ] Deliver a single notification at season start.
-- [ ] Add seasonal rule editor and tests.
+- [x] Add Room schema v7 with annual seasonal start and optional end dates, preserving the complete migration chain.
+- [x] Support inclusive single-day, same-year, and cross-year seasons, with February 29 clamped to February 28 in non-leap years.
+- [x] Keep interval and seasonal schedules mutually exclusive per Plant and care type while retaining the inactive configuration.
+- [x] Mark a season occurrence satisfied by matching care recorded inside its window.
+- [x] Deliver one persistent Notice and at most one localized system notification per seasonal occurrence, including late evaluation inside the active window.
+- [x] Show upcoming, active, and satisfied seasonal state in Plant detail without changing the interval-only inventory filters.
+- [x] Add the seasonal rule editor, English/Spanish resources, deterministic previews, migration/unit/Room/ViewModel/Compose tests, and connected-device verification.
 
-Exit condition: rules such as hydrangea pruning season recur correctly each year.
+Exit condition met: annual rules such as a hydrangea pruning season recur correctly, deduplicate by occurrence, and are satisfied only by matching care inside the active window.
 
 ## Phase 6 — Personal-use hardening
 

@@ -9,9 +9,18 @@ import com.miguelrodriguez19.stayleafy.data.local.database.ReminderRuleChange
 import com.miguelrodriguez19.stayleafy.data.local.database.ReminderRuleDao
 import com.miguelrodriguez19.stayleafy.data.local.database.ReminderRuleEntity
 import com.miguelrodriguez19.stayleafy.model.CareDueStatus
+import com.miguelrodriguez19.stayleafy.model.AnnualDate
+import com.miguelrodriguez19.stayleafy.model.CareScheduleDraft
+import com.miguelrodriguez19.stayleafy.model.CareScheduleMode
 import com.miguelrodriguez19.stayleafy.model.CareType
+import com.miguelrodriguez19.stayleafy.model.IntervalReminderConfiguration
 import com.miguelrodriguez19.stayleafy.model.IntervalReminderDraft
 import com.miguelrodriguez19.stayleafy.model.ReminderDueSource
+import com.miguelrodriguez19.stayleafy.model.SeasonalCareState
+import com.miguelrodriguez19.stayleafy.model.SeasonalReminderConfiguration
+import com.miguelrodriguez19.stayleafy.platform.reminder.PendingReminderDelivery
+import com.miguelrodriguez19.stayleafy.platform.reminder.ReminderNotificationGateway
+import com.miguelrodriguez19.stayleafy.platform.reminder.ReminderNotificationResult
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZoneOffset
@@ -121,6 +130,61 @@ class DefaultReminderRepositoryTest {
         assertEquals(CareDueStatus.UPCOMING, statuses.getValue(CareType.FERTILIZING).status)
     }
 
+    @Test
+    fun saveSchedules_switchesModalityExclusivelyAndRetainsBothConfigurations() = runTest {
+        val ruleDao = RecordingReminderRuleDao(
+            listOf(
+                rule("water-interval", CareType.WATERING, true, 20_100L),
+                seasonalRule("water-season", CareType.WATERING, false, 3, 1, 5, 31),
+            ),
+        )
+        val repository = repository(ruleDao, ReminderCareEventDao(), emptyList())
+
+        repository.saveSchedules(
+            PLANT_ID,
+            listOf(
+                CareScheduleDraft(
+                    careType = CareType.WATERING,
+                    mode = CareScheduleMode.SEASONAL,
+                    interval = IntervalReminderConfiguration(14, ReminderDueSource.Date(20_100L)),
+                    seasonal = SeasonalReminderConfiguration(AnnualDate(4, 2), AnnualDate(6, 3)),
+                ),
+                CareScheduleDraft(CareType.PRUNING, CareScheduleMode.DISABLED),
+                CareScheduleDraft(CareType.FERTILIZING, CareScheduleMode.DISABLED),
+            ),
+        )
+
+        val rules = ruleDao.rules.value.associateBy(ReminderRuleEntity::scheduleType)
+        assertEquals(false, rules.getValue("INTERVAL").enabled)
+        assertEquals(14, rules.getValue("INTERVAL").intervalDays)
+        assertEquals(true, rules.getValue("SEASONAL").enabled)
+        assertEquals(4, rules.getValue("SEASONAL").seasonStartMonth)
+        assertEquals(3, rules.getValue("SEASONAL").seasonEndDay)
+        assertEquals(setOf("water-interval"), ruleDao.resolvedRuleIds.toSet())
+    }
+
+    @Test
+    fun observeSeasonalSummaries_marksCurrentWindowSatisfiedByMatchingCare() = runTest {
+        val careAt = Instant.parse("2026-10-10T12:00:00Z").toEpochMilli()
+        val ruleDao = RecordingReminderRuleDao(
+            listOf(seasonalRule("water-season", CareType.WATERING, true, 10, 1, 10, 31)),
+        )
+        val care = CareEventEntity(
+            id = "care-1",
+            plantId = PLANT_ID,
+            careType = CareType.WATERING.name,
+            performedAt = careAt,
+            note = null,
+            createdAt = careAt,
+            updatedAt = careAt,
+        )
+        val repository = repository(ruleDao, ReminderCareEventDao(events = listOf(care)), emptyList())
+
+        val summary = repository.observeSeasonalSummaries(PLANT_ID).first().single()
+
+        assertEquals(SeasonalCareState.SATISFIED, summary.state)
+    }
+
     private fun repository(
         ruleDao: RecordingReminderRuleDao,
         careDao: CareEventDao,
@@ -132,6 +196,7 @@ class DefaultReminderRepositoryTest {
         epochMillisProvider = object : EpochMillisProvider { override fun now() = now },
         zoneIdProvider = object : ZoneIdProvider { override fun currentZoneId(): ZoneId = ZoneOffset.UTC },
         uuidProvider = SequenceReminderUuidProvider(uuids),
+        notificationGateway = NoOpReminderNotificationGateway,
     )
 
     private fun rule(id: String, type: CareType, enabled: Boolean, due: Long) = ReminderRuleEntity(
@@ -142,6 +207,30 @@ class DefaultReminderRepositoryTest {
         enabled = enabled,
         intervalDays = 14,
         nextDueEpochDay = due,
+        createdAt = 1_000L,
+        updatedAt = 1_000L,
+    )
+
+    private fun seasonalRule(
+        id: String,
+        type: CareType,
+        enabled: Boolean,
+        startMonth: Int,
+        startDay: Int,
+        endMonth: Int?,
+        endDay: Int?,
+    ) = ReminderRuleEntity(
+        id = id,
+        plantId = PLANT_ID,
+        careType = type.name,
+        scheduleType = "SEASONAL",
+        enabled = enabled,
+        intervalDays = null,
+        nextDueEpochDay = null,
+        seasonStartMonth = startMonth,
+        seasonStartDay = startDay,
+        seasonEndMonth = endMonth,
+        seasonEndDay = endDay,
         createdAt = 1_000L,
         updatedAt = 1_000L,
     )
@@ -162,17 +251,31 @@ private class RecordingReminderRuleDao(initial: List<ReminderRuleEntity> = empty
     override fun observeRules(plantId: String): Flow<List<ReminderRuleEntity>> =
         flowOf(rules.value.filter { it.plantId == plantId })
 
+    override fun observeSeasonalRules(plantId: String): Flow<List<ReminderRuleEntity>> =
+        flowOf(rules.value.filter { it.plantId == plantId && it.scheduleType == "SEASONAL" })
+
     override suspend fun getRules(plantId: String): List<ReminderRuleEntity> =
+        rules.value.filter { it.plantId == plantId }
+
+    override suspend fun getAllRules(plantId: String): List<ReminderRuleEntity> =
         rules.value.filter { it.plantId == plantId }
 
     override suspend fun getRule(ruleId: String): ReminderRuleEntity? =
         rules.value.firstOrNull { it.id == ruleId }
 
     override fun observeEnabledRules(): Flow<List<ReminderRuleEntity>> =
-        flowOf(rules.value.filter(ReminderRuleEntity::enabled))
+        flowOf(rules.value.filter { it.enabled && it.scheduleType == "INTERVAL" })
+
+    override fun observeHasEnabledRules(): Flow<Boolean> = flowOf(rules.value.any(ReminderRuleEntity::enabled))
 
     override suspend fun getDueRules(todayEpochDay: Long): List<ReminderRuleEntity> =
-        rules.value.filter { it.enabled && it.nextDueEpochDay <= todayEpochDay }
+        rules.value.filter {
+            it.enabled && it.scheduleType == "INTERVAL" &&
+                requireNotNull(it.nextDueEpochDay) <= todayEpochDay
+        }
+
+    override suspend fun getEnabledSeasonalRules(): List<ReminderRuleEntity> =
+        rules.value.filter { it.enabled && it.scheduleType == "SEASONAL" }
 
     override suspend fun upsertRule(rule: ReminderRuleEntity) {
         rules.value = rules.value.filterNot { it.id == rule.id } + rule
@@ -183,22 +286,36 @@ private class RecordingReminderRuleDao(initial: List<ReminderRuleEntity> = empty
         return 1
     }
 
-    override suspend fun applyChanges(changes: List<ReminderRuleChange>, changedAt: Long) {
+    override suspend fun getUnreadNoticeIds(ruleId: String): List<String> = emptyList()
+
+    override suspend fun applyChanges(changes: List<ReminderRuleChange>, changedAt: Long): List<String> {
         appliedAtomically = true
-        super.applyChanges(changes, changedAt)
+        return super.applyChanges(changes, changedAt)
     }
 }
 
 private class ReminderCareEventDao(
     private val latest: Map<String, Long> = emptyMap(),
+    private val events: List<CareEventEntity> = emptyList(),
 ) : CareEventDao {
-    override fun observeEvents(plantId: String): Flow<List<CareEventEntity>> = flowOf(emptyList())
+    override fun observeEvents(plantId: String): Flow<List<CareEventEntity>> =
+        flowOf(events.filter { it.plantId == plantId })
     override fun observeEvent(plantId: String, eventId: String): Flow<CareEventEntity?> = flowOf(null)
     override suspend fun insertEvent(event: CareEventEntity) = Unit
     override suspend fun getLatestPerformedAt(plantId: String, careType: String): Long? = latest[careType]
+    override suspend fun countEventsInWindow(
+        plantId: String,
+        careType: String,
+        startInclusive: Long,
+        endExclusive: Long,
+    ) = 0
     override suspend fun getIntervalRule(plantId: String, careType: String): ReminderRuleEntity? = null
+    override suspend fun getSeasonalRule(plantId: String, careType: String): ReminderRuleEntity? = null
     override suspend fun updateRuleDueDate(ruleId: String, nextDueEpochDay: Long, updatedAt: Long) = 0
     override suspend fun markRuleNoticesRead(ruleId: String, readAt: Long) = 0
+    override suspend fun getUnreadNoticeIds(ruleId: String): List<String> = emptyList()
+    override suspend fun markOccurrenceNoticeRead(occurrenceKey: String, readAt: Long) = 0
+    override suspend fun getUnreadOccurrenceNoticeIds(occurrenceKey: String): List<String> = emptyList()
     override suspend fun updateEvent(
         plantId: String,
         eventId: String,
@@ -209,6 +326,14 @@ private class ReminderCareEventDao(
     ) = 0
     override suspend fun deleteEvent(plantId: String, eventId: String) = 0
     override suspend fun deleteEventsByType(plantId: String, careType: String) = 0
+}
+
+private object NoOpReminderNotificationGateway : ReminderNotificationGateway {
+    override fun ensureChannel() = Unit
+    override fun canPostNotifications(): Boolean = true
+    override fun publish(delivery: PendingReminderDelivery): ReminderNotificationResult =
+        ReminderNotificationResult.POSTED
+    override fun cancel(noticeId: String) = Unit
 }
 
 private object ReminderPlantDao : PlantDao {

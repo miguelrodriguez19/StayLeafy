@@ -69,6 +69,8 @@ import com.miguelrodriguez19.stayleafy.model.PlantNote
 import com.miguelrodriguez19.stayleafy.model.CareEvent
 import com.miguelrodriguez19.stayleafy.model.CareDueStatus
 import com.miguelrodriguez19.stayleafy.model.CareStatusSummary
+import com.miguelrodriguez19.stayleafy.model.SeasonalCareState
+import com.miguelrodriguez19.stayleafy.model.SeasonalCareSummary
 import com.miguelrodriguez19.stayleafy.model.CareType
 import com.miguelrodriguez19.stayleafy.ui.reminder.CareReminderUiState
 import com.miguelrodriguez19.stayleafy.ui.reminder.PlantCareStatusViewModel
@@ -758,6 +760,7 @@ private fun CareSection(
 ) {
     val events = (state as? CareEventsUiState.Content)?.events.orEmpty()
     val summaries = (reminderState as? CareReminderUiState.Content)?.summaries.orEmpty()
+    val seasonalSummaries = (reminderState as? CareReminderUiState.Content)?.seasonalSummaries.orEmpty()
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -775,6 +778,7 @@ private fun CareSection(
                         type = type,
                         latest = latest,
                         reminder = summaries.firstOrNull { it.careType == type },
+                        seasonalReminder = seasonalSummaries.firstOrNull { it.careType == type },
                         onRecordNow = { onRecordNow(type) },
                         onPickDate = { onPickDate(type) },
                         onOpenHistory = { onOpenHistory(type) },
@@ -827,6 +831,7 @@ private fun CareSummaryRow(
     type: CareType,
     latest: CareEvent?,
     reminder: CareStatusSummary?,
+    seasonalReminder: SeasonalCareSummary?,
     onRecordNow: () -> Unit,
     onPickDate: () -> Unit,
     onOpenHistory: () -> Unit,
@@ -869,6 +874,32 @@ private fun CareSummaryRow(
                             MaterialTheme.colorScheme.onSurfaceVariant
                         },
                         style = MaterialTheme.typography.bodySmall,
+                    )
+                } else if (seasonalReminder != null) {
+                    val range = if (seasonalReminder.startEpochDay == seasonalReminder.endEpochDay) {
+                        formatEpochDay(seasonalReminder.startEpochDay)
+                    } else {
+                        stringResource(
+                            R.string.care_season_range,
+                            formatEpochDay(seasonalReminder.startEpochDay),
+                            formatEpochDay(seasonalReminder.endEpochDay),
+                        )
+                    }
+                    Text(
+                        stringResource(
+                            when (seasonalReminder.state) {
+                                SeasonalCareState.UPCOMING -> R.string.care_season_upcoming
+                                SeasonalCareState.ACTIVE -> R.string.care_season_active
+                                SeasonalCareState.SATISFIED -> R.string.care_season_satisfied
+                            },
+                            range,
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (seasonalReminder.state == SeasonalCareState.ACTIVE) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
                     )
                 } else {
                     Text(
@@ -1126,6 +1157,18 @@ private fun PlantDetailPreview() {
             notesState = PlantNotesUiState.Content(listOf(PlantNote("n", "p", "Watered today", 0, 0))),
             notesMutationError = null, notesMutating = false, photoMutating = false, photoMutationError = null, photoCleanupRetryEnabled = false, mutationError = null, isDeleting = false,
             onBack = {}, onRetry = {}, onBeginEdit = {}, onCancelEdit = {}, onNameChange = {}, onScientificNameChange = {}, onLocationChange = {}, onAcquiredEpochDayChange = {}, onDescriptionChange = {}, onFavoriteClick = {}, onSave = {}, onDelete = {}, onAddNote = {}, onEditNote = {}, onDeleteNote = {}, onRetryNotes = {}, onTakePhoto = {}, onPickPhoto = {}, onRemoveStagedPhoto = {}, onRemovePhoto = {}, onRetryPhotoCleanup = {},
+            reminderState = CareReminderUiState.Content(
+                summaries = emptyList(),
+                seasonalSummaries = listOf(
+                    SeasonalCareSummary(
+                        plantId = previewPlants.first().id,
+                        careType = CareType.PRUNING,
+                        startEpochDay = 20_745,
+                        endEpochDay = 20_835,
+                        state = SeasonalCareState.ACTIVE,
+                    ),
+                ),
+            ),
         )
     }
 }

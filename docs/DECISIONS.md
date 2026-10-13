@@ -212,3 +212,16 @@ WorkManager runs unique periodic evaluation approximately once per day around 09
 On Android versions requiring notification permission, the app explains and requests it contextually after the first active rule is saved. The rule and in-app Notice behavior do not depend on permission. An occurrence evaluated without permission becomes `SUPPRESSED`; granting permission later does not deliver it retroactively. When rules are active but notifications are blocked, guidance and an application-settings action appear only in the Notices root.
 
 This decision refines D-008 and D-009 without adding seasonal behavior. Annual windows, cross-year calculations, seasonal satisfaction, and seasonal notifications remain exclusively in Phase 5. Phase 4 implementation and local plus connected-emulator verification completed on 2026-10-11.
+
+## D-023 — Room v7 annual seasonal care reuses the reminder pipeline
+
+- **Date:** 2026-10-13
+- **Status:** Accepted
+
+Phase 5 adds `SEASONAL` reminder rows in Room schema v7. An annual season has a required month/day start and an optional inclusive month/day end. No end means one day; an end earlier than the start crosses into the following year. February 29 remains a valid stored annual date and resolves to February 28 in non-leap years. The non-destructive `6→7` migration preserves interval rules and Notices while making interval fields nullable and adding nullable seasonal fields.
+
+For one Plant and care type, Off, Interval, and Season are mutually exclusive active modes. Interval and seasonal rows remain separate under `(plantId, careType, scheduleType)`, and switching modes retains the inactive configuration. The three care cards still save atomically. Plant inventory Upcoming and Overdue filters remain interval-only; Plant detail shows the current or next seasonal occurrence as upcoming, active, or satisfied.
+
+Seasonal delivery deliberately reuses the existing daily WorkManager and persistent Notice pipeline. The unique key is `seasonal:<ruleId>:<startEpochDay>`. A late evaluation during an active unsatisfied window may create the one occurrence Notice; there is no end-of-window or repeat reminder. Matching care anywhere inside the inclusive window satisfies that occurrence and resolves its Notice. A pending delivery is suppressed rather than posted after its window ends. Notification permission, navigation, read state, cancellation, and Plant cascades remain shared with interval Notices.
+
+This phase remains fully offline and does not add exact alarms, network services, authentication, analytics, or another architectural layer.

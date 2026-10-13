@@ -36,9 +36,11 @@ data class NoticeEntity(
 data class NoticeRecord(
     val id: String,
     val ruleId: String,
+    val occurrenceKey: String,
     val plantId: String,
     val plantName: String,
     val careType: String,
+    val scheduleType: String,
     val dueEpochDay: Long,
     val createdAt: Long,
     val readAt: Long?,

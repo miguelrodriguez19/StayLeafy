@@ -10,8 +10,11 @@ import com.miguelrodriguez19.stayleafy.data.NoticeRepository
 import com.miguelrodriguez19.stayleafy.data.ReminderRepository
 import com.miguelrodriguez19.stayleafy.model.AppNotice
 import com.miguelrodriguez19.stayleafy.model.CareStatusSummary
+import com.miguelrodriguez19.stayleafy.model.CareScheduleDraft
 import com.miguelrodriguez19.stayleafy.model.IntervalReminderDraft
 import com.miguelrodriguez19.stayleafy.model.IntervalReminderRule
+import com.miguelrodriguez19.stayleafy.model.SeasonalCareSummary
+import com.miguelrodriguez19.stayleafy.model.SeasonalReminderRule
 import com.miguelrodriguez19.stayleafy.platform.reminder.ReminderNotificationGateway
 import dagger.Binds
 import dagger.Module
@@ -26,8 +29,11 @@ import kotlinx.coroutines.flow.map
 
 interface Phase4UiGateway {
     fun observeRules(plantId: String): Flow<List<IntervalReminderRule>>
+    fun observeSeasonalRules(plantId: String): Flow<List<SeasonalReminderRule>>
     fun observeCareSummaries(): Flow<List<CareStatusSummary>>
+    fun observeSeasonalSummaries(plantId: String): Flow<List<SeasonalCareSummary>>
     suspend fun saveRules(plantId: String, drafts: List<IntervalReminderDraft>)
+    suspend fun saveSchedules(plantId: String, drafts: List<CareScheduleDraft>)
     fun observeNotices(): Flow<List<AppNotice>>
     fun observeNotice(noticeId: String): Flow<AppNotice?>
     fun observeUnreadCount(): Flow<Int>
@@ -54,8 +60,17 @@ class RepositoryPhase4UiGateway @Inject constructor(
     override fun observeCareSummaries(): Flow<List<CareStatusSummary>> =
         reminderRepository.observePlantSummaries()
 
+    override fun observeSeasonalRules(plantId: String): Flow<List<SeasonalReminderRule>> =
+        reminderRepository.observeSeasonalRules(plantId)
+
+    override fun observeSeasonalSummaries(plantId: String): Flow<List<SeasonalCareSummary>> =
+        reminderRepository.observeSeasonalSummaries(plantId)
+
     override suspend fun saveRules(plantId: String, drafts: List<IntervalReminderDraft>) =
         reminderRepository.saveRules(plantId, drafts)
+
+    override suspend fun saveSchedules(plantId: String, drafts: List<CareScheduleDraft>) =
+        reminderRepository.saveSchedules(plantId, drafts)
 
     override fun observeNotices(): Flow<List<AppNotice>> = noticeRepository.observeNotices()
 
@@ -74,8 +89,8 @@ class RepositoryPhase4UiGateway @Inject constructor(
         unreadIds.forEach(notificationGateway::cancel)
     }
 
-    override fun observeNotificationWarning(): Flow<Boolean> = reminderRepository.observePlantSummaries()
-        .map { activeRules -> activeRules.isNotEmpty() && !canPostNotifications() }
+    override fun observeNotificationWarning(): Flow<Boolean> = reminderRepository.observeHasEnabledRules()
+        .map { hasActiveRules -> hasActiveRules && !canPostNotifications() }
 
     override suspend fun shouldShowPermissionEducation(): Boolean =
         !preferences.getBoolean(PERMISSION_EDUCATION_SHOWN, false) && !canPostNotifications()

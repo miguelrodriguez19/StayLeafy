@@ -2,7 +2,7 @@
 
 ## Goals
 
-Testing should catch regressions in Phase 1 persistence, Phase 2 notes and photo storage, the independent Room v4 and unified-screen correction, Phase 3 care history, and Phase 4 interval reminders without making a personal project expensive to change. Phase 4 verification covers persistent Notices, bottom navigation, and best-effort local notifications.
+Testing should catch regressions in Phase 1 persistence, Phase 2 notes and photo storage, the independent Room v4 and unified-screen correction, Phase 3 care history, Phase 4 interval reminders, and Phase 5 seasonal care without making a personal project expensive to change. Reminder verification covers persistent Notices, bottom navigation, and best-effort local notifications.
 
 The strategy favors deterministic unit tests and a small number of high-value Android and Compose tests.
 
@@ -33,7 +33,7 @@ Phase 4 pure tests cover:
 - Permission denied then granted without retroactive system delivery.
 - ViewModels using fake reminder and Notice repositories, fixed clocks, explicit zones, and test dispatchers.
 
-Seasonal calculations remain excluded until Phase 5.
+Phase 5 pure tests add same-year, one-day, cross-year, inclusive-boundary, next-occurrence, and February 29 calculations; exclusive mode switching; retained inactive configurations; and active/satisfied summary state.
 
 These tests should be fast and make up most of the suite.
 
@@ -49,6 +49,8 @@ Test repository behavior with fakes for narrow tests and an in-memory Room datab
 - Persistence after closing and reopening the database.
 
 Phase 4 repository tests cover atomic three-rule saves, enabled/disabled retention, transactional care completion plus rescheduling, resolving replaced occurrences, Notice read operations, unread counts, and cascade-safe missing IDs.
+
+Phase 5 repository tests cover atomic Off/Interval/Season saves, interval/season exclusivity, retained inactive values, matching-care satisfaction, and seasonal Notice cancellation.
 
 Avoid mocking Room DAOs when the SQL query itself is the behavior under test.
 
@@ -95,6 +97,13 @@ Phase 4 coverage adds:
 - Atomic three-rule persistence and care-event insertion plus reminder rescheduling.
 - Repeated occurrence insertion returning one Notice rather than duplicate rows.
 
+Phase 5 coverage adds:
+
+- Explicit migration `6→7` and the complete `1→2→3→4→5→6→7` path, exported schema v7, and preservation of interval rules and Notices.
+- Nullable modality-specific columns, seasonal rule uniqueness, enabled schedule-type indexing, Plant cascade, and database reopen.
+- One seasonal Notice per annual occurrence, late in-window evaluation, matching-care suppression, and stale pending-delivery suppression after the window.
+- Exact seasonal occurrence resolution when matching care is inserted.
+
 Phase 1 deletion tests verify Plant-row deletion only. Phase 2 deletion tests verify the notes cascade, primary-photo cleanup, replacement cleanup, failed-write compensation, and startup reconciliation.
 
 ### Phase 2 photo-flow tests
@@ -122,6 +131,8 @@ Keep date evaluation and occurrence selection outside the Worker so they are uni
 - Read-on-open, Mark all as read, care completion, rule disable/reschedule, and Plant deletion cancelling displayed notifications.
 
 Do not write tests that wait for real wall-clock background execution.
+
+Phase 5 reuses this harness for seasonal occurrence keys, schedule-specific localized content, active-window evaluation, matching-care satisfaction, and deduplication. Inventory care filters remain covered as interval-only behavior.
 
 ### Phase 1 Compose tests
 
@@ -157,6 +168,8 @@ Phase 4 Compose and navigation coverage adds:
 - Reselecting the active Plants or Notices tab from a nested destination returns to that tab's root list.
 - Contextual permission explanation and the Notices-only blocked-permission banner with application-settings callback.
 - English/Spanish text and light/dark previews for reminder configuration, care status, Notices, details, permission guidance, and confirmations.
+
+Phase 5 Compose coverage adds Off/Interval/Season controls, required start validation, optional end clearing, cross-year guidance, annual-date rendering, upcoming/active/satisfied Plant-detail state, and seasonal Notice wording in English and Spanish.
 
 Phase 2 Compose coverage adds:
 
@@ -254,7 +267,7 @@ Phase 4 completion priorities:
 - Stable notification cancellation and deep links through Notice detail.
 - Connected-device permission and notification behavior.
 
-Phase 5 priorities, intentionally excluded from Phase 4:
+Phase 5 completion priorities:
 
 - Seasonal date/window calculations and cross-year occurrences.
 - Seasonal editor, satisfaction, and notification deduplication.
@@ -280,3 +293,5 @@ A change is complete when:
 - Phase 2 and correction-pass photo/note checks pass on a connected emulator or device.
 - Phase 3 Room v5, care-event, UI, cascade, and connected-device checks pass before the Phase 3 roadmap item is marked complete.
 - Phase 4 Room v6 migration, interval rules, care filtering, Notices, WorkManager, permission, navigation, localization, and notification checks pass `./gradlew test`, `./gradlew lint`, `./gradlew assembleDebug`, and `./gradlew connectedDebugAndroidTest` on 2026-10-11.
+- Phase 5 Room v7 migration, seasonal calculations, editor, satisfaction, detail state, Notice delivery, localization, and deduplication pass the same local and connected-device gates before Phase 5 is marked complete.
+- Phase 5 passed `./gradlew test lint assembleDebug` and all 97 connected debug tests on the `Pixel_8a` API 36 emulator on 2026-10-13.
