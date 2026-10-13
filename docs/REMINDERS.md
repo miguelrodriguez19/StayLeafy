@@ -70,12 +70,14 @@ The key is unique, so repeated evaluation returns the same Notice rather than cr
 The Notices inbox is a root destination beside Plants in bottom navigation:
 
 - Each root preserves its own navigation state.
-- Bottom navigation appears only on the Plants and Notices roots.
+- Bottom navigation remains visible on roots and nested detail, editor, and configuration destinations.
 - The Notices tab shows the unread count, visually capped at `99+`.
 - Notices are ordered by `createdAt DESC, id DESC`; unread rows have a distinct indicator.
 - Loading, error/retry, empty, and content states are localized.
 
 Opening a Notice marks it read and cancels its displayed Android notification. The detail shows care type, Plant, due date, and generation time, and provides a separate action to select the Plants root and open that Plant. A missing Notice produces a localized not-found state.
+
+Opening the Plant from Notice detail also removes that detail from the Notices stack. After returning to the Plants root, selecting Notices opens the inbox rather than restoring the previous Notice detail.
 
 The inbox offers Mark all as read when unread Notices exist. This is a one-way operation and cancels associated displayed Android notifications. Individual Notices cannot be deleted or returned to unread.
 

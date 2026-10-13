@@ -107,7 +107,7 @@ The following requirements are owned by Phase 5. Phase 4 must not expose or clai
 
 ### Notices and navigation
 
-- **FR-NOTICE-001** — The application has `Plants` and `Notices` bottom-navigation roots with independent navigation state. Bottom navigation is hidden on detail, editor, and configuration destinations.
+- **FR-NOTICE-001** — The application has `Plants` and `Notices` bottom-navigation roots with independent navigation state. Bottom navigation remains visible on root, detail, editor, and configuration destinations.
 - **FR-NOTICE-002** — The Notices root lists persistent due occurrences newest first and shows loading, error/retry, empty, and content states.
 - **FR-NOTICE-003** — The Notices tab shows the unread count, visually capped at `99+`, and unread rows have a distinct indicator.
 - **FR-NOTICE-004** — Opening a Notice marks it read. A read Notice cannot be manually returned to unread.
@@ -116,6 +116,7 @@ The following requirements are owned by Phase 5. Phase 4 must not expose or clai
 - **FR-NOTICE-007** — A Notice detail shows its care type, plant, due date, and generation time, handles a missing Notice with localized state, and can navigate to the current plant detail.
 - **FR-NOTICE-008** — Completing matching care, disabling its rule, or replacing its due occurrence resolves the previous Notice by marking it read and cancelling its displayed Android notification.
 - **FR-NOTICE-009** — Notice text is derived from stored semantic values and current localized resources; translated display strings are not persisted.
+- **FR-NOTICE-010** — Opening a Plant from Notice detail removes that Notice detail from the Notices stack. Returning to the Plants root and selecting Notices therefore opens the Notices inbox rather than the previous detail.
 
 ### Preferences and localization
 

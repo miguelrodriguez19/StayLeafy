@@ -99,8 +99,8 @@ class NavigationTest {
 
         composeTestRule.onNodeWithText("Monstera deliciosa").assertIsDisplayed()
         composeTestRule.onNodeWithText("Living room").assertIsDisplayed()
-        composeTestRule.onNodeWithText(string(R.string.navigation_plants)).assertDoesNotExist()
-        composeTestRule.onNodeWithText(string(R.string.navigation_notices)).assertDoesNotExist()
+        composeTestRule.onNodeWithText(string(R.string.navigation_plants)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(string(R.string.navigation_notices)).assertIsDisplayed()
     }
 
     @Test
@@ -125,17 +125,37 @@ class NavigationTest {
 
         composeTestRule.onNodeWithText(string(R.string.notice_details)).assertIsDisplayed()
         composeTestRule.onNodeWithText("Monstera").assertIsDisplayed()
-        composeTestRule.onNodeWithText(string(R.string.navigation_notices)).assertDoesNotExist()
+        composeTestRule.onNodeWithText(string(R.string.navigation_notices)).assertIsDisplayed()
     }
 
     @Test
-    fun detailConfigureCare_opensDedicatedScreenWithoutBottomNavigation() {
+    fun detailConfigureCare_keepsBottomNavigationVisible() {
         clickListPlant("Monstera")
         composeTestRule.onNodeWithText(string(R.string.configure_care)).performScrollTo().performClick()
 
         composeTestRule.onNodeWithText(string(R.string.configure_care)).assertIsDisplayed()
-        composeTestRule.onNodeWithText(string(R.string.navigation_plants)).assertDoesNotExist()
-        composeTestRule.onNodeWithText(string(R.string.navigation_notices)).assertDoesNotExist()
+        composeTestRule.onNodeWithText(string(R.string.navigation_plants)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(string(R.string.navigation_notices)).assertIsDisplayed()
+    }
+
+    @Test
+    fun noticeToPlant_backThenNotices_returnsToNoticeInbox() {
+        phase4Gateway.replaceNotices(listOf(testNotice()))
+        AndroidNoticeNavigation.openNotice("notice-id")
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText(string(R.string.view_plant)).performClick()
+        composeTestRule.onNodeWithText("Monstera deliciosa").assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription(string(R.string.back)).performClick()
+        composeTestRule.onNodeWithText(string(R.string.plants_title)).assertIsDisplayed()
+
+        composeTestRule.onNodeWithText(string(R.string.navigation_notices)).performClick()
+
+        composeTestRule.onAllNodesWithText(string(R.string.notices_title)).onFirst().assertIsDisplayed()
+        composeTestRule.onNodeWithText(string(R.string.notice_details)).assertDoesNotExist()
+        composeTestRule.onNodeWithText(
+            string(R.string.notice_row_title, string(R.string.care_watering), "Monstera"),
+        ).assertIsDisplayed()
     }
 
     @Test
@@ -154,7 +174,7 @@ class NavigationTest {
         clickListPlant("Monstera")
         composeTestRule.onNodeWithText(string(R.string.delete_plant)).performScrollTo().performClick()
         composeTestRule.onNodeWithText(string(R.string.cancel)).performClick()
-        composeTestRule.onNodeWithText("Monstera deliciosa").assertIsDisplayed()
+        composeTestRule.onNodeWithText(string(R.string.delete_plant)).assertIsDisplayed()
 
         composeTestRule.onNodeWithText(string(R.string.delete_plant)).performScrollTo().performClick()
         composeTestRule

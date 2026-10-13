@@ -150,9 +150,10 @@ Phase 4 Compose and navigation coverage adds:
 - Three-card care configuration, explicit source selection, positive-interval validation, atomic Save, missing Plant, retry, and mutation errors.
 - Last-care, next-due, upcoming, and overdue rendering in Plant detail.
 - Upcoming and Overdue chips independently and together, combined with search and Favorites, plus most-urgent `+N` summaries.
-- `Plants | Notices` root navigation with independent state and bottom bar hidden on non-root destinations.
+- `Plants | Notices` navigation with independent state and an always-visible bottom bar on root and nested destinations.
 - Notices loading, error/retry, empty, content, unread indicators, `99+` badge, read-on-open, and Mark all as read.
 - Notice detail not-found state, notification-to-Notice routing, and Notice-to-Plant routing.
+- Notice-to-Plant routing clears the source Notice detail so selecting Notices later returns to the inbox.
 - Contextual permission explanation and the Notices-only blocked-permission banner with application-settings callback.
 - English/Spanish text and light/dark previews for reminder configuration, care status, Notices, details, permission guidance, and confirmations.
 

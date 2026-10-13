@@ -76,13 +76,15 @@ fun MainNavigation(
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) {}
-    val activeStack = if (selectedTab == RootTab.Plants) plantsBackStack else noticesBackStack
-    val showBottomBar = activeStack.size == 1
-
     fun openPlant(plantId: String) {
         while (plantsBackStack.size > 1) plantsBackStack.removeLastOrNull()
         plantsBackStack.add(PlantDetail(plantId))
         selectedTab = RootTab.Plants
+    }
+
+    fun openPlantFromNotice(plantId: String) {
+        while (noticesBackStack.size > 1) noticesBackStack.removeLastOrNull()
+        openPlant(plantId)
     }
 
     fun openNotice(noticeId: String) {
@@ -98,13 +100,11 @@ fun MainNavigation(
     Scaffold(
         modifier = Modifier.safeDrawingPadding(),
         bottomBar = {
-            if (showBottomBar) {
-                RootNavigationBar(
-                    selectedTab = selectedTab,
-                    unreadCount = unreadCount,
-                    onSelect = { selectedTab = it },
-                )
-            }
+            RootNavigationBar(
+                selectedTab = selectedTab,
+                unreadCount = unreadCount,
+                onSelect = { selectedTab = it },
+            )
         },
     ) { innerPadding ->
         when (selectedTab) {
@@ -177,7 +177,7 @@ fun MainNavigation(
                             NoticeDetailRoute(
                                 noticeId = key.noticeId,
                                 onBack = { noticesBackStack.removeLastOrNull() },
-                                onViewPlant = ::openPlant,
+                                onViewPlant = ::openPlantFromNotice,
                             )
                         }
                     },
