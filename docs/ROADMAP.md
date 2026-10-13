@@ -2,6 +2,19 @@
 
 The roadmap orders work by dependency and user value. It is not a commitment to calendar dates.
 
+## Current status at a glance
+
+- [x] Phase 0 — Foundation
+- [x] Phase 1 — Plant inventory
+- [x] Phase 2 — Primary photo and dated notes
+- [x] Independent correction — Plant identity and unified plant screen
+- [x] Phase 3 — Care history
+- [x] Phase 4 — Interval reminders
+- [ ] Phase 5 — Seasonal care
+- [ ] Phase 6 — Personal-use hardening
+
+Current milestone: Phase 4 is complete. Phase 5 is the next planned product phase.
+
 ## Phase 0 — Foundation
 
 - [x] Select the official Android single-module architecture template.

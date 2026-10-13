@@ -30,8 +30,8 @@ android {
         applicationId = "com.miguelrodriguez19.stayleafy"
         minSdk = 24
         targetSdk = 37
-        versionCode = 9
-        versionName = "0.5.0"
+        versionCode = 10
+        versionName = "0.5.1"
 
         testInstrumentationRunner = "com.miguelrodriguez19.stayleafy.HiltTestRunner"
         vectorDrawables {
