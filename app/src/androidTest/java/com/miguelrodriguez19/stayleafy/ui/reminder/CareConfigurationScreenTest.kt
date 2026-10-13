@@ -6,6 +6,7 @@ import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -89,7 +90,7 @@ class CareConfigurationScreenTest {
     }
 
     @Test
-    fun seasonalRule_displaysAnnualWindowAndCrossYearHint() {
+    fun annualRule_displaysSingleSelectionAndOpensRangeCalendar() {
         setScreen(
             CareConfigurationUiState.Content(
                 plantName = "Hydrangea",
@@ -108,9 +109,15 @@ class CareConfigurationScreenTest {
             ),
         )
 
-        composeTestRule.onNodeWithText(string(R.string.season_start)).assertIsDisplayed()
-        composeTestRule.onNodeWithText(string(R.string.season_end_optional)).assertIsDisplayed()
         composeTestRule.onNodeWithText(string(R.string.season_crosses_year)).assertIsDisplayed()
+
+        composeTestRule.onNodeWithContentDescription(
+            string(R.string.annual_care_timing),
+            substring = true,
+        ).performClick()
+
+        composeTestRule.onNodeWithText(string(R.string.annual_picker_title)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(string(R.string.annual_picker_help)).assertIsDisplayed()
     }
 
     @Test

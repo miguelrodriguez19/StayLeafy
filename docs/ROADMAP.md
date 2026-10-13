@@ -121,7 +121,7 @@ Phase 5 extends the existing offline reminder system with mutually exclusive ann
 - [x] Mark a season occurrence satisfied by matching care recorded inside its window.
 - [x] Deliver one persistent Notice and at most one localized system notification per seasonal occurrence, including late evaluation inside the active window.
 - [x] Show upcoming, active, and satisfied seasonal state in Plant detail without changing the interval-only inventory filters.
-- [x] Add the seasonal rule editor, English/Spanish resources, deterministic previews, migration/unit/Room/ViewModel/Compose tests, and connected-device verification.
+- [x] Add the annual rule editor with one day-or-period calendar field, English/Spanish resources, deterministic previews, migration/unit/Room/ViewModel/Compose tests, and connected-device verification.
 
 Exit condition met: annual rules such as a hydrangea pruning season recur correctly, deduplicate by occurrence, and are satisfied only by matching care inside the active window.
 

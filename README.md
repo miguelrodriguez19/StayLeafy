@@ -14,7 +14,7 @@ Phase 3 adds `CareEvent` rows for watering, pruning, and fertilizing, UTC epoch-
 
 Phase 4 adds interval care configuration, transactional next-due updates, Upcoming/Overdue inventory filters, `Plants | Notices` bottom navigation, and approximately daily WorkManager evaluation around 09:00 local time. Notices remain available when Android notification permission is unavailable, and suppressed occurrences are not delivered retroactively.
 
-Phase 5 adds mutually exclusive annual seasonal schedules with optional inclusive end dates, cross-year windows, matching-care satisfaction, and one deduplicated Notice/notification per occurrence. Seasonal state appears in Plant detail while inventory due filters remain interval-only.
+Phase 5 adds mutually exclusive once-a-year schedules selected through one day-or-period calendar, with optional inclusive end dates, cross-year windows, matching-care satisfaction, and one deduplicated Notice/notification per occurrence. Annual state appears in Plant detail while inventory due filters remain interval-only.
 
 The project was created from the official Android `architecture-templates` single-module template and remains a personal, single-user application with no account, backend, synchronization, analytics, advertising, or paid-service dependency.
 

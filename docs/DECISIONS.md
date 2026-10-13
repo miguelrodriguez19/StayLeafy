@@ -225,3 +225,12 @@ For one Plant and care type, Off, Interval, and Season are mutually exclusive ac
 Seasonal delivery deliberately reuses the existing daily WorkManager and persistent Notice pipeline. The unique key is `seasonal:<ruleId>:<startEpochDay>`. A late evaluation during an active unsatisfied window may create the one occurrence Notice; there is no end-of-window or repeat reminder. Matching care anywhere inside the inclusive window satisfies that occurrence and resolves its Notice. A pending delivery is suppressed rather than posted after its window ends. Notification permission, navigation, read state, cancellation, and Plant cascades remain shared with interval Notices.
 
 This phase remains fully offline and does not add exact alarms, network services, authentication, analytics, or another architectural layer.
+
+## D-024 — Annual care uses one day-or-period calendar field
+
+- **Date:** 2026-10-13
+- **Status:** Accepted
+
+The configuration UI names the seasonal mode “Once a year” and presents its persisted start and optional end as one read-only Day or period field. Pressing the field or its calendar icon opens a range calendar: accepting only a start represents one annual day, while accepting start and end represents an inclusive annual period. The localized field value shows the resulting day or range without asking the user to reason about separate start/end controls.
+
+This is a presentation refinement to D-023, not a data-model change. Room remains at schema v7, stores only month/day components, and continues to interpret an end before the start as a period crossing into the following year. Existing annual rules therefore require no migration.

@@ -20,7 +20,9 @@ Next due date: October 25
 
 ### Configuration
 
-Plant detail opens one dedicated configuration screen containing watering, pruning, and fertilizing cards. Each card selects Off, Interval, or Season, and one Save action persists all three cards atomically. Interval and seasonal modes cannot both be active for the same Plant/care pair, but the inactive configuration is retained.
+Plant detail opens one dedicated configuration screen containing watering, pruning, and fertilizing cards. Each card selects Off, Interval, or Once a year, and one Save action persists all three cards atomically. Interval and annual modes cannot both be active for the same Plant/care pair, but the inactive configuration is retained.
+
+Once-a-year configuration uses one read-only Day or period field with a calendar action. The calendar accepts either one day or a continuous range; accepting the selection writes one localized summary back to the field. Only month/day values are persisted, so the selection repeats annually. A range whose end month/day precedes its start continues into the following year.
 
 An enabled card requires a positive interval and an explicit source for its next occurrence:
 

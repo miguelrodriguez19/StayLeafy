@@ -18,8 +18,10 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.DateRangePicker
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -27,6 +29,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberDatePickerState
+import androidx.compose.material3.rememberDateRangePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -37,7 +40,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -52,6 +61,7 @@ import com.miguelrodriguez19.stayleafy.ui.plant.initialAcquisitionDatePickerMill
 import com.miguelrodriguez19.stayleafy.ui.plant.pickerMillisToEpochDay
 import com.miguelrodriguez19.stayleafy.ui.theme.StayLeafyTheme
 import java.time.LocalDate
+import java.time.Year
 import java.time.format.DateTimeFormatter
 
 @Composable
@@ -215,7 +225,7 @@ private fun CareRuleCard(
     onSeasonEndChange: (AnnualDate?) -> Unit,
 ) {
     var showDatePicker by rememberSaveable { mutableStateOf(false) }
-    var seasonPicker by rememberSaveable { mutableStateOf<SeasonDateTarget?>(null) }
+    var showAnnualPicker by rememberSaveable { mutableStateOf(false) }
     val selectMode = { mode: CareScheduleMode ->
         onEnabledChange(mode != CareScheduleMode.DISABLED)
         onModeChange(mode)
@@ -314,48 +324,55 @@ private fun CareRuleCard(
             }
             if (form.mode == CareScheduleMode.SEASONAL) {
                 Text(stringResource(R.string.seasonal_schedule_help), style = MaterialTheme.typography.bodySmall)
-                Text(stringResource(R.string.season_start), style = MaterialTheme.typography.labelLarge)
-                Card(
-                    Modifier.fillMaxWidth().clickable(enabled = enabled) {
-                        seasonPicker = SeasonDateTarget.Start
-                    },
-                ) {
-                    Text(
-                        if (form.seasonStart != null) {
-                            formatAnnualDate(form.seasonStart)
-                        } else {
-                            stringResource(R.string.select_season_start)
+                val annualSelection = when {
+                    form.seasonStart == null -> ""
+                    form.seasonEnd == null -> formatAnnualDate(form.seasonStart)
+                    else -> stringResource(
+                        R.string.annual_selection_range,
+                        formatAnnualDate(form.seasonStart),
+                        formatAnnualDate(form.seasonEnd),
+                    )
+                }
+                val annualFieldDescription = stringResource(
+                    R.string.annual_field_accessibility,
+                    annualSelection.ifEmpty { stringResource(R.string.select_annual_timing) },
+                )
+                Box(Modifier.fillMaxWidth()) {
+                    OutlinedTextField(
+                        value = annualSelection,
+                        onValueChange = {},
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clearAndSetSemantics {},
+                        enabled = enabled,
+                        readOnly = true,
+                        singleLine = true,
+                        isError = form.seasonStartError,
+                        label = { Text(stringResource(R.string.annual_care_timing)) },
+                        placeholder = { Text(stringResource(R.string.select_annual_timing)) },
+                        trailingIcon = {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_calendar),
+                                contentDescription = null,
+                            )
                         },
-                        Modifier.padding(16.dp),
-                        color = if (form.seasonStartError) {
-                            MaterialTheme.colorScheme.error
-                        } else {
-                            MaterialTheme.colorScheme.onSurface
-                        },
+                    )
+                    Box(
+                        Modifier
+                            .matchParentSize()
+                            .clickable(enabled = enabled) { showAnnualPicker = true }
+                            .clearAndSetSemantics {
+                                contentDescription = annualFieldDescription
+                                role = Role.Button
+                                onClick {
+                                    if (enabled) showAnnualPicker = true
+                                    enabled
+                                }
+                            },
                     )
                 }
                 if (form.seasonStartError) {
-                    Text(stringResource(R.string.season_start_required), color = MaterialTheme.colorScheme.error)
-                }
-                Text(stringResource(R.string.season_end_optional), style = MaterialTheme.typography.labelLarge)
-                Card(
-                    Modifier.fillMaxWidth().clickable(enabled = enabled) {
-                        seasonPicker = SeasonDateTarget.End
-                    },
-                ) {
-                    Text(
-                        if (form.seasonEnd != null) {
-                            formatAnnualDate(form.seasonEnd)
-                        } else {
-                            stringResource(R.string.select_season_end)
-                        },
-                        Modifier.padding(16.dp),
-                    )
-                }
-                if (form.seasonEnd != null) {
-                    TextButton(onClick = { onSeasonEndChange(null) }, enabled = enabled) {
-                        Text(stringResource(R.string.clear_season_end))
-                    }
+                    Text(stringResource(R.string.annual_selection_required), color = MaterialTheme.colorScheme.error)
                 }
                 if (form.seasonStart != null && form.seasonEnd != null &&
                     annualDateComesBefore(form.seasonEnd, form.seasonStart)
@@ -386,37 +403,59 @@ private fun CareRuleCard(
             },
         ) { DatePicker(state = pickerState, showModeToggle = false) }
     }
-    seasonPicker?.let { target ->
-        val selected = if (target == SeasonDateTarget.Start) form.seasonStart else form.seasonEnd
-        val pickerState = rememberDatePickerState(
-            initialSelectedDateMillis = initialAcquisitionDatePickerMillis(
-                selected?.atYear(ANNUAL_DATE_REFERENCE_YEAR)?.toEpochDay(),
-            ),
+    if (showAnnualPicker) {
+        val referenceYear = annualSelectionReferenceYear(form.seasonStart)
+        val initialStartMillis = annualDatePickerMillis(form.seasonStart, referenceYear)
+        val endYear = if (
+            form.seasonStart != null && form.seasonEnd != null &&
+            annualDateComesBefore(form.seasonEnd, form.seasonStart)
+        ) {
+            referenceYear + 1
+        } else {
+            referenceYear
+        }
+        val pickerState = rememberDateRangePickerState(
+            initialSelectedStartDateMillis = initialStartMillis,
+            initialSelectedEndDateMillis = annualDatePickerMillis(form.seasonEnd, endYear),
         )
         DatePickerDialog(
-            onDismissRequest = { seasonPicker = null },
+            onDismissRequest = { showAnnualPicker = false },
             confirmButton = {
-                TextButton(onClick = {
-                    pickerState.selectedDateMillis?.let(::pickerMillisToEpochDay)?.let(LocalDate::ofEpochDay)
-                        ?.let { date -> AnnualDate(date.monthValue, date.dayOfMonth) }
-                        ?.let { annualDate ->
-                            if (target == SeasonDateTarget.Start) {
-                                onSeasonStartChange(annualDate)
-                            } else {
-                                onSeasonEndChange(annualDate)
-                            }
-                        }
-                    seasonPicker = null
-                }) { Text(stringResource(R.string.select_date)) }
+                TextButton(
+                    onClick = {
+                        val start = pickerState.selectedStartDateMillis?.toAnnualDate()
+                            ?: return@TextButton
+                        onSeasonStartChange(start)
+                        onSeasonEndChange(pickerState.selectedEndDateMillis?.toAnnualDate())
+                        showAnnualPicker = false
+                    },
+                    enabled = pickerState.selectedStartDateMillis != null,
+                ) { Text(stringResource(R.string.confirm_annual_selection)) }
             },
             dismissButton = {
-                TextButton(onClick = { seasonPicker = null }) { Text(stringResource(R.string.cancel)) }
+                TextButton(onClick = { showAnnualPicker = false }) { Text(stringResource(R.string.cancel)) }
             },
-        ) { DatePicker(state = pickerState, showModeToggle = false) }
+        ) {
+            DateRangePicker(
+                state = pickerState,
+                showModeToggle = false,
+                title = {
+                    Column(Modifier.padding(start = 24.dp, end = 24.dp, top = 16.dp)) {
+                        Text(
+                            stringResource(R.string.annual_picker_title),
+                            style = MaterialTheme.typography.labelLarge,
+                        )
+                        Text(
+                            stringResource(R.string.annual_picker_help),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                },
+            )
+        }
     }
 }
-
-private enum class SeasonDateTarget { Start, End }
 
 @Composable
 private fun formatAnnualDate(date: AnnualDate): String {
@@ -428,6 +467,18 @@ private fun formatAnnualDate(date: AnnualDate): String {
 
 private fun annualDateComesBefore(left: AnnualDate, right: AnnualDate): Boolean =
     left.month < right.month || left.month == right.month && left.day < right.day
+
+private fun annualSelectionReferenceYear(start: AnnualDate?): Int {
+    val currentYear = LocalDate.now().year
+    if (start?.month != 2 || start.day != 29 || Year.isLeap(currentYear.toLong())) return currentYear
+    return generateSequence(currentYear + 1) { it + 1 }.first { Year.isLeap(it.toLong()) }
+}
+
+private fun annualDatePickerMillis(date: AnnualDate?, year: Int): Long? =
+    date?.atYear(year)?.toEpochDay()?.let(::initialAcquisitionDatePickerMillis)
+
+private fun Long.toAnnualDate(): AnnualDate =
+    LocalDate.ofEpochDay(pickerMillisToEpochDay(this)).let { AnnualDate(it.monthValue, it.dayOfMonth) }
 
 private const val ANNUAL_DATE_REFERENCE_YEAR = 2000
 

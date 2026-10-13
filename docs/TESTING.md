@@ -169,7 +169,7 @@ Phase 4 Compose and navigation coverage adds:
 - Contextual permission explanation and the Notices-only blocked-permission banner with application-settings callback.
 - English/Spanish text and light/dark previews for reminder configuration, care status, Notices, details, permission guidance, and confirmations.
 
-Phase 5 Compose coverage adds Off/Interval/Season controls, required start validation, optional end clearing, cross-year guidance, annual-date rendering, upcoming/active/satisfied Plant-detail state, and seasonal Notice wording in English and Spanish.
+Phase 5 Compose coverage adds Off/Interval/Once-a-year controls, the single read-only day-or-period field, range-calendar opening, required-selection validation, cross-year guidance, annual-date rendering, upcoming/active/satisfied Plant-detail state, and seasonal Notice wording in English and Spanish.
 
 Phase 2 Compose coverage adds:
 

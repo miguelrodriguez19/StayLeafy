@@ -85,7 +85,7 @@ Phase delivery note: Phase 1 implements the Plant inventory. Phase 2 implements 
 The following Phase 5 requirements are implemented.
 
 - **FR-SEASON-001** — The user can configure an annually recurring care season.
-- **FR-SEASON-002** — A seasonal rule has a start month/day and may have an end month/day.
+- **FR-SEASON-002** — A seasonal rule has a start month/day and may have an end month/day. Configuration presents these values as one read-only “day or period” field; its calendar accepts either a single day or a range and does not expose separate start/end inputs.
 - **FR-SEASON-003** — A seasonal rule belongs to one plant and one care type.
 - **FR-SEASON-004** — The app notifies the user when the seasonal window begins.
 - **FR-SEASON-005** — Example: a hydrangea pruning rule can announce the beginning of its ideal pruning season.
