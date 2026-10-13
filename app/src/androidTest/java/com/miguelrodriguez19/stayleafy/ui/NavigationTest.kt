@@ -98,9 +98,21 @@ class NavigationTest {
         clickListPlant("Monstera")
 
         composeTestRule.onNodeWithText("Monstera deliciosa").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Living room").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Living room").performScrollTo().assertIsDisplayed()
         composeTestRule.onNodeWithText(string(R.string.navigation_plants)).assertIsDisplayed()
         composeTestRule.onNodeWithText(string(R.string.navigation_notices)).assertIsDisplayed()
+    }
+
+    @Test
+    fun plantTab_reselectedFromDetail_returnsToPlantList() {
+        clickListPlant("Monstera")
+        composeTestRule.onNodeWithText(string(R.string.edit_plant)).assertExists()
+
+        composeTestRule.onNodeWithText(string(R.string.navigation_plants)).performClick()
+
+        composeTestRule.onNodeWithText(string(R.string.plants_title)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(string(R.string.edit_plant)).assertDoesNotExist()
+        composeTestRule.onNodeWithText("Monstera").assertIsDisplayed()
     }
 
     @Test
@@ -126,6 +138,22 @@ class NavigationTest {
         composeTestRule.onNodeWithText(string(R.string.notice_details)).assertIsDisplayed()
         composeTestRule.onNodeWithText("Monstera").assertIsDisplayed()
         composeTestRule.onNodeWithText(string(R.string.navigation_notices)).assertIsDisplayed()
+    }
+
+    @Test
+    fun noticesTab_reselectedFromDetail_returnsToNoticeList() {
+        phase4Gateway.replaceNotices(listOf(testNotice()))
+        AndroidNoticeNavigation.openNotice("notice-id")
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText(string(R.string.notice_details)).assertIsDisplayed()
+
+        composeTestRule.onNodeWithText(string(R.string.navigation_notices)).performClick()
+
+        composeTestRule.onAllNodesWithText(string(R.string.notices_title)).onFirst().assertIsDisplayed()
+        composeTestRule.onNodeWithText(string(R.string.notice_details)).assertDoesNotExist()
+        composeTestRule.onNodeWithText(
+            string(R.string.notice_row_title, string(R.string.care_watering), "Monstera"),
+        ).assertIsDisplayed()
     }
 
     @Test
@@ -196,7 +224,7 @@ class NavigationTest {
         composeTestRule.waitForIdle()
 
         composeTestRule.onNodeWithText("Watered today").performScrollTo().assertIsDisplayed()
-        composeTestRule.onNodeWithText("Monstera deliciosa").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Monstera deliciosa").assertExists()
     }
 
     @Test

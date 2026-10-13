@@ -93,6 +93,18 @@ fun MainNavigation(
         selectedTab = RootTab.Notices
     }
 
+    fun selectRoot(tab: RootTab) {
+        if (tab != selectedTab) {
+            selectedTab = tab
+            return
+        }
+
+        when (tab) {
+            RootTab.Plants -> while (plantsBackStack.size > 1) plantsBackStack.removeLastOrNull()
+            RootTab.Notices -> while (noticesBackStack.size > 1) noticesBackStack.removeLastOrNull()
+        }
+    }
+
     LaunchedEffect(noticeNavigationRequests) {
         noticeNavigationRequests.collect(::openNotice)
     }
@@ -103,7 +115,7 @@ fun MainNavigation(
             RootNavigationBar(
                 selectedTab = selectedTab,
                 unreadCount = unreadCount,
-                onSelect = { selectedTab = it },
+                onSelect = ::selectRoot,
             )
         },
     ) { innerPadding ->

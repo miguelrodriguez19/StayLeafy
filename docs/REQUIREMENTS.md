@@ -117,6 +117,7 @@ The following requirements are owned by Phase 5. Phase 4 must not expose or clai
 - **FR-NOTICE-008** — Completing matching care, disabling its rule, or replacing its due occurrence resolves the previous Notice by marking it read and cancelling its displayed Android notification.
 - **FR-NOTICE-009** — Notice text is derived from stored semantic values and current localized resources; translated display strings are not persisted.
 - **FR-NOTICE-010** — Opening a Plant from Notice detail removes that Notice detail from the Notices stack. Returning to the Plants root and selecting Notices therefore opens the Notices inbox rather than the previous detail.
+- **FR-NOTICE-011** — Selecting the already active Plants or Notices bottom-navigation tab returns that tab to its root list. Selecting the other tab preserves the other tab's independent navigation state.
 
 ### Preferences and localization
 

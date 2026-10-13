@@ -154,6 +154,7 @@ Phase 4 Compose and navigation coverage adds:
 - Notices loading, error/retry, empty, content, unread indicators, `99+` badge, read-on-open, and Mark all as read.
 - Notice detail not-found state, notification-to-Notice routing, and Notice-to-Plant routing.
 - Notice-to-Plant routing clears the source Notice detail so selecting Notices later returns to the inbox.
+- Reselecting the active Plants or Notices tab from a nested destination returns to that tab's root list.
 - Contextual permission explanation and the Notices-only blocked-permission banner with application-settings callback.
 - English/Spanish text and light/dark previews for reminder configuration, care status, Notices, details, permission guidance, and confirmations.
 

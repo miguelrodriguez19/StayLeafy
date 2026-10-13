@@ -71,6 +71,7 @@ The Notices inbox is a root destination beside Plants in bottom navigation:
 
 - Each root preserves its own navigation state.
 - Bottom navigation remains visible on roots and nested detail, editor, and configuration destinations.
+- Selecting the active root again clears only its nested destinations and returns to the inventory or Notices inbox; switching roots preserves the other root's stack.
 - The Notices tab shows the unread count, visually capped at `99+`.
 - Notices are ordered by `createdAt DESC, id DESC`; unread rows have a distinct indicator.
 - Loading, error/retry, empty, and content states are localized.
