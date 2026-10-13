@@ -7,6 +7,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.height
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Icon
@@ -23,6 +24,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
@@ -211,8 +213,9 @@ private fun RootNavigationBar(
     onSelect: (RootTab) -> Unit,
 ) {
     NavigationBar(
+        modifier = Modifier.height(72.dp),
         containerColor = MaterialTheme.colorScheme.surface,
-        tonalElevation = 2.dp,
+        tonalElevation = 0.dp,
     ) {
         NavigationBarItem(
             selected = selectedTab == RootTab.Plants,
@@ -221,11 +224,16 @@ private fun RootNavigationBar(
                 Icon(
                     painterResource(R.drawable.ic_leaf),
                     contentDescription = stringResource(R.string.navigation_plants),
+                    modifier = Modifier.height(22.dp),
                 )
             },
             label = { Text(stringResource(R.string.navigation_plants)) },
             colors = NavigationBarItemDefaults.colors(
-                indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                selectedIconColor = MaterialTheme.colorScheme.primary,
+                selectedTextColor = MaterialTheme.colorScheme.primary,
+                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                indicatorColor = Color.Transparent,
             ),
         )
         NavigationBarItem(
@@ -235,19 +243,27 @@ private fun RootNavigationBar(
                 BadgedBox(
                     badge = {
                         if (unreadCount > 0) {
-                            Badge { Text(if (unreadCount > 99) "99+" else unreadCount.toString()) }
+                            Badge(
+                                containerColor = MaterialTheme.colorScheme.tertiary,
+                                contentColor = MaterialTheme.colorScheme.onTertiary,
+                            ) { Text(if (unreadCount > 99) "99+" else unreadCount.toString()) }
                         }
                     },
                 ) {
                     Icon(
                         painterResource(R.drawable.ic_bell),
                         contentDescription = stringResource(R.string.navigation_notices),
+                        modifier = Modifier.height(22.dp),
                     )
                 }
             },
             label = { Text(stringResource(R.string.navigation_notices)) },
             colors = NavigationBarItemDefaults.colors(
-                indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                selectedIconColor = MaterialTheme.colorScheme.primary,
+                selectedTextColor = MaterialTheme.colorScheme.primary,
+                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                indicatorColor = Color.Transparent,
             ),
         )
     }

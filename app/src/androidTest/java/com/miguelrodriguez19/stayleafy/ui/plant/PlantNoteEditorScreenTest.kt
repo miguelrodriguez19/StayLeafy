@@ -14,6 +14,7 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextReplacement
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -58,7 +59,7 @@ class PlantNoteEditorScreenTest {
 
         composeTestRule.onNode(hasSetTextAction()).performTextReplacement("Watered today")
         composeTestRule.onAllNodesWithText(string(R.string.save)).onFirst().performClick()
-        composeTestRule.onNodeWithText(string(R.string.cancel)).performClick()
+        composeTestRule.onNodeWithContentDescription(string(R.string.cancel)).performClick()
 
         assertEquals("Watered today", body)
         assertEquals(1, saveClicks)

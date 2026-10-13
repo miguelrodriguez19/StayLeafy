@@ -216,6 +216,8 @@ Check the existing deterministic previews and an emulator/device in this matrix 
 
 Also inspect the launcher under circle, square, rounded-square, squircle, teardrop, and themed-icon masks. Verify photo and placeholder rendering, bottom-navigation selected states and badge, software-keyboard traversal, dialogs/sheets, edge-to-edge bars, and system-owned picker/calendar surfaces. Compose tests continue to assert localized semantics and callbacks instead of pixel output.
 
+The reference-fidelity correction was manually reviewed on an emulator in light and dark themes against `design/references/stay_leafy_ui_direction.png`. The review covered the Plants root, Plant detail, nested bottom navigation, care configuration, interval expansion, local-image placeholders, pinned actions, and long English labels.
+
 ## Commands
 
 Run local unit tests:

@@ -9,8 +9,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -27,6 +27,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -42,6 +43,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -49,7 +51,7 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.role
-import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -61,6 +63,7 @@ import com.miguelrodriguez19.stayleafy.model.CareType
 import com.miguelrodriguez19.stayleafy.ui.plant.formatEpochDay
 import com.miguelrodriguez19.stayleafy.ui.plant.initialAcquisitionDatePickerMillis
 import com.miguelrodriguez19.stayleafy.ui.plant.pickerMillisToEpochDay
+import com.miguelrodriguez19.stayleafy.ui.plant.PlantPhotoBox
 import com.miguelrodriguez19.stayleafy.ui.components.LeafyCareIcon
 import com.miguelrodriguez19.stayleafy.ui.theme.StayLeafyTheme
 import java.time.LocalDate
@@ -129,7 +132,7 @@ fun CareConfigurationScreen(
                 title = {
                     Text(
                         stringResource(R.string.configure_care),
-                        style = MaterialTheme.typography.headlineSmall,
+                        style = MaterialTheme.typography.titleLarge,
                     )
                 },
                 navigationIcon = {
@@ -141,6 +144,17 @@ fun CareConfigurationScreen(
                     }
                 },
             )
+        },
+        bottomBar = {
+            if (content != null) {
+                Button(
+                    onClick = onSave,
+                    enabled = !content.isSaving,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+                ) {
+                    Text(stringResource(if (content.isSaving) R.string.saving else R.string.save))
+                }
+            }
         },
     ) { innerPadding ->
         when (state) {
@@ -168,13 +182,38 @@ fun CareConfigurationScreen(
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Text(
-                    text = state.plantName,
-                    style = MaterialTheme.typography.titleLarge,
-                )
+                Card(
+                    Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                    ),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                ) {
+                    Row(
+                        Modifier.fillMaxWidth().padding(10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        PlantPhotoBox(
+                            relativePath = state.plantPhotoPath,
+                            modifier = Modifier.size(56.dp),
+                        )
+                        Column(Modifier.weight(1f)) {
+                            Text(text = state.plantName, style = MaterialTheme.typography.titleMedium)
+                            state.plantScientificName?.let {
+                                Text(
+                                    it,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                    }
+                }
                 Text(
                     text = stringResource(R.string.care_configuration_help),
                     style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 state.forms.forEach { form ->
                     CareRuleCard(
@@ -195,13 +234,6 @@ fun CareConfigurationScreen(
                         stringResource(R.string.save_care_configuration_error),
                         color = MaterialTheme.colorScheme.error,
                     )
-                }
-                Button(
-                    onClick = onSave,
-                    enabled = !state.isSaving,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(stringResource(if (state.isSaving) R.string.saving else R.string.save))
                 }
             }
         }
@@ -244,7 +276,7 @@ private fun CareRuleCard(
     Card(
         Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
         Column(
             Modifier.padding(16.dp),
@@ -261,9 +293,13 @@ private fun CareRuleCard(
                 )
                 Text(form.careType.localizedName(), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
                 CareScheduleMode.entries.forEach { mode ->
                     FilterChip(
+                        modifier = Modifier.weight(1f),
                         selected = form.mode == mode,
                         onClick = { selectMode(mode) },
                         enabled = enabled,
@@ -282,18 +318,11 @@ private fun CareRuleCard(
                 }
             }
             if (form.mode == CareScheduleMode.INTERVAL) {
-                OutlinedTextField(
+                IntervalStepper(
                     value = form.intervalDays,
-                    onValueChange = onIntervalChange,
                     enabled = enabled,
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text(stringResource(R.string.interval_days)) },
-                    supportingText = if (form.intervalError) {
-                        { Text(stringResource(R.string.interval_days_error)) }
-                    } else null,
                     isError = form.intervalError,
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    onValueChange = onIntervalChange,
                 )
                 Text(stringResource(R.string.calculate_next_due_from), style = MaterialTheme.typography.labelLarge)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -478,6 +507,77 @@ private fun CareRuleCard(
 }
 
 @Composable
+private fun IntervalStepper(
+    value: String,
+    enabled: Boolean,
+    isError: Boolean,
+    onValueChange: (String) -> Unit,
+) {
+    val parsedValue = value.toIntOrNull()?.coerceAtLeast(1) ?: 1
+    val decreaseDescription = stringResource(R.string.decrease_interval)
+    val increaseDescription = stringResource(R.string.increase_interval)
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                pluralStringResource(R.plurals.interval_every_days, parsedValue, parsedValue),
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier.weight(1f),
+                color = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
+            )
+            Surface(
+                shape = MaterialTheme.shapes.small,
+                color = MaterialTheme.colorScheme.surfaceContainerHighest,
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(
+                        onClick = { onValueChange((parsedValue - 1).coerceAtLeast(1).toString()) },
+                        enabled = enabled && parsedValue > 1,
+                        modifier = Modifier.semantics {
+                            contentDescription = decreaseDescription
+                        },
+                    ) {
+                        Text(
+                            text = "−",
+                            style = MaterialTheme.typography.titleLarge,
+                            modifier = Modifier.clearAndSetSemantics {},
+                        )
+                    }
+                    Text(
+                        parsedValue.toString(),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                    IconButton(
+                        onClick = {
+                            if (parsedValue < Int.MAX_VALUE) onValueChange((parsedValue + 1).toString())
+                        },
+                        enabled = enabled && parsedValue < Int.MAX_VALUE,
+                        modifier = Modifier.semantics {
+                            contentDescription = increaseDescription
+                        },
+                    ) {
+                        Text(
+                            text = "+",
+                            style = MaterialTheme.typography.titleLarge,
+                            modifier = Modifier.clearAndSetSemantics {},
+                        )
+                    }
+                }
+            }
+        }
+        if (isError) {
+            Text(
+                stringResource(R.string.interval_days_error),
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodySmall,
+            )
+        }
+    }
+}
+
+@Composable
 private fun formatAnnualDate(date: AnnualDate): String {
     val pattern = stringResource(R.string.annual_date_pattern)
     val locale = LocalConfiguration.current.locales[0]
@@ -534,6 +634,7 @@ private fun CareConfigurationPreview() {
         CareConfigurationScreen(
             state = CareConfigurationUiState.Content(
                 plantName = "Monstera",
+                plantScientificName = "Monstera deliciosa",
                 forms = listOf(
                     CareRuleForm(CareType.WATERING, true, "7", ReminderDueSourceChoice.LatestCare),
                     CareRuleForm(

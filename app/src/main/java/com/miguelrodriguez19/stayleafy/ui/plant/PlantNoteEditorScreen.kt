@@ -3,15 +3,20 @@ package com.miguelrodriguez19.stayleafy.ui.plant
 import android.content.res.Configuration
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -22,6 +27,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -68,10 +75,25 @@ fun PlantNoteEditorScreen(
         modifier = modifier,
         topBar = {
             TopAppBar(
-                title = { Text(title, style = MaterialTheme.typography.headlineSmall) },
-                navigationIcon = { TextButton(onClick = onBack) { Text(stringResource(R.string.cancel)) } },
-                actions = { TextButton(onClick = onSave, enabled = !state.isSaving && !state.isLoading && !state.notFound) { Text(stringResource(if (state.isSaving) R.string.saving else R.string.save)) } },
+                title = { Text(title, style = MaterialTheme.typography.titleLarge) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            painterResource(R.drawable.ic_back),
+                            contentDescription = stringResource(R.string.cancel),
+                        )
+                    }
+                },
             )
+        },
+        bottomBar = {
+            if (!state.isLoading && !state.notFound && state.loadError == null) {
+                Button(
+                    onClick = onSave,
+                    enabled = !state.isSaving,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+                ) { Text(stringResource(if (state.isSaving) R.string.saving else R.string.save)) }
+            }
         },
     ) { innerPadding ->
         when {
@@ -79,11 +101,45 @@ fun PlantNoteEditorScreen(
             state.notFound -> NoteNotFoundContent(onBack)
             state.loadError != null -> NoteEditorError(state.loadError, onRetry, Modifier.padding(innerPadding))
             else -> Column(
-                Modifier.fillMaxSize().padding(innerPadding).verticalScroll(rememberScrollState()).padding(16.dp),
+                Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(18.dp),
             ) {
+                state.plantName?.let { plantName ->
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                        ),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                    ) {
+                        Row(
+                            Modifier.fillMaxWidth().padding(10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            PlantPhotoBox(
+                                relativePath = state.plantPhotoPath,
+                                modifier = Modifier.size(56.dp),
+                            )
+                            Column(Modifier.weight(1f)) {
+                                Text(plantName, style = MaterialTheme.typography.titleMedium)
+                                state.plantScientificName?.let {
+                                    Text(
+                                        it,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
                 Card(
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
                 ) {
                     Column(Modifier.padding(16.dp)) {
                         OutlinedTextField(
@@ -97,7 +153,6 @@ fun PlantNoteEditorScreen(
                             supportingText = if (state.bodyError) ({ Text(stringResource(R.string.note_required)) }) else null,
                         )
                         state.saveError?.let { Text(stringResource(R.string.save_note_error), color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 12.dp)) }
-                        Button(onClick = onSave, enabled = !state.isSaving, modifier = Modifier.fillMaxWidth().padding(top = 16.dp)) { Text(stringResource(if (state.isSaving) R.string.saving else R.string.save)) }
                     }
                 }
             }
@@ -125,6 +180,15 @@ private fun NoteNotFoundContent(onBack: () -> Unit) {
 @Preview(name = "Note editor - Dark", showBackground = true, uiMode = Configuration.UI_MODE_NIGHT_YES)
 @Composable private fun PlantNoteEditorPreview() {
     StayLeafyTheme(dynamicColor = false) {
-        PlantNoteEditorScreen(PlantNoteEditorState(noteId = null, isLoading = false, body = "Watered and moved closer to the window."), {}, {}, {}, {})
+        PlantNoteEditorScreen(
+            PlantNoteEditorState(
+                noteId = null,
+                isLoading = false,
+                plantName = "Monstera",
+                plantScientificName = "Monstera deliciosa",
+                body = "Watered and moved closer to the window.",
+            ),
+            {}, {}, {}, {},
+        )
     }
 }

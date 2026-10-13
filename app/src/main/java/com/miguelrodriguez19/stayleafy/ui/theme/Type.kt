@@ -20,7 +20,7 @@ val Typography = Typography(
     headlineLarge = BaseTypography.headlineLarge.copy(fontFamily = Lora, fontWeight = FontWeight.SemiBold, lineHeight = 40.sp),
     headlineMedium = BaseTypography.headlineMedium.copy(fontFamily = Lora, fontWeight = FontWeight.SemiBold),
     headlineSmall = BaseTypography.headlineSmall.copy(fontFamily = Lora, fontWeight = FontWeight.SemiBold),
-    titleLarge = BaseTypography.titleLarge.copy(fontFamily = Lora, fontWeight = FontWeight.SemiBold),
+    titleLarge = BaseTypography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
     titleMedium = BaseTypography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
     titleSmall = BaseTypography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
     bodyLarge = BaseTypography.bodyLarge.copy(lineHeight = 24.sp),

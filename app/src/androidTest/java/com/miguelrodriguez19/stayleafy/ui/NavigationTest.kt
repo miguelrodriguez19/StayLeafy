@@ -106,12 +106,12 @@ class NavigationTest {
     @Test
     fun plantTab_reselectedFromDetail_returnsToPlantList() {
         clickListPlant("Monstera")
-        composeTestRule.onNodeWithText(string(R.string.edit_plant)).assertExists()
+        composeTestRule.onNodeWithContentDescription(string(R.string.edit_plant)).assertExists()
 
         composeTestRule.onNodeWithText(string(R.string.navigation_plants)).performClick()
 
         composeTestRule.onNodeWithText(string(R.string.plants_title)).assertIsDisplayed()
-        composeTestRule.onNodeWithText(string(R.string.edit_plant)).assertDoesNotExist()
+        composeTestRule.onNodeWithContentDescription(string(R.string.edit_plant)).assertDoesNotExist()
         composeTestRule.onNodeWithText("Monstera").assertIsDisplayed()
     }
 
@@ -189,7 +189,7 @@ class NavigationTest {
     @Test
     fun detailEditAndBack_returnsToDetail() {
         clickListPlant("Monstera")
-        composeTestRule.onNodeWithText(string(R.string.edit_plant)).performClick()
+        composeTestRule.onNodeWithContentDescription(string(R.string.edit_plant)).performClick()
         composeTestRule.onNodeWithText(string(R.string.edit_plant)).assertIsDisplayed()
 
         composeTestRule.onNodeWithContentDescription(string(R.string.cancel)).performClick()
@@ -243,7 +243,8 @@ class NavigationTest {
             ),
         )
         clickListPlant("Monstera")
-        composeTestRule.onNodeWithText(string(R.string.edit_note)).performScrollTo().performClick()
+        composeTestRule.onNodeWithContentDescription(string(R.string.more_options)).performScrollTo().performClick()
+        composeTestRule.onNodeWithText(string(R.string.edit_note)).performClick()
         composeTestRule.onNode(hasSetTextAction()).performTextReplacement("Updated note")
         composeTestRule.onAllNodesWithText(string(R.string.save)).onFirst().performClick()
         composeTestRule.waitForIdle()

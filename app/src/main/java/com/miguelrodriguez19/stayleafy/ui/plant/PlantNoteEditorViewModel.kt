@@ -19,6 +19,9 @@ import kotlinx.coroutines.launch
 
 data class PlantNoteEditorState(
     val noteId: String?,
+    val plantName: String? = null,
+    val plantScientificName: String? = null,
+    val plantPhotoPath: String? = null,
     val body: String = "",
     val isLoading: Boolean = true,
     val isSaving: Boolean = false,
@@ -93,18 +96,30 @@ class PlantNoteEditorViewModel @AssistedInject constructor(
         _state.value = _state.value.copy(isLoading = true, loadError = null, notFound = false)
         loadJob = viewModelScope.launch {
             try {
-                if (noteId == null) {
-                    val plant = plantRepository.observePlant(plantId).first()
+                val plant = plantRepository.observePlant(plantId).first()
+                if (plant == null) {
+                    _state.value = _state.value.copy(isLoading = false, notFound = true)
+                } else if (noteId == null) {
                     _state.value = _state.value.copy(
+                        plantName = plant.name,
+                        plantScientificName = plant.scientificName,
+                        plantPhotoPath = plant.mainPhotoPath,
                         isLoading = false,
-                        notFound = plant == null,
+                        notFound = false,
                     )
                 } else {
                     val note = repository.observeNote(plantId, noteId).first()
                     _state.value = if (note == null) {
                         _state.value.copy(isLoading = false, notFound = true)
                     } else {
-                        _state.value.copy(isLoading = false, body = note.body, notFound = false)
+                        _state.value.copy(
+                            plantName = plant.name,
+                            plantScientificName = plant.scientificName,
+                            plantPhotoPath = plant.mainPhotoPath,
+                            isLoading = false,
+                            body = note.body,
+                            notFound = false,
+                        )
                     }
                 }
             } catch (error: CancellationException) {

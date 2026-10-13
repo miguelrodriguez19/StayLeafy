@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
@@ -26,6 +27,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -117,8 +119,11 @@ fun NoticeListScreen(
                     )
                 },
                 actions = {
-                    TextButton(onClick = { showOptions = true }) {
-                        Text(stringResource(R.string.more_options))
+                    IconButton(onClick = { showOptions = true }) {
+                        Icon(
+                            painterResource(R.drawable.ic_more),
+                            contentDescription = stringResource(R.string.more_options),
+                        )
                     }
                     DropdownMenu(
                         expanded = showOptions,
@@ -139,7 +144,7 @@ fun NoticeListScreen(
     ) { innerPadding ->
         Column(
             Modifier.fillMaxSize().padding(innerPadding).padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             if (notificationWarning) {
                 Card(Modifier.fillMaxWidth()) {
@@ -172,7 +177,7 @@ fun NoticeListScreen(
                 )
                 is NoticeListUiState.Content -> LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     items(state.notices, key = AppNotice::id) { notice ->
                         NoticeRow(notice = notice, onClick = { onNoticeClick(notice.id) })
@@ -191,20 +196,20 @@ private fun NoticeRow(notice: AppNotice, onClick: () -> Unit) {
             containerColor = if (notice.isRead) {
                 MaterialTheme.colorScheme.surfaceContainerLow
             } else {
-                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f)
+                MaterialTheme.colorScheme.surfaceContainer
             },
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
         Row(
-            Modifier.fillMaxWidth().padding(16.dp),
+            Modifier.fillMaxWidth().padding(10.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.Top,
         ) {
             Box(
                 Modifier
-                    .size(40.dp)
-                    .background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
+                    .size(54.dp)
+                    .background(MaterialTheme.colorScheme.primaryContainer, MaterialTheme.shapes.small),
                 contentAlignment = Alignment.Center,
             ) {
                 LeafyCareIcon(
@@ -240,8 +245,14 @@ private fun NoticeRow(notice: AppNotice, onClick: () -> Unit) {
                         },
                         formatEpochDay(notice.dueEpochDay),
                     ),
+                    color = MaterialTheme.leafyColors.accent,
+                    style = MaterialTheme.typography.labelMedium,
                 )
-                Text(formatTimestamp(notice.createdAt), style = MaterialTheme.typography.labelSmall)
+                Text(
+                    stringResource(R.string.notice_row_body),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
     }
@@ -291,6 +302,14 @@ fun NoticeDetailScreen(
                 },
             )
         },
+        bottomBar = {
+            if (state is NoticeDetailUiState.Content) {
+                Button(
+                    onClick = { onViewPlant(state.notice.plantId) },
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+                ) { Text(stringResource(R.string.view_plant)) }
+            }
+        },
     ) { innerPadding ->
         when (state) {
             NoticeDetailUiState.Loading -> Box(
@@ -313,24 +332,79 @@ fun NoticeDetailScreen(
                 Modifier.fillMaxSize().padding(innerPadding).padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Text(state.notice.plantName, style = MaterialTheme.typography.headlineSmall)
-                NoticeDetailField(R.string.care_type, state.notice.careType.localizedName())
-                NoticeDetailField(
-                    R.string.schedule_type,
-                    stringResource(
-                        if (state.notice.scheduleType == ReminderScheduleType.SEASONAL) {
-                            R.string.schedule_seasonal
-                        } else {
-                            R.string.schedule_interval
-                        },
+                NoticeHero(state.notice)
+                Card(
+                    Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
                     ),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                ) {
+                    Column(Modifier.padding(horizontal = 14.dp)) {
+                        NoticeDetailField(R.string.care_type, state.notice.careType.localizedName())
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                        NoticeDetailField(
+                            R.string.schedule_type,
+                            stringResource(
+                                if (state.notice.scheduleType == ReminderScheduleType.SEASONAL) {
+                                    R.string.schedule_seasonal
+                                } else {
+                                    R.string.schedule_interval
+                                },
+                            ),
+                        )
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                        NoticeDetailField(R.string.scheduled_for, formatEpochDay(state.notice.dueEpochDay))
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                        NoticeDetailField(R.string.notice_created, formatTimestamp(state.notice.createdAt))
+                    }
+                }
+                Spacer(Modifier.weight(1f))
+            }
+        }
+    }
+}
+
+@Composable
+private fun NoticeHero(notice: AppNotice) {
+    Card(
+        Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+    ) {
+        Row(
+            Modifier.fillMaxWidth().padding(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                Modifier.size(56.dp).background(
+                    MaterialTheme.colorScheme.primaryContainer,
+                    MaterialTheme.shapes.small,
+                ),
+                contentAlignment = Alignment.Center,
+            ) {
+                LeafyCareIcon(
+                    careType = notice.careType,
+                    contentDescription = notice.careType.localizedName(),
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
                 )
-                NoticeDetailField(R.string.scheduled_for, formatEpochDay(state.notice.dueEpochDay))
-                NoticeDetailField(R.string.notice_created, formatTimestamp(state.notice.createdAt))
-                Button(
-                    onClick = { onViewPlant(state.notice.plantId) },
-                    modifier = Modifier.fillMaxWidth(),
-                ) { Text(stringResource(R.string.view_plant)) }
+            }
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text(notice.plantName, style = MaterialTheme.typography.titleMedium)
+                Text(notice.careType.localizedName(), style = MaterialTheme.typography.bodySmall)
+                Text(
+                    stringResource(
+                        if (notice.scheduleType == ReminderScheduleType.SEASONAL) {
+                            R.string.notice_season_start
+                        } else {
+                            R.string.notice_due_date
+                        },
+                        formatEpochDay(notice.dueEpochDay),
+                    ),
+                    color = MaterialTheme.leafyColors.accent,
+                    style = MaterialTheme.typography.labelMedium,
+                )
             }
         }
     }
@@ -338,11 +412,13 @@ fun NoticeDetailScreen(
 
 @Composable
 private fun NoticeDetailField(label: Int, value: String) {
-    Card(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(16.dp)) {
-            Text(stringResource(label), style = MaterialTheme.typography.labelLarge)
-            Text(value, Modifier.padding(top = 4.dp))
-        }
+    Column(Modifier.fillMaxWidth().padding(vertical = 14.dp)) {
+        Text(
+            stringResource(label),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(value, Modifier.padding(top = 3.dp), style = MaterialTheme.typography.bodyLarge)
     }
 }
 

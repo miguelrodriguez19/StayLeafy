@@ -156,8 +156,8 @@ class PlantDetailScreenTest {
             .performScrollTo()
             .assertIsDisplayed()
         composeTestRule.onNodeWithText("Bright indirect light").performScrollTo().assertIsDisplayed()
-        composeTestRule.onNodeWithText(string(R.string.add_favorite)).performScrollTo().performClick()
-        composeTestRule.onNodeWithText(string(R.string.edit_plant)).performScrollTo().performClick()
+        composeTestRule.onNodeWithContentDescription(string(R.string.add_favorite)).performClick()
+        composeTestRule.onNodeWithContentDescription(string(R.string.edit_plant)).performClick()
 
         assertEquals(true, favorite)
         assertEquals(1, editClicks)
@@ -263,13 +263,16 @@ class PlantDetailScreenTest {
         )
 
         composeTestRule.onNodeWithText(string(R.string.add_note)).performScrollTo().performClick()
-        composeTestRule.onNodeWithText(string(R.string.edit_note)).performScrollTo().performClick()
-        composeTestRule.onNodeWithText(string(R.string.delete_note)).performScrollTo().performClick()
+        composeTestRule.onNodeWithContentDescription(string(R.string.more_options)).performScrollTo().performClick()
+        composeTestRule.onNodeWithText(string(R.string.edit_note)).performClick()
+        composeTestRule.onNodeWithContentDescription(string(R.string.more_options)).performScrollTo().performClick()
+        composeTestRule.onNodeWithText(string(R.string.delete_note)).performClick()
         composeTestRule.onNodeWithText(string(R.string.delete_note_title)).assertIsDisplayed()
         composeTestRule.onNodeWithText(string(R.string.cancel)).performClick()
         assertEquals(null, deletedId)
 
-        composeTestRule.onNodeWithText(string(R.string.delete_note)).performScrollTo().performClick()
+        composeTestRule.onNodeWithContentDescription(string(R.string.more_options)).performScrollTo().performClick()
+        composeTestRule.onNodeWithText(string(R.string.delete_note)).performClick()
         composeTestRule.onAllNodesWithText(string(R.string.delete_note)).onLast().performClick()
 
         assertEquals(1, addClicks)
@@ -504,8 +507,8 @@ class PlantDetailScreenTest {
             }
         }
 
-        composeTestRule.onNodeWithText("Nombre").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Editar planta").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Monstera").assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription("Editar planta").assertIsDisplayed()
         composeTestRule.onNodeWithText("Eliminar planta").performScrollTo().assertIsDisplayed()
     }
 

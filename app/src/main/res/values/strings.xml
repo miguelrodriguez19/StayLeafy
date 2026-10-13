@@ -104,6 +104,12 @@
     <string name="schedule_interval">Interval</string>
     <string name="schedule_seasonal">Once a year</string>
     <string name="interval_days">Interval in days</string>
+    <string name="decrease_interval">Decrease interval</string>
+    <string name="increase_interval">Increase interval</string>
+    <plurals name="interval_every_days">
+        <item quantity="one">Every %1$d day</item>
+        <item quantity="other">Every %1$d days</item>
+    </plurals>
     <string name="interval_days_error">Enter a number greater than zero.</string>
     <string name="calculate_next_due_from">Calculate next due date from</string>
     <string name="select_due_source">Choose how to calculate the first due date.</string>
@@ -155,6 +161,7 @@
     <string name="season_notice_row_title">%1$s season · %2$s</string>
     <string name="notice_due_date">Due: %1$s</string>
     <string name="notice_season_start">Season starts: %1$s</string>
+    <string name="notice_row_body">It’s time to care for your plant.</string>
     <string name="notice_details">Notice details</string>
     <string name="load_notice_error">We couldn’t load this notice.</string>
     <string name="notice_not_found">This notice no longer exists.</string>

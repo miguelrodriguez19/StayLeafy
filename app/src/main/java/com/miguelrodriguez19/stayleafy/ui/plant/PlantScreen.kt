@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -20,13 +21,13 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -121,7 +122,10 @@ fun PlantListScreen(
                 },
                 actions = {
                     TextButton(onClick = onAddPlant) {
-                        Text(stringResource(R.string.add_plant))
+                        Text(
+                            stringResource(R.string.add_plant),
+                            style = MaterialTheme.typography.labelLarge,
+                        )
                     }
                 },
             )
@@ -133,26 +137,33 @@ fun PlantListScreen(
                 .padding(innerPadding)
                 .padding(horizontal = 16.dp),
         ) {
-            OutlinedTextField(
+            TextField(
                 value = filterQuery,
                 onValueChange = onQueryChange,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 12.dp),
-                label = { Text(stringResource(R.string.search_plants)) },
+                    .padding(top = 4.dp),
+                placeholder = { Text(stringResource(R.string.search_plants)) },
                 leadingIcon = {
                     Icon(
                         painterResource(R.drawable.ic_search),
                         contentDescription = null,
                     )
                 },
-                shape = MaterialTheme.shapes.large,
+                shape = MaterialTheme.shapes.extraLarge,
                 singleLine = true,
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    focusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
+                    unfocusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
+                ),
             )
             FlowRow(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 12.dp),
+                    .padding(top = 10.dp, bottom = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
@@ -278,7 +289,8 @@ private fun PlantListContent(
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         items(plants, key = { it.id }) { plant ->
             PlantListItem(
@@ -308,60 +320,79 @@ private fun PlantListItem(
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            PlantPhotoBox(
+                relativePath = plant.mainPhotoPath,
+                modifier = Modifier.size(width = 78.dp, height = 100.dp),
+            )
+            Column(
+                modifier = Modifier.weight(1f).height(100.dp),
+                verticalArrangement = Arrangement.SpaceBetween,
             ) {
-                PlantPhotoBox(
-                    relativePath = plant.mainPhotoPath,
-                    modifier = Modifier
-                        .padding(end = 12.dp)
-                        .size(64.dp),
-                )
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = plant.name,
-                        style = MaterialTheme.typography.titleMedium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    plant.scientificName?.let { scientificName ->
+                Row(verticalAlignment = Alignment.Top) {
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = scientificName,
+                            text = plant.name,
+                            style = MaterialTheme.typography.titleMedium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        plant.scientificName?.let { scientificName ->
+                            Text(
+                                text = scientificName,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                    }
+                    IconButton(
+                        onClick = onFavoriteClick,
+                        modifier = Modifier
+                            .size(32.dp)
+                            .semantics { contentDescription = favoriteDescription },
+                    ) {
+                        Icon(
+                            painterResource(
+                                if (plant.isFavorite) R.drawable.ic_favorite
+                                else R.drawable.ic_favorite_border,
+                            ),
+                            contentDescription = null,
+                            tint = if (plant.isFavorite) {
+                                MaterialTheme.leafyColors.accent
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            },
+                        )
+                    }
+                }
+                plant.location?.let { location ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            painterResource(R.drawable.ic_location),
+                            contentDescription = null,
+                            modifier = Modifier.size(14.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Text(
+                            location,
+                            modifier = Modifier.padding(start = 4.dp),
                             style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
                     }
                 }
-                IconButton(
-                    onClick = onFavoriteClick,
-                    modifier = Modifier.semantics {
-                        contentDescription = favoriteDescription
-                    },
-                ) {
-                    Icon(
-                        painterResource(
-                            if (plant.isFavorite) R.drawable.ic_favorite
-                            else R.drawable.ic_favorite_border,
-                        ),
-                        contentDescription = null,
-                        tint = if (plant.isFavorite) {
-                            MaterialTheme.leafyColors.accent
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        },
-                    )
-                }
+                CareStatusCompact(careSummaries)
             }
-            plant.location?.let { location ->
-                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-                Text(location, style = MaterialTheme.typography.bodySmall)
-            }
-            CareStatusCompact(careSummaries)
         }
     }
 }
@@ -370,7 +401,6 @@ private fun PlantListItem(
 private fun CareStatusCompact(summaries: List<CareStatusSummary>) {
     val active = summaries.sortedBy(CareStatusSummary::nextDueEpochDay)
     val urgent = active.firstOrNull() ?: return
-    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         val statusColors = MaterialTheme.leafyColors
         val container = when (urgent.status) {
@@ -390,13 +420,22 @@ private fun CareStatusCompact(summaries: List<CareStatusSummary>) {
                 formatEpochDay(urgent.nextDueEpochDay),
             ),
             color = foreground,
-            style = MaterialTheme.typography.bodySmall,
+            style = MaterialTheme.typography.labelSmall,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
             modifier = Modifier
-                .weight(1f)
-                .background(container, MaterialTheme.shapes.small)
-                .padding(horizontal = 10.dp, vertical = 6.dp),
+                .weight(1f, fill = false)
+                .background(container, MaterialTheme.shapes.extraSmall)
+                .padding(horizontal = 9.dp, vertical = 5.dp),
         )
-        if (active.size > 1) Text(stringResource(R.string.more_care_rules, active.size - 1))
+        if (active.size > 1) {
+            Text(
+                stringResource(R.string.more_care_rules, active.size - 1),
+                modifier = Modifier.padding(start = 8.dp),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }
 

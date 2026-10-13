@@ -212,6 +212,8 @@ Phase 6 boundary: this phase does not add root tabs, a dashboard, a calendar ove
 
 Phase 6 status: complete. The fixed light/dark brand system, launcher assets, vector iconography, redesigned screens, localized semantics, visual checks, and automated regression coverage are implemented.
 
+Reference-fidelity correction: complete. The production compositions now follow the reference directly: compact image-led inventory rows, a photo-first Plant detail with flat grouped sections, contextual note menus, visual Notice rows, Plant context in care/note editors, compact interval controls, and bottom-pinned primary actions.
+
 Exit condition met: every currently implemented Stay Leafy flow uses the approved visual identity consistently in English and Spanish and in light and dark themes; the launcher icon renders correctly across supported Android icon modes; existing behavior remains covered; and the full local verification suite passes.
 
 ## Phase 7 — Personal-use hardening

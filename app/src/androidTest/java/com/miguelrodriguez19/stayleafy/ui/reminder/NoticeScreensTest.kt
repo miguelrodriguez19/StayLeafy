@@ -9,6 +9,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.miguelrodriguez19.stayleafy.R
@@ -77,7 +78,7 @@ class NoticeScreensTest {
         composeTestRule.onNodeWithText(
             string(R.string.notice_row_title, string(R.string.care_watering), "Monstera"),
         ).performClick()
-        composeTestRule.onNodeWithText(string(R.string.more_options)).performClick()
+        composeTestRule.onNodeWithContentDescription(string(R.string.more_options)).performClick()
         composeTestRule.onNodeWithText(string(R.string.mark_all_read)).assertIsEnabled().performClick()
 
         assertEquals(notice.id, clicked)

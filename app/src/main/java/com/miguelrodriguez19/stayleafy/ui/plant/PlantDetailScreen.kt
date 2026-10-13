@@ -5,7 +5,6 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -17,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
@@ -34,6 +34,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -63,6 +64,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.unit.dp
@@ -278,7 +280,6 @@ fun PlantDetailScreen(
     val title = when {
         content?.mode == PlantDetailMode.Create -> stringResource(R.string.add_plant)
         content?.mode == PlantDetailMode.Edit -> stringResource(R.string.edit_plant)
-        content?.plant != null -> content.plant.name
         else -> stringResource(R.string.plant_details)
     }
     val navigationLabel = stringResource(
@@ -302,7 +303,7 @@ fun PlantDetailScreen(
                 title = {
                     Text(
                         title,
-                        style = MaterialTheme.typography.headlineSmall,
+                        style = MaterialTheme.typography.titleLarge,
                         maxLines = 1,
                     )
                 },
@@ -315,17 +316,33 @@ fun PlantDetailScreen(
                     }
                 },
                 actions = {
-                    if (content?.mode == PlantDetailMode.Create || content?.mode == PlantDetailMode.Edit) {
-                        TextButton(
-                            onClick = onSave,
-                            enabled = !content.isSaving,
-                            modifier = Modifier.semantics { contentDescription = saveLabel },
+                    if (content?.mode == PlantDetailMode.View) {
+                        IconButton(
+                            onClick = onBeginEdit,
+                            enabled = !isDeleting,
                         ) {
-                            Text(stringResource(if (content.isSaving) R.string.saving else R.string.save))
+                            Icon(
+                                painterResource(R.drawable.ic_edit),
+                                contentDescription = stringResource(R.string.edit_plant),
+                            )
                         }
                     }
                 },
             )
+        },
+        bottomBar = {
+            if (content?.mode == PlantDetailMode.Create || content?.mode == PlantDetailMode.Edit) {
+                Button(
+                    onClick = onSave,
+                    enabled = !content.isSaving,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                        .semantics { contentDescription = saveLabel },
+                ) {
+                    Text(stringResource(if (content.isSaving) R.string.saving else R.string.save))
+                }
+            }
         },
     ) { innerPadding ->
         Box(Modifier.fillMaxSize().padding(innerPadding)) {
@@ -351,7 +368,6 @@ fun PlantDetailScreen(
                     onAcquiredEpochDayChange = onAcquiredEpochDayChange,
                     onDescriptionChange = onDescriptionChange,
                     onFavoriteClick = onFavoriteClick,
-                    onSave = onSave,
                     onDeleteRequest = { showDeleteDialog = true },
                     onAddNote = onAddNote,
                     onEditNote = onEditNote,
@@ -436,7 +452,6 @@ private fun PlantDetailContent(
     onAcquiredEpochDayChange: (Long?) -> Unit,
     onDescriptionChange: (String) -> Unit,
     onFavoriteClick: (Boolean) -> Unit,
-    onSave: () -> Unit,
     onDeleteRequest: () -> Unit,
     onAddNote: () -> Unit,
     onEditNote: (String) -> Unit,
@@ -477,7 +492,7 @@ private fun PlantDetailContent(
         PlantPhotoBox(
             relativePath = plant?.mainPhotoPath,
             stagedFile = stagedPhotoFile,
-            modifier = Modifier.fillMaxWidth().height(220.dp),
+            modifier = Modifier.fillMaxWidth().height(196.dp),
         )
         if (plant?.mainPhotoPath == null && state.stagedPhoto == null) {
             PhotoActions(onTakePhoto, onPickPhoto, enabled = !photoMutating && !state.isSaving)
@@ -499,13 +514,11 @@ private fun PlantDetailContent(
             }
         }
 
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = { onFavoriteClick(!favorite) }, enabled = !state.isSaving, modifier = Modifier.weight(1f)) {
-                Text(stringResource(if (favorite) R.string.remove_favorite else R.string.add_favorite))
-            }
-            if (state.mode == PlantDetailMode.View) {
-                OutlinedButton(onClick = onBeginEdit, enabled = !isDeleting, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.edit_plant)) }
-            } else {
+        if (state.mode != PlantDetailMode.View) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = { onFavoriteClick(!favorite) }, enabled = !state.isSaving, modifier = Modifier.weight(1f)) {
+                    Text(stringResource(if (favorite) R.string.remove_favorite else R.string.add_favorite))
+                }
                 OutlinedButton(onClick = onCancel, enabled = !state.isSaving, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.cancel)) }
             }
         }
@@ -515,14 +528,31 @@ private fun PlantDetailContent(
         state.saveError?.let { Text(stringResource(R.string.save_plant_error), color = MaterialTheme.colorScheme.error) }
 
         if (editable) {
-            PlantFormFields(state, onNameChange, onScientificNameChange, onLocationChange, onAcquiredEpochDayChange, onDescriptionChange) { showDatePicker = true }
-            Button(onClick = onSave, enabled = !state.isSaving, modifier = Modifier.fillMaxWidth()) { Text(stringResource(if (state.isSaving) R.string.saving else R.string.save)) }
+            Card(
+                Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+            ) {
+                Column(
+                    Modifier.padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    PlantFormFields(state, onNameChange, onScientificNameChange, onLocationChange, onAcquiredEpochDayChange, onDescriptionChange) { showDatePicker = true }
+                }
+            }
         } else if (plant != null) {
-            DetailField(R.string.plant_name, plant.name)
-            plant.scientificName?.let { DetailField(R.string.scientific_name, it) }
-            plant.location?.let { DetailField(R.string.location, it) }
-            plant.acquiredEpochDay?.let { DetailField(R.string.acquisition_date, formatEpochDay(it)) }
-            plant.description?.let { DetailField(R.string.description, it) }
+            PlantIdentity(
+                name = plant.name,
+                scientificName = plant.scientificName,
+                favorite = favorite,
+                enabled = !isDeleting,
+                onFavoriteClick = { onFavoriteClick(!favorite) },
+            )
+            PlantMetadata(
+                location = plant.location,
+                acquiredEpochDay = plant.acquiredEpochDay,
+                description = plant.description,
+            )
         }
 
         if (state.mode != PlantDetailMode.Create) {
@@ -666,6 +696,101 @@ private fun PlantDetailContent(
 }
 
 @Composable
+private fun PlantIdentity(
+    name: String,
+    scientificName: String?,
+    favorite: Boolean,
+    enabled: Boolean,
+    onFavoriteClick: () -> Unit,
+) {
+    val favoriteDescription = stringResource(
+        if (favorite) R.string.remove_favorite else R.string.add_favorite,
+    )
+    Row(
+        Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(
+                name,
+                style = MaterialTheme.typography.titleLarge,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            scientificName?.let {
+                Text(
+                    it,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        IconButton(
+            onClick = onFavoriteClick,
+            enabled = enabled,
+            modifier = Modifier.semantics { contentDescription = favoriteDescription },
+        ) {
+            Icon(
+                painterResource(if (favorite) R.drawable.ic_favorite else R.drawable.ic_favorite_border),
+                contentDescription = null,
+                tint = if (favorite) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
+private fun PlantMetadata(
+    location: String?,
+    acquiredEpochDay: Long?,
+    description: String?,
+) {
+    if (location == null && acquiredEpochDay == null && description == null) return
+    Card(
+        Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+    ) {
+        Column(Modifier.padding(horizontal = 14.dp)) {
+            location?.let {
+                PlantMetadataRow(R.drawable.ic_location, it)
+            }
+            acquiredEpochDay?.let {
+                if (location != null) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                PlantMetadataRow(R.drawable.ic_calendar, formatEpochDay(it))
+            }
+            description?.let {
+                if (location != null || acquiredEpochDay != null) {
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                }
+                PlantMetadataRow(R.drawable.ic_note, it)
+            }
+        }
+    }
+}
+
+@Composable
+private fun PlantMetadataRow(icon: Int, value: String) {
+    Row(
+        Modifier.fillMaxWidth().padding(vertical = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.Top,
+    ) {
+        Icon(
+            painterResource(icon),
+            contentDescription = null,
+            modifier = Modifier.size(18.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            value,
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.bodyMedium,
+        )
+    }
+}
+
+@Composable
 private fun PlantFormFields(
     state: PlantDetailUiState.Content,
     onNameChange: (String) -> Unit,
@@ -750,7 +875,14 @@ private fun EditorTextField(
 @Composable
 private fun PhotoActions(onTakePhoto: () -> Unit, onPickPhoto: () -> Unit, enabled: Boolean) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Button(onClick = onTakePhoto, enabled = enabled, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.take_photo)) }
+        Button(onClick = onTakePhoto, enabled = enabled, modifier = Modifier.weight(1f)) {
+            Icon(
+                painterResource(R.drawable.ic_camera),
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+            )
+            Text(stringResource(R.string.take_photo), Modifier.padding(start = 8.dp))
+        }
         OutlinedButton(onClick = onPickPhoto, enabled = enabled, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.choose_photo)) }
     }
 }
@@ -777,9 +909,9 @@ private fun CareSection(
     Card(
         Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Column(Modifier.padding(horizontal = 14.dp, vertical = 10.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     stringResource(R.string.care_history),
@@ -789,7 +921,10 @@ private fun CareSection(
                 TextButton(onClick = onConfigureCare) { Text(stringResource(R.string.configure_care)) }
             }
             if (state is CareEventsUiState.Empty || state is CareEventsUiState.Content) {
-                CareType.values().forEach { type ->
+                CareType.values().forEachIndexed { index, type ->
+                    if (index > 0) {
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    }
                     val latest = events.firstOrNull { it.careType == type }
                     CareSummaryRow(
                         type = type,
@@ -854,90 +989,87 @@ private fun CareSummaryRow(
     onOpenHistory: () -> Unit,
     enabled: Boolean,
 ) {
-    Card(
+    Row(
         Modifier
             .fillMaxWidth()
-            .clickable(enabled = enabled, onClick = onOpenHistory),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
+            .clickable(enabled = enabled, onClick = onOpenHistory)
+            .padding(vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Row(
-            Modifier.fillMaxWidth().padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            LeafyCareIcon(
-                careType = type,
-                contentDescription = null,
+        LeafyCareIcon(
+            careType = type,
+            contentDescription = null,
+        )
+        Column(Modifier.weight(1f)) {
+            Text(type.historyLabel(), style = MaterialTheme.typography.titleSmall)
+            Text(
+                stringResource(
+                    R.string.care_last_time,
+                    latest?.let { formatCareDate(it.performedAt) }
+                        ?: stringResource(R.string.care_never),
+                ),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Column(Modifier.weight(1f)) {
-                Text(type.historyLabel(), style = MaterialTheme.typography.titleSmall)
+            if (reminder != null) {
                 Text(
-                    stringResource(
-                        R.string.care_last_time,
-                        latest?.let { formatCareDate(it.performedAt) }
-                            ?: stringResource(R.string.care_never),
+                    text = stringResource(
+                        when (reminder.status) {
+                            CareDueStatus.OVERDUE -> R.string.care_due_overdue
+                            CareDueStatus.DUE_TODAY -> R.string.care_due_today
+                            CareDueStatus.UPCOMING -> R.string.care_due_upcoming
+                            CareDueStatus.LATER -> R.string.care_due_later
+                        },
+                        formatEpochDay(reminder.nextDueEpochDay),
                     ),
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                if (reminder != null) {
-                    Text(
-                        text = stringResource(
-                            when (reminder.status) {
-                                CareDueStatus.OVERDUE -> R.string.care_due_overdue
-                                CareDueStatus.DUE_TODAY -> R.string.care_due_today
-                                CareDueStatus.UPCOMING -> R.string.care_due_upcoming
-                                CareDueStatus.LATER -> R.string.care_due_later
-                            },
-                            formatEpochDay(reminder.nextDueEpochDay),
-                        ),
-                        color = if (reminder.status == CareDueStatus.OVERDUE) {
-                            MaterialTheme.colorScheme.error
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        },
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                } else if (seasonalReminder != null) {
-                    val range = if (seasonalReminder.startEpochDay == seasonalReminder.endEpochDay) {
-                        formatEpochDay(seasonalReminder.startEpochDay)
+                    color = if (reminder.status == CareDueStatus.OVERDUE) {
+                        MaterialTheme.colorScheme.error
                     } else {
-                        stringResource(
-                            R.string.care_season_range,
-                            formatEpochDay(seasonalReminder.startEpochDay),
-                            formatEpochDay(seasonalReminder.endEpochDay),
-                        )
-                    }
-                    Text(
-                        stringResource(
-                            when (seasonalReminder.state) {
-                                SeasonalCareState.UPCOMING -> R.string.care_season_upcoming
-                                SeasonalCareState.ACTIVE -> R.string.care_season_active
-                                SeasonalCareState.SATISFIED -> R.string.care_season_satisfied
-                            },
-                            range,
-                        ),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = if (seasonalReminder.state == SeasonalCareState.ACTIVE) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        },
-                    )
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            } else if (seasonalReminder != null) {
+                val range = if (seasonalReminder.startEpochDay == seasonalReminder.endEpochDay) {
+                    formatEpochDay(seasonalReminder.startEpochDay)
                 } else {
-                    Text(
-                        stringResource(R.string.care_not_scheduled),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    stringResource(
+                        R.string.care_season_range,
+                        formatEpochDay(seasonalReminder.startEpochDay),
+                        formatEpochDay(seasonalReminder.endEpochDay),
                     )
                 }
+                Text(
+                    stringResource(
+                        when (seasonalReminder.state) {
+                            SeasonalCareState.UPCOMING -> R.string.care_season_upcoming
+                            SeasonalCareState.ACTIVE -> R.string.care_season_active
+                            SeasonalCareState.SATISFIED -> R.string.care_season_satisfied
+                        },
+                        range,
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (seasonalReminder.state == SeasonalCareState.ACTIVE) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                )
+            } else {
+                Text(
+                    stringResource(R.string.care_not_scheduled),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
-            CareActionButton(
-                label = type.actionLabel(),
-                enabled = enabled,
-                onClick = onRecordNow,
-                onLongClick = onPickDate,
-            )
         }
+        CareActionButton(
+            label = type.actionLabel(),
+            enabled = enabled,
+            onClick = onRecordNow,
+            onLongClick = onPickDate,
+        )
     }
 }
 
@@ -959,10 +1091,9 @@ private fun CareActionButton(
             onClick = onClick,
         ),
         shape = MaterialTheme.shapes.extraLarge,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-        color = MaterialTheme.colorScheme.surface,
+        color = if (enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHighest,
         contentColor = if (enabled) {
-            MaterialTheme.colorScheme.primary
+            MaterialTheme.colorScheme.onPrimary
         } else {
             MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
         },
@@ -1073,34 +1204,83 @@ private fun NotesSection(
     onDeleteRequest: (String) -> Unit,
     onRetry: () -> Unit,
 ) {
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(stringResource(R.string.notes), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+            TextButton(onClick = onAdd, enabled = !mutating) { Text(stringResource(R.string.add_note)) }
+        }
+        when (state) {
+            PlantNotesUiState.Loading -> CircularProgressIndicator()
+            is PlantNotesUiState.Error -> Row(verticalAlignment = Alignment.CenterVertically) { Text(stringResource(R.string.load_notes_error), Modifier.weight(1f), color = MaterialTheme.colorScheme.error); TextButton(onClick = onRetry) { Text(stringResource(R.string.retry)) } }
+            PlantNotesUiState.Empty -> Text(
+                stringResource(R.string.no_notes_yet),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            is PlantNotesUiState.Content -> state.notes.forEach { note ->
+                PlantNoteCard(
+                    note = note,
+                    mutating = mutating,
+                    onEdit = { onEdit(note.id) },
+                    onDelete = { onDeleteRequest(note.id) },
+                )
+            }
+        }
+        mutationError?.let { Text(stringResource(R.string.delete_note_error), color = MaterialTheme.colorScheme.error) }
+    }
+}
+
+@Composable
+private fun PlantNoteCard(
+    note: PlantNote,
+    mutating: Boolean,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    var menuExpanded by remember { mutableStateOf(false) }
     Card(
         Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text(stringResource(R.string.notes), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                TextButton(onClick = onAdd, enabled = !mutating) { Text(stringResource(R.string.add_note)) }
+        Row(Modifier.fillMaxWidth().padding(start = 14.dp, top = 10.dp, bottom = 12.dp)) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(
+                    formatTimestamp(note.createdAt),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(note.body, style = MaterialTheme.typography.bodyMedium)
             }
-            when (state) {
-                PlantNotesUiState.Loading -> CircularProgressIndicator()
-                is PlantNotesUiState.Error -> Row(verticalAlignment = Alignment.CenterVertically) { Text(stringResource(R.string.load_notes_error), Modifier.weight(1f), color = MaterialTheme.colorScheme.error); TextButton(onClick = onRetry) { Text(stringResource(R.string.retry)) } }
-                PlantNotesUiState.Empty -> Text(stringResource(R.string.no_notes_yet))
-                is PlantNotesUiState.Content -> state.notes.forEach { note ->
-                    Card(Modifier.fillMaxWidth()) {
-                        Column(Modifier.padding(12.dp)) {
-                            Text(note.body)
-                            Text(formatTimestamp(note.createdAt), style = MaterialTheme.typography.labelSmall)
-                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                                TextButton(onClick = { onEdit(note.id) }, enabled = !mutating) { Text(stringResource(R.string.edit_note)) }
-                                TextButton(onClick = { onDeleteRequest(note.id) }, enabled = !mutating) { Text(stringResource(R.string.delete_note)) }
-                            }
-                        }
-                    }
+            Box {
+                IconButton(
+                    onClick = { menuExpanded = true },
+                    enabled = !mutating,
+                ) {
+                    Icon(
+                        painterResource(R.drawable.ic_more),
+                        contentDescription = stringResource(R.string.more_options),
+                    )
+                }
+                DropdownMenu(
+                    expanded = menuExpanded,
+                    onDismissRequest = { menuExpanded = false },
+                ) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.edit_note)) },
+                        onClick = {
+                            menuExpanded = false
+                            onEdit()
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.delete_note)) },
+                        onClick = {
+                            menuExpanded = false
+                            onDelete()
+                        },
+                    )
                 }
             }
-            mutationError?.let { Text(stringResource(R.string.delete_note_error), color = MaterialTheme.colorScheme.error) }
         }
     }
 }
@@ -1131,14 +1311,6 @@ private fun RemovePhotoDialog(isBusy: Boolean, onDismiss: () -> Unit, onConfirm:
         dismissButton = { TextButton(onClick = onDismiss, enabled = !isBusy) { Text(stringResource(R.string.cancel)) } },
         confirmButton = { Button(onClick = onConfirm, enabled = !isBusy) { Text(stringResource(R.string.remove_photo)) } },
     )
-}
-
-@Composable
-private fun DetailField(label: Int, value: String) {
-    Card(
-        Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
-    ) { Column(Modifier.padding(16.dp)) { Text(stringResource(label), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary); Text(value, Modifier.padding(top = 4.dp)) } }
 }
 
 @Composable

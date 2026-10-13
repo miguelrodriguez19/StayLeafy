@@ -245,3 +245,12 @@ Phase 6 replaces the Android template palette with explicit light and dark Stay 
 Lora is bundled under the SIL Open Font License and used only for display headings; body text and controls retain the platform sans-serif. Shared Compose primitives provide care icons and state presentation, while Material 3 owns standard interaction behavior, dialogs, menus, sheets, calendar pickers, and motion. Screen state and callbacks remain outside these visual components.
 
 The approved `design/brand/stay_leafy_master.svg` remains unchanged. `stay_leafy_clean.svg` is its nine-path production derivative. Android packages a VectorDrawable foreground, a flat cream background, an Android 13 monochrome layer, and generated density-specific legacy icons. UI icons are local vectors rather than emoji or an extended icon dependency. These decisions introduce no database, navigation-topology, reminder, or network change.
+
+## D-026 — Reference-first screen composition
+
+- **Date:** 2026-10-14
+- **Status:** Accepted
+
+The Phase 6 reference at `design/references/stay_leafy_ui_direction.png` is the primary composition specification, not merely a palette or mood board. Production screens therefore use compact image-led root rows, restrained zero-elevation tonal containers, a wide Plant-detail hero, grouped icon metadata, three flat care rows, contextual secondary actions, visible Plant identity in child editors, and bottom-pinned primary actions. Existing product behavior, localized content, accessibility semantics, root navigation, and immutable UI-state contracts still take precedence where illustrative mock content differs from the implemented application.
+
+Lora remains reserved for the distinctive Plants root display heading. Screen app bars, entity names, form controls, and dense reading surfaces use the platform sans-serif hierarchy to preserve the compact character shown in the reference. The interval frequency is adjusted with a localized compact stepper while scheduling validation and persistence remain unchanged.

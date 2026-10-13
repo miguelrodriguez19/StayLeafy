@@ -239,6 +239,8 @@ class CareConfigurationViewModel @AssistedInject constructor(
                         plantName = plant.name,
                         forms = forms,
                         latestCareEpochDays = latest,
+                        plantScientificName = plant.scientificName,
+                        plantPhotoPath = plant.mainPhotoPath,
                         isSaving = current?.isSaving == true,
                         saveError = current?.saveError == true,
                         showPermissionEducation = current?.showPermissionEducation == true,

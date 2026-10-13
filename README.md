@@ -34,7 +34,7 @@ The project was created from the official Android `architecture-templates` singl
 - Keep a persistent read/unread Notices inbox with notification-to-Notice and Notice-to-Plant navigation.
 - Evaluate due rules with unique daily WorkManager work and deliver at most one Android notification per occurrence.
 
-Phase 6 adds the fixed botanical palette, local Lora display typography, deterministic vector iconography, accessible care-status colors, and cactus launcher artwork while preserving every existing flow and its offline behavior.
+Phase 6 adds the fixed botanical palette, local Lora display typography, deterministic vector iconography, accessible care-status colors, cactus launcher artwork, and reference-led compact screen compositions while preserving every existing flow and its offline behavior.
 
 ## Planned capabilities
 

@@ -104,6 +104,12 @@
     <string name="schedule_interval">Intervalo</string>
     <string name="schedule_seasonal">Una vez al año</string>
     <string name="interval_days">Intervalo en días</string>
+    <string name="decrease_interval">Reducir intervalo</string>
+    <string name="increase_interval">Aumentar intervalo</string>
+    <plurals name="interval_every_days">
+        <item quantity="one">Cada %1$d día</item>
+        <item quantity="other">Cada %1$d días</item>
+    </plurals>
     <string name="interval_days_error">Escribe un número mayor que cero.</string>
     <string name="calculate_next_due_from">Calcular la próxima fecha desde</string>
     <string name="select_due_source">Elige cómo calcular la primera fecha prevista.</string>
@@ -155,6 +161,7 @@
     <string name="season_notice_row_title">Temporada de %1$s · %2$s</string>
     <string name="notice_due_date">Previsto: %1$s</string>
     <string name="notice_season_start">Inicio de temporada: %1$s</string>
+    <string name="notice_row_body">Es hora de cuidar tu planta.</string>
     <string name="notice_details">Detalles del aviso</string>
     <string name="load_notice_error">No se ha podido cargar este aviso.</string>
     <string name="notice_not_found">Este aviso ya no existe.</string>
