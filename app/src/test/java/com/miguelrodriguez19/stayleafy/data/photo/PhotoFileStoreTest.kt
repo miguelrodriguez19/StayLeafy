@@ -1,6 +1,7 @@
 package com.miguelrodriguez19.stayleafy.data.photo
 
 import android.net.Uri
+import android.net.TestUri
 import com.miguelrodriguez19.stayleafy.data.UuidProvider
 import java.io.ByteArrayInputStream
 import java.io.File
@@ -70,6 +71,71 @@ class PhotoFileStoreTest {
     }
 
     @Test
+    fun cropSession_usesAppOwnedUrisAndKeepsOnlyValidatedOutput() = runTest {
+        val store = newStore("source-id", "output-id", validator = PhotoCropOutputValidator { file ->
+            file.readBytes().contentEquals(byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 1, 2))
+        })
+        val source = store.stageImage(source("unused", "png", byteArrayOf(4, 5, 6)))
+
+        val session = store.prepareCrop(source.token)
+        val outputFile = File(
+            temporaryFolder.root,
+            "cache/$PENDING_PLANT_PHOTO_DIRECTORY/${session.outputToken}.jpg",
+        )
+        outputFile.writeBytes(byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 1, 2))
+
+        val cropped = store.completeCrop(session.sourceToken, session.outputToken)
+
+        assertEquals("source-id", session.sourceToken)
+        assertEquals("output-id", session.outputToken)
+        assertEquals(1f, session.aspectRatioX)
+        assertEquals(1f, session.aspectRatioY)
+        assertFalse(session.freeStyleCropEnabled)
+        assertEquals(2048, session.maxWidth)
+        assertEquals(2048, session.maxHeight)
+        assertEquals(92, session.outputQuality)
+        assertEquals("image/jpeg", session.outputMimeType)
+        assertEquals(session.destinationUri, TestUri("content://test/output-id"))
+        assertEquals("output-id", cropped.token)
+        assertFalse(source.file.exists())
+        assertTrue(cropped.file.exists())
+    }
+
+    @Test
+    fun invalidCropOutput_isRejectedAndBothTemporaryFilesAreRemoved() = runTest {
+        val store = newStore("source-id", "output-id", validator = PhotoCropOutputValidator { false })
+        val source = store.stageImage(source("unused", "jpg", byteArrayOf(4, 5, 6)))
+        val session = store.prepareCrop(source.token)
+        val output = File(
+            temporaryFolder.root,
+            "cache/$PENDING_PLANT_PHOTO_DIRECTORY/${session.outputToken}.jpg",
+        )
+        output.writeBytes(byteArrayOf(1, 2, 3, 4))
+
+        val error = runCatching {
+            store.completeCrop(session.sourceToken, session.outputToken)
+        }.exceptionOrNull()
+
+        assertTrue(error is InvalidPhotoCropOutputException)
+        assertFalse(source.file.exists())
+        assertFalse(output.exists())
+    }
+
+    @Test
+    fun cropSession_canBeResumedFromItsTokensAfterRecreation() = runTest {
+        val store = newStore("source-id", "output-id")
+        val source = store.stageImage(source("unused", "png", byteArrayOf(1)))
+        val original = store.prepareCrop(source.token)
+
+        val restored = store.resumeCrop(original.sourceToken, original.outputToken)
+
+        assertEquals(original.sourceUri, restored?.sourceUri)
+        assertEquals(original.destinationUri, restored?.destinationUri)
+        assertEquals(original.sourceToken, restored?.sourceToken)
+        assertEquals(original.outputToken, restored?.outputToken)
+    }
+
+    @Test
     fun committingMissingStagedPhotoFailsWithoutCreatingStableFile() = runTest {
         val store = newStore("stable-id")
 
@@ -111,10 +177,13 @@ class PhotoFileStoreTest {
 
         assertEquals("pending-id", pending.token)
         assertEquals("pending_plant_photos/pending-id.jpg", pending.pendingPath)
-        assertEquals(Uri.parse("content://test/pending-id"), pending.contentUri)
+        assertEquals(TestUri("content://test/pending-id"), pending.contentUri)
     }
 
-    private fun newStore(vararg ids: String): FilePhotoFileStore {
+    private fun newStore(
+        vararg ids: String,
+        validator: PhotoCropOutputValidator = PhotoCropOutputValidator { true },
+    ): FilePhotoFileStore {
         val files = temporaryFolder.newFolder("files")
         val cache = temporaryFolder.newFolder("cache")
         return FilePhotoFileStore(
@@ -122,8 +191,9 @@ class PhotoFileStoreTest {
             cacheDirectory = cache,
             uuidProvider = SequenceUuidProvider(ids.toList()),
             contentUriFactory = PhotoContentUriFactory { file ->
-                Uri.parse("content://test/${file.nameWithoutExtension}")
+                TestUri("content://test/${file.nameWithoutExtension}")
             },
+            cropOutputValidator = validator,
         )
     }
 

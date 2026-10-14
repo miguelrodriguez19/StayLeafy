@@ -1,9 +1,12 @@
 package com.miguelrodriguez19.stayleafy.ui.plant
 
 import android.net.Uri
+import android.net.TestUri
 import androidx.lifecycle.SavedStateHandle
 import com.miguelrodriguez19.stayleafy.data.photo.PendingPhotoCapture
+import com.miguelrodriguez19.stayleafy.data.photo.PendingPhotoCrop
 import com.miguelrodriguez19.stayleafy.data.photo.PhotoOrphanReconciliation
+import com.miguelrodriguez19.stayleafy.data.photo.PhotoCropResult
 import com.miguelrodriguez19.stayleafy.data.photo.PlantPhotoRepository
 import com.miguelrodriguez19.stayleafy.data.photo.StagedPhoto
 import com.miguelrodriguez19.stayleafy.data.photo.StoredPhoto
@@ -179,6 +182,109 @@ class PlantDetailViewModelTest {
     }
 
     @Test
+    fun pickedPhoto_isStagedForCropAndCancellationPreservesPreviousStagedPhoto() = runTest {
+        val photoRepository = FakePlantPhotoRepository()
+        val savedState = SavedStateHandle(mapOf("staged_photo_source" to "photo-token"))
+        val viewModel = createViewModel(
+            plantId = null,
+            photoRepository = photoRepository,
+            savedStateHandle = savedState,
+        )
+
+        viewModel.onPickedPhoto(TestUri("content://picker/photo"))
+        advanceUntilIdle()
+
+        assertEquals(photoRepository.cropSession, viewModel.pendingPhotoCrop.value)
+        assertEquals("source-token", savedState.get<String>("pending_photo_crop_source"))
+        assertEquals("output-token", savedState.get<String>("pending_photo_crop_output"))
+        assertEquals(StagedPhoto("photo-token"), (viewModel.uiState.value as PlantDetailUiState.Content).stagedPhoto)
+
+        viewModel.onPhotoCropResult(PhotoCropResult.Cancelled)
+        advanceUntilIdle()
+
+        assertNull(viewModel.pendingPhotoCrop.value)
+        assertEquals(StagedPhoto("photo-token"), (viewModel.uiState.value as PlantDetailUiState.Content).stagedPhoto)
+        assertEquals(listOf("source-token" to "output-token"), photoRepository.discardedCrops)
+        assertNull(viewModel.photoUiState.value.error)
+    }
+
+    @Test
+    fun successfulCameraCapture_preparesCropInsteadOfAttachingOriginalBytes() = runTest {
+        val photoRepository = FakePlantPhotoRepository()
+        val viewModel = createViewModel(null, photoRepository = photoRepository)
+
+        val capture = viewModel.prepareCameraCapture()
+        assertEquals("capture-token", capture?.token)
+        viewModel.onCameraResult(success = true)
+        advanceUntilIdle()
+
+        assertEquals("capture-token", photoRepository.preparedCameraTokens.single())
+        assertEquals("capture-token", viewModel.pendingPhotoCrop.value?.sourceToken)
+        assertNull(viewModel.pendingCaptureToken.value)
+        assertNull((viewModel.uiState.value as PlantDetailUiState.Content).stagedPhoto)
+    }
+
+    @Test
+    fun successfulCrop_replacesStagedPhotoOnlyAfterCropCompletes() = runTest {
+        val photoRepository = FakePlantPhotoRepository()
+        val viewModel = createViewModel(
+            plantId = null,
+            photoRepository = photoRepository,
+            savedStateHandle = SavedStateHandle(mapOf("staged_photo_source" to "photo-token")),
+        )
+
+        viewModel.onPickedPhoto(TestUri("content://picker/photo"))
+        advanceUntilIdle()
+        viewModel.onPhotoCropResult(PhotoCropResult.Success)
+        advanceUntilIdle()
+
+        val content = viewModel.uiState.value as PlantDetailUiState.Content
+        assertEquals(StagedPhoto("cropped-token"), content.stagedPhoto)
+        assertEquals(listOf("photo-token"), photoRepository.discardedStagedPhotos)
+        assertEquals(listOf(null to ("source-token" to "output-token")), photoRepository.completedCrops)
+        assertNull(viewModel.pendingPhotoCrop.value)
+        assertNull(viewModel.photoUiState.value.error)
+    }
+
+    @Test
+    fun invalidCropForExistingPlant_keepsPlantPhotoAndReportsLocalizedCategory() = runTest {
+        val photoRepository = FakePlantPhotoRepository().apply {
+            completeCropError = IllegalArgumentException("not a square jpeg")
+        }
+        val originalPlant = testPlant().copy(mainPhotoPath = "plant_photos/original.jpg")
+        val plantRepository = FakePlantRepository().apply { observedPlant = originalPlant }
+        val viewModel = createViewModel("plant-1", plantRepository, photoRepository)
+        viewModel.uiState.first { it is PlantDetailUiState.Content }
+
+        viewModel.onPickedPhoto(TestUri("content://picker/photo"))
+        advanceUntilIdle()
+        viewModel.onPhotoCropResult(PhotoCropResult.Success)
+        advanceUntilIdle()
+
+        assertEquals(originalPlant.mainPhotoPath, (viewModel.uiState.value as PlantDetailUiState.Content).plant?.mainPhotoPath)
+        assertEquals(UiErrorCategory.PhotoImport, viewModel.photoUiState.value.error)
+        assertNull(viewModel.pendingPhotoCrop.value)
+        assertEquals(listOf("source-token" to "output-token"), photoRepository.discardedCrops)
+    }
+
+    @Test
+    fun pendingCrop_restoresFromTokensAndDoesNotLaunchAgainAfterRecreation() {
+        val photoRepository = FakePlantPhotoRepository()
+        val savedState = SavedStateHandle(
+            mapOf(
+                "pending_photo_crop_source" to "source-token",
+                "pending_photo_crop_output" to "output-token",
+                "pending_photo_crop_launched" to true,
+            ),
+        )
+        val viewModel = createViewModel(null, photoRepository = photoRepository, savedStateHandle = savedState)
+
+        assertEquals(photoRepository.cropSession, viewModel.pendingPhotoCrop.value)
+        assertTrue(viewModel.photoCropLaunchStarted.value)
+        assertNull(viewModel.beginPhotoCropLaunch())
+    }
+
+    @Test
     fun edit_saveReturnsToViewAndDelegatesUpdatedDraft() = runTest {
         val repository = FakePlantRepository().apply { observedPlant = testPlant() }
         val viewModel = createViewModel("plant-1", repository)
@@ -252,8 +358,24 @@ class PlantDetailViewModelTest {
 
 private class FakePlantPhotoRepository : PlantPhotoRepository {
     val stagedPhoto = StagedPhoto("photo-token", "pending/photo.jpg", File("/tmp/photo.jpg"))
+    val croppedPhoto = StagedPhoto("cropped-token", "pending/cropped-token.jpg", File("/tmp/cropped.jpg"))
+    val cropSession = PendingPhotoCrop(
+        sourceToken = "source-token",
+        outputToken = "output-token",
+        sourceUri = TestUri("content://app/source"),
+        destinationUri = TestUri("content://app/output"),
+    )
+    val discardedCrops = mutableListOf<Pair<String?, String?>>()
+    val discardedStagedPhotos = mutableListOf<String>()
+    val completedCrops = mutableListOf<Pair<String?, Pair<String, String>>>()
+    val preparedCameraTokens = mutableListOf<String>()
+    var completeCropError: Throwable? = null
 
-    override fun prepareCameraCapture(): PendingPhotoCapture = error("unused")
+    override fun prepareCameraCapture(): PendingPhotoCapture = PendingPhotoCapture(
+        token = "capture-token",
+        pendingPath = "pending_plant_photos/capture-token.jpg",
+        contentUri = TestUri("content://app/capture-token"),
+    )
 
     override suspend fun completeCameraCapture(plantId: String, token: String): StoredPhoto =
         error("unused")
@@ -266,15 +388,46 @@ private class FakePlantPhotoRepository : PlantPhotoRepository {
     override suspend fun replacePhoto(plantId: String, sourceUri: Uri): StoredPhoto =
         error("unused")
 
+    override suspend fun prepareCameraCrop(token: String): PendingPhotoCrop {
+        preparedCameraTokens += token
+        return cropSession.copy(sourceToken = token)
+    }
+
+    override suspend fun prepareImageCrop(sourceUri: Uri): PendingPhotoCrop = cropSession
+
+    override fun resumePhotoCrop(sourceToken: String, outputToken: String): PendingPhotoCrop? =
+        cropSession.takeIf { it.sourceToken == sourceToken && it.outputToken == outputToken }
+
+    override suspend fun completePhotoCrop(
+        plantId: String?,
+        sourceToken: String,
+        outputToken: String,
+    ): StagedPhoto? {
+        completedCrops += plantId to (sourceToken to outputToken)
+        completeCropError?.let { throw it }
+        return croppedPhoto.takeIf { plantId == null }
+    }
+
+    override suspend fun discardPhotoCrop(sourceToken: String?, outputToken: String?): Boolean {
+        discardedCrops += sourceToken to outputToken
+        return true
+    }
+
     override suspend fun stageImage(sourceUri: Uri): StagedPhoto = stagedPhoto
 
     override suspend fun commitStagedPhoto(token: String): StoredPhoto =
         StoredPhoto("plant_photos/photo.jpg", File("/tmp/photo.jpg"))
 
-    override suspend fun discardStagedPhoto(token: String): Boolean = true
+    override suspend fun discardStagedPhoto(token: String): Boolean {
+        discardedStagedPhotos += token
+        return true
+    }
 
-    override fun resolveStagedPhoto(token: String): File? =
-        stagedPhoto.file.takeIf { token == stagedPhoto.token }
+    override fun resolveStagedPhoto(token: String): File? = when (token) {
+        stagedPhoto.token -> stagedPhoto.file
+        croppedPhoto.token -> croppedPhoto.file
+        else -> null
+    }
 
     override suspend fun removePhoto(plantId: String): Boolean = true
 

@@ -22,6 +22,8 @@ import kotlinx.coroutines.withContext
 
 const val PLANT_PHOTO_DIRECTORY = "plant_photos"
 const val PENDING_PLANT_PHOTO_DIRECTORY = "pending_plant_photos"
+const val PLANT_PHOTO_CROP_MAX_SIZE = 2048
+const val PLANT_PHOTO_CROP_QUALITY = 92
 
 data class PendingPhotoCapture(
     val token: String,
@@ -39,6 +41,27 @@ data class StagedPhoto(
     val pendingPath: String,
     val file: File,
 )
+
+/** A cache-backed crop input/output pair. Only the tokens should be saved in instance state. */
+data class PendingPhotoCrop(
+    val sourceToken: String,
+    val outputToken: String,
+    val sourceUri: Uri,
+    val destinationUri: Uri,
+    val aspectRatioX: Float = 1f,
+    val aspectRatioY: Float = 1f,
+    val freeStyleCropEnabled: Boolean = false,
+    val maxWidth: Int = PLANT_PHOTO_CROP_MAX_SIZE,
+    val maxHeight: Int = PLANT_PHOTO_CROP_MAX_SIZE,
+    val outputQuality: Int = PLANT_PHOTO_CROP_QUALITY,
+    val outputMimeType: String = "image/jpeg",
+)
+
+enum class PhotoCropResult {
+    Success,
+    Cancelled,
+    Failed,
+}
 
 data class PhotoOrphanReconciliation(
     val deletedPaths: Set<String>,
@@ -77,6 +100,17 @@ interface PhotoFileStore {
 
     fun resolveStagedPhoto(token: String): File? = null
 
+    fun prepareCrop(sourceToken: String): PendingPhotoCrop =
+        throw UnsupportedOperationException("Photo cropping is not supported")
+
+    fun resumeCrop(sourceToken: String, outputToken: String): PendingPhotoCrop? = null
+
+    suspend fun completeCrop(sourceToken: String, outputToken: String): StagedPhoto =
+        throw UnsupportedOperationException("Photo cropping is not supported")
+
+    suspend fun discardCrop(sourceToken: String?, outputToken: String?): Boolean =
+        throw UnsupportedOperationException("Photo cropping is not supported")
+
     suspend fun remove(relativePath: String): Boolean
 
     fun resolve(relativePath: String): File?
@@ -95,12 +129,22 @@ class PhotoSourceUnavailableException(cause: Throwable? = null) : PhotoFileStore
     cause,
 )
 
+class InvalidPhotoCropOutputException(cause: Throwable? = null) : PhotoFileStoreException(
+    "The cropped photo must be a decodable square JPEG no larger than 2048 pixels",
+    cause,
+)
+
+fun interface PhotoCropOutputValidator {
+    fun isValidJpegSquare(file: File): Boolean
+}
+
 class FilePhotoFileStore(
     filesDirectory: File,
     cacheDirectory: File,
     private val uuidProvider: UuidProvider,
     private val contentUriFactory: PhotoContentUriFactory,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val cropOutputValidator: PhotoCropOutputValidator = AndroidPhotoCropOutputValidator,
 ) : PhotoFileStore {
 
     private val stableDirectory = File(filesDirectory, PLANT_PHOTO_DIRECTORY)
@@ -223,6 +267,87 @@ class FilePhotoFileStore(
 
     override fun resolveStagedPhoto(token: String): File? =
         findPendingFile(token)?.takeIf { it.isFile && it.length() > 0L }
+
+    override fun prepareCrop(sourceToken: String): PendingPhotoCrop {
+        val source = findPendingFile(sourceToken)
+            ?.takeIf { it.isFile && it.length() > 0L }
+            ?: throw PendingPhotoNotFoundException(sourceToken)
+        val outputToken = safeStem(uuidProvider.newUuid())
+        val output = safePendingFile(outputToken, "jpg")
+        if (!output.createNewFile()) {
+            throw PhotoFileStoreException("Unable to reserve cropped photo output")
+        }
+        return try {
+            PendingPhotoCrop(
+                sourceToken = sourceToken,
+                outputToken = outputToken,
+                sourceUri = contentUriFactory.create(source),
+                destinationUri = contentUriFactory.create(output),
+            )
+        } catch (error: Throwable) {
+            removeQuietly(output)
+            throw error
+        }
+    }
+
+    override fun resumeCrop(sourceToken: String, outputToken: String): PendingPhotoCrop? {
+        val source = findPendingFile(sourceToken)?.takeIf { it.isFile && it.length() > 0L }
+            ?: return null
+        val output = findPendingFile(outputToken)?.takeIf { it.isFile }
+            ?: return null
+        if (output.extension.lowercase(Locale.ROOT) != "jpg") return null
+        return PendingPhotoCrop(
+            sourceToken = sourceToken,
+            outputToken = outputToken,
+            sourceUri = contentUriFactory.create(source),
+            destinationUri = contentUriFactory.create(output),
+        )
+    }
+
+    override suspend fun completeCrop(
+        sourceToken: String,
+        outputToken: String,
+    ): StagedPhoto = withContext(ioDispatcher) {
+        val source = findPendingFile(sourceToken)
+        val output = findPendingFile(outputToken)
+        val validSource = source?.let { it.isFile && it.length() > 0L } == true
+        val validOutput = output?.let {
+            it.isFile && it.length() > 0L && it.extension.equals("jpg", ignoreCase = true)
+        } == true
+        if (!validSource || !validOutput) {
+            source?.let(::removeQuietly)
+            output?.let(::removeQuietly)
+            throw PendingPhotoNotFoundException(if (!validSource) sourceToken else outputToken)
+        }
+        val validSourceFile = requireNotNull(source)
+        val validOutputFile = requireNotNull(output)
+
+        val outputValid = runCatching {
+            cropOutputValidator.isValidJpegSquare(validOutputFile)
+        }.getOrDefault(false)
+        if (!outputValid) {
+            removeQuietly(validSourceFile)
+            removeQuietly(validOutputFile)
+            throw InvalidPhotoCropOutputException()
+        }
+        if (!validSourceFile.delete()) {
+            removeQuietly(validOutputFile)
+            throw PhotoFileStoreException("Unable to discard cropped photo source")
+        }
+        validOutputFile.toStagedPhoto(outputToken)
+    }
+
+    override suspend fun discardCrop(sourceToken: String?, outputToken: String?): Boolean =
+        withContext(ioDispatcher) {
+            require(sourceToken != null || outputToken != null)
+            var allDeleted = true
+            listOfNotNull(sourceToken, outputToken).distinct().forEach { token ->
+                val file = findPendingFile(token) ?: return@forEach
+                if (!file.delete()) allDeleted = false
+            }
+            if (!allDeleted) throw PhotoFileStoreException("Unable to discard pending crop")
+            true
+        }
 
     override suspend fun remove(relativePath: String): Boolean = withContext(ioDispatcher) {
         val file = resolveExisting(relativePath) ?: return@withContext false
@@ -416,6 +541,18 @@ class AndroidPhotoFileStore @Inject constructor(
         delegate.discardStagedPhoto(token)
 
     override fun resolveStagedPhoto(token: String): File? = delegate.resolveStagedPhoto(token)
+
+    override fun prepareCrop(sourceToken: String): PendingPhotoCrop =
+        delegate.prepareCrop(sourceToken)
+
+    override fun resumeCrop(sourceToken: String, outputToken: String): PendingPhotoCrop? =
+        delegate.resumeCrop(sourceToken, outputToken)
+
+    override suspend fun completeCrop(sourceToken: String, outputToken: String): StagedPhoto =
+        delegate.completeCrop(sourceToken, outputToken)
+
+    override suspend fun discardCrop(sourceToken: String?, outputToken: String?): Boolean =
+        delegate.discardCrop(sourceToken, outputToken)
 
     override suspend fun remove(relativePath: String): Boolean = delegate.remove(relativePath)
 

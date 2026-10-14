@@ -4,15 +4,17 @@ import android.content.res.Configuration
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContract
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.Crossfade
-import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -82,6 +84,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.miguelrodriguez19.stayleafy.R
+import com.miguelrodriguez19.stayleafy.data.photo.PendingPhotoCrop
+import com.miguelrodriguez19.stayleafy.data.photo.PhotoCropResult
 import com.miguelrodriguez19.stayleafy.model.PlantNote
 import com.miguelrodriguez19.stayleafy.model.CareEvent
 import com.miguelrodriguez19.stayleafy.model.CareDueStatus
@@ -102,6 +106,9 @@ import com.miguelrodriguez19.stayleafy.ui.theme.leafyLayoutTokens
 import java.io.File
 import java.time.LocalDate
 
+/** The application supplies the ActivityResultContract that opens uCrop with this fixed request. */
+typealias PlantPhotoCropContract = ActivityResultContract<PendingPhotoCrop, PhotoCropResult>
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PlantDetailRoute(
@@ -113,7 +120,9 @@ fun PlantDetailRoute(
     onAddNote: () -> Unit = {},
     onEditNote: (String) -> Unit = {},
     onConfigureCare: () -> Unit = {},
+    photoCropContract: PlantPhotoCropContract? = null,
 ) {
+    val resolvedPhotoCropContract = photoCropContract ?: remember { UCropPhotoContract() }
     val viewModel: PlantDetailViewModel = hiltViewModel(
         creationCallback = { factory: PlantDetailViewModel.Factory -> factory.create(plantId) },
     )
@@ -123,6 +132,8 @@ fun PlantDetailRoute(
     val deleted by viewModel.deleted.collectAsStateWithLifecycle()
     val photoState by viewModel.photoUiState.collectAsStateWithLifecycle()
     val pendingCaptureToken by viewModel.pendingCaptureToken.collectAsStateWithLifecycle()
+    val pendingPhotoCrop by viewModel.pendingPhotoCrop.collectAsStateWithLifecycle()
+    val photoCropLaunchStarted by viewModel.photoCropLaunchStarted.collectAsStateWithLifecycle()
     val stagedPhotoFile = (state as? PlantDetailUiState.Content)
         ?.stagedPhoto
         ?.let { staged -> viewModel.resolveStagedPhoto(staged.token) }
@@ -181,6 +192,18 @@ fun PlantDetailRoute(
         rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
             uri?.let(viewModel::onPickedPhoto)
         }
+    val photoCropLauncher = rememberLauncherForActivityResult(resolvedPhotoCropContract) { result ->
+        viewModel.onPhotoCropResult(result)
+    }
+
+    LaunchedEffect(pendingPhotoCrop, photoCropLaunchStarted, photoCropLauncher) {
+        if (pendingPhotoCrop != null && !photoCropLaunchStarted) {
+            viewModel.beginPhotoCropLaunch()?.let { request ->
+                runCatching { photoCropLauncher.launch(request) }
+                    .onFailure { viewModel.onPhotoCropLaunchFailed() }
+            }
+        }
+    }
 
     LaunchedEffect(deleted) {
         if (deleted) onDeleted()
@@ -195,9 +218,10 @@ fun PlantDetailRoute(
         notesState = notesState,
         notesMutationError = notesMutationError,
         notesMutating = notesMutating,
-        photoMutating = photoState.isMutating || pendingCaptureToken != null,
+        photoMutating = photoState.isMutating || pendingCaptureToken != null || pendingPhotoCrop != null,
         photoMutationError = photoState.error,
-        photoCleanupRetryEnabled = pendingCaptureToken != null && !photoState.isMutating,
+        photoCleanupRetryEnabled =
+            (pendingCaptureToken != null || pendingPhotoCrop != null) && !photoState.isMutating,
         mutationError = mutationError,
         isDeleting = isDeleting,
         onBack = onBack,
@@ -310,14 +334,16 @@ fun PlantDetailScreen(
         it.mode == PlantDetailMode.Edit && it.plant?.toPlantForm() != it.form
     } == true
     val requestBack = {
-        when {
-            content?.mode == PlantDetailMode.Edit && hasUnsavedEdit -> showDiscardDialog = true
-            content?.mode == PlantDetailMode.Edit -> onCancelEdit()
-            content?.mode == PlantDetailMode.Create && content.hasUnsavedCreation -> {
-                showDiscardDialog = true
-            }
+        if (!photoMutating) {
+            when {
+                content?.mode == PlantDetailMode.Edit && hasUnsavedEdit -> showDiscardDialog = true
+                content?.mode == PlantDetailMode.Edit -> onCancelEdit()
+                content?.mode == PlantDetailMode.Create && content.hasUnsavedCreation -> {
+                    showDiscardDialog = true
+                }
 
-            else -> onBack()
+                else -> onBack()
+            }
         }
     }
 
@@ -355,7 +381,7 @@ fun PlantDetailScreen(
 
                         PlantDetailMode.Create, PlantDetailMode.Edit -> TextButton(
                             onClick = onSave,
-                            enabled = !content.isSaving,
+                            enabled = !content.isSaving && !photoMutating,
                             colors = ButtonDefaults.textButtonColors(
                                 contentColor = MaterialTheme.colorScheme.onPrimary,
                             ),
@@ -513,11 +539,6 @@ private fun PlantDetailContent(
         plant?.mainPhotoPath != null || state.stagedPhoto != null || stagedPhotoFile != null
     val editPhotoDescription = stringResource(R.string.edit_plant_photo)
     var photoExpanded by rememberSaveable { mutableStateOf(false) }
-    val photoHeight by animateDpAsState(
-        targetValue = if (!editable && photoExpanded) 320.dp else 148.dp,
-        animationSpec = tween(durationMillis = 300),
-        label = "plant photo expansion",
-    )
     val photoDescription = when {
         editable -> editPhotoDescription
         photoExpanded -> stringResource(R.string.collapse_plant_photo)
@@ -537,7 +558,14 @@ private fun PlantDetailContent(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(photoHeight)
+                .animateContentSize(animationSpec = tween(durationMillis = 300))
+                .then(
+                    if (!editable && photoExpanded) {
+                        Modifier.aspectRatio(1f)
+                    } else {
+                        Modifier.height(148.dp)
+                    },
+                )
                 .then(
                     if (editable || hasPhoto) {
                         Modifier

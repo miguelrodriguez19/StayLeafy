@@ -1,5 +1,6 @@
 package com.miguelrodriguez19.stayleafy.data.photo
 
+import android.net.TestUri
 import java.io.File
 import java.io.InputStream
 import kotlinx.coroutines.CompletableDeferred
@@ -121,6 +122,58 @@ class PlantPhotoRepositoryTest {
     }
 
     @Test
+    fun completedCrop_replacesExistingPhotoOnlyAfterValidatedOutputIsCommitted() = runTest {
+        val store = RecordingPhotoFileStore()
+        val owner = RecordingOwner(
+            PlantPhotoOwner(exists = true, relativePath = "plant_photos/old.jpg"),
+        )
+        val repository = DefaultPlantPhotoRepository(owner, store, PhotoInputResolver { source })
+
+        val result = repository.completePhotoCrop("plant-1", "source-token", "output-token")
+
+        assertEquals(null, result)
+        assertEquals("plant_photos/new.jpg", owner.updatedPath)
+        assertEquals(listOf("plant_photos/old.jpg"), store.removedPaths)
+        assertEquals(
+            listOf("complete-crop:source-token:output-token", "commit:output-token", "discard:output-token"),
+            store.stagedCalls,
+        )
+    }
+
+    @Test
+    fun failedCropReplacement_keepsPreviousPhotoAndCleansNewStableAndStagedFiles() = runTest {
+        val store = RecordingPhotoFileStore()
+        val owner = RecordingOwner(
+            current = PlantPhotoOwner(exists = true, relativePath = "plant_photos/old.jpg"),
+            updateResult = false,
+        )
+        val repository = DefaultPlantPhotoRepository(owner, store, PhotoInputResolver { source })
+
+        val error = runCatching {
+            repository.completePhotoCrop("plant-1", "source-token", "output-token")
+        }.exceptionOrNull()
+
+        assertTrue(error is PlantPhotoNotFoundException)
+        assertEquals(listOf("plant_photos/new.jpg"), store.removedPaths)
+        assertEquals(
+            listOf("complete-crop:source-token:output-token", "commit:output-token", "discard:output-token"),
+            store.stagedCalls,
+        )
+    }
+
+    @Test
+    fun cancelledCrop_discardsBothCacheOwnedFiles() = runTest {
+        val store = RecordingPhotoFileStore()
+        val owner = RecordingOwner(PlantPhotoOwner(exists = true, relativePath = "plant_photos/old.jpg"))
+        val repository = DefaultPlantPhotoRepository(owner, store, PhotoInputResolver { source })
+
+        repository.discardPhotoCrop("source-token", "output-token")
+
+        assertEquals(listOf("discard-crop:source-token:output-token"), store.stagedCalls)
+        assertTrue(store.removedPaths.isEmpty())
+    }
+
+    @Test
     fun reconciliation_waitsUntilPhotoImportIsAttachedToRoom() = runTest {
         val importStarted = CompletableDeferred<Unit>()
         val allowImport = CompletableDeferred<Unit>()
@@ -173,6 +226,14 @@ class PlantPhotoRepositoryTest {
         val removedPaths = mutableListOf<String>()
         var reconciledReferences: Set<String> = emptySet()
         val stagedCalls = mutableListOf<String>()
+        var cropSession = PendingPhotoCrop(
+            sourceToken = "source-token",
+            outputToken = "output-token",
+            sourceUri = TestUri("content://test/source"),
+            destinationUri = TestUri("content://test/output"),
+        )
+        var cropOutput = StagedPhoto("output-token", "pending_plant_photos/output-token.jpg", File("/tmp/output.jpg"))
+        var cropPreparationError: Throwable? = null
 
         override fun prepareCameraCapture(): PendingPhotoCapture = error("unused")
 
@@ -190,6 +251,26 @@ class PlantPhotoRepositoryTest {
         override suspend fun commitStagedPhoto(token: String): StoredPhoto {
             stagedCalls += "commit:$token"
             return imported
+        }
+
+        override fun prepareCrop(sourceToken: String): PendingPhotoCrop {
+            cropPreparationError?.let { throw it }
+            return cropSession.copy(sourceToken = sourceToken)
+        }
+
+        override fun resumeCrop(sourceToken: String, outputToken: String): PendingPhotoCrop? =
+            cropSession.takeIf {
+                it.sourceToken == sourceToken && it.outputToken == outputToken
+            }
+
+        override suspend fun completeCrop(sourceToken: String, outputToken: String): StagedPhoto {
+            stagedCalls += "complete-crop:$sourceToken:$outputToken"
+            return cropOutput.copy(token = outputToken)
+        }
+
+        override suspend fun discardCrop(sourceToken: String?, outputToken: String?): Boolean {
+            stagedCalls += "discard-crop:$sourceToken:$outputToken"
+            return true
         }
 
         override suspend fun discardStagedPhoto(token: String): Boolean {
@@ -229,6 +310,8 @@ class PlantPhotoRepositoryTest {
             allowImport.await()
             return StoredPhoto("plant_photos/new.jpg", File("/tmp/new.jpg"))
         }
+
+        override suspend fun discardCrop(sourceToken: String?, outputToken: String?): Boolean = true
 
         override suspend fun remove(relativePath: String): Boolean = true
 

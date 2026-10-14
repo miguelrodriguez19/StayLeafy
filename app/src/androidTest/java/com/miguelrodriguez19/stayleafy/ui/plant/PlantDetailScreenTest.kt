@@ -9,6 +9,7 @@ import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.hasProgressBarRangeInfo
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
@@ -267,6 +268,28 @@ class PlantDetailScreenTest {
         assertEquals(1, takeClicks)
         assertEquals(1, pickClicks)
         assertEquals(1, removeClicks)
+    }
+
+    @Test
+    fun pendingPhotoCrop_disablesSaveAndPreventsLeavingTheEditor() {
+        var saveClicks = 0
+        var backClicks = 0
+        setScreen(
+            state = PlantDetailUiState.Content(
+                mode = PlantDetailMode.Create,
+                plant = null,
+                form = PlantForm(name = "Monstera"),
+            ),
+            photoMutating = true,
+            onSave = { saveClicks++ },
+            onBack = { backClicks++ },
+        )
+
+        composeTestRule.onNodeWithContentDescription(string(R.string.save)).assertIsNotEnabled()
+        composeTestRule.onNodeWithContentDescription(string(R.string.cancel)).performClick()
+
+        assertEquals(0, saveClicks)
+        assertEquals(0, backClicks)
     }
 
     @Test

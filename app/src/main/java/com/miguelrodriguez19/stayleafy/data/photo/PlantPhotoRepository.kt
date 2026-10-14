@@ -38,6 +38,23 @@ interface PlantPhotoRepository {
 
     suspend fun replacePhoto(plantId: String, sourceUri: Uri): StoredPhoto
 
+    suspend fun prepareCameraCrop(token: String): PendingPhotoCrop =
+        throw UnsupportedOperationException("Photo cropping is not supported")
+
+    suspend fun prepareImageCrop(sourceUri: Uri): PendingPhotoCrop =
+        throw UnsupportedOperationException("Photo cropping is not supported")
+
+    fun resumePhotoCrop(sourceToken: String, outputToken: String): PendingPhotoCrop? = null
+
+    suspend fun completePhotoCrop(
+        plantId: String?,
+        sourceToken: String,
+        outputToken: String,
+    ): StagedPhoto? = throw UnsupportedOperationException("Photo cropping is not supported")
+
+    suspend fun discardPhotoCrop(sourceToken: String?, outputToken: String?): Boolean =
+        throw UnsupportedOperationException("Photo cropping is not supported")
+
     suspend fun stageCameraCapture(token: String): StagedPhoto =
         throw UnsupportedOperationException("Photo staging is not supported")
 
@@ -89,6 +106,65 @@ class DefaultPlantPhotoRepository @Inject constructor(
 
     override suspend fun replacePhoto(plantId: String, sourceUri: Uri): StoredPhoto =
         operationMutex.withLock { replaceWithSource(plantId, sourceUri) }
+
+    override suspend fun prepareCameraCrop(token: String): PendingPhotoCrop =
+        operationMutex.withLock {
+            try {
+                photoFileStore.stageCameraCapture(token)
+                photoFileStore.prepareCrop(token)
+            } catch (error: Throwable) {
+                withContext(NonCancellable) {
+                    runCatching { photoFileStore.discardCrop(token, null) }
+                }
+                throw error
+            }
+        }
+
+    override suspend fun prepareImageCrop(sourceUri: Uri): PendingPhotoCrop =
+        operationMutex.withLock {
+            val source = photoFileStore.stageImage(inputResolver.resolve(sourceUri))
+            try {
+                photoFileStore.prepareCrop(source.token)
+            } catch (error: Throwable) {
+                withContext(NonCancellable) {
+                    runCatching { photoFileStore.discardCrop(source.token, null) }
+                }
+                throw error
+            }
+        }
+
+    override fun resumePhotoCrop(sourceToken: String, outputToken: String): PendingPhotoCrop? =
+        photoFileStore.resumeCrop(sourceToken, outputToken)
+
+    override suspend fun completePhotoCrop(
+        plantId: String?,
+        sourceToken: String,
+        outputToken: String,
+    ): StagedPhoto? = operationMutex.withLock {
+        val staged = photoFileStore.completeCrop(sourceToken, outputToken)
+        if (plantId == null) return@withLock staged
+
+        try {
+            val stored = photoFileStore.commitStagedPhoto(staged.token)
+            attachNewPhoto(plantId, stored)
+            withContext(NonCancellable) {
+                runCatching { photoFileStore.discardStagedPhoto(staged.token) }
+            }
+            null
+        } catch (error: Throwable) {
+            withContext(NonCancellable) {
+                runCatching { photoFileStore.discardStagedPhoto(staged.token) }
+            }
+            throw error
+        }
+    }
+
+    override suspend fun discardPhotoCrop(
+        sourceToken: String?,
+        outputToken: String?,
+    ): Boolean = operationMutex.withLock {
+        photoFileStore.discardCrop(sourceToken, outputToken)
+    }
 
     override suspend fun stageCameraCapture(token: String): StagedPhoto = operationMutex.withLock {
         photoFileStore.stageCameraCapture(token)

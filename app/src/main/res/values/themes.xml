@@ -19,9 +19,16 @@
 
     <color name="leafy_window_background">#FBF8F1</color>
 
-    <style name="Theme.StayLeafy" parent="android:Theme.Material.Light.NoActionBar">
+    <style name="Theme.StayLeafy" parent="Theme.AppCompat.Light.NoActionBar">
         <item name="android:windowLightStatusBar">true</item>
         <item name="android:windowActionModeOverlay">true</item>
         <item name="android:windowBackground">@color/leafy_window_background</item>
+    </style>
+
+    <style name="Theme.StayLeafy.Crop" parent="Theme.AppCompat.Light.NoActionBar">
+        <item name="colorPrimary">#24543A</item>
+        <item name="colorPrimaryDark">#173826</item>
+        <item name="colorAccent">#B9573F</item>
+        <item name="android:windowLightStatusBar">false</item>
     </style>
 </resources>

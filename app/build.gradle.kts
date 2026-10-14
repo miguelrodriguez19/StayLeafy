@@ -30,8 +30,8 @@ android {
         applicationId = "com.miguelrodriguez19.stayleafy"
         minSdk = 24
         targetSdk = 37
-        versionCode = 21
-        versionName = "0.7.6"
+        versionCode = 22
+        versionName = "0.8.0"
 
         testInstrumentationRunner = "com.miguelrodriguez19.stayleafy.HiltTestRunner"
         vectorDrawables {
@@ -51,6 +51,10 @@ android {
         aidl = false
         buildConfig = false
         shaders = false
+    }
+
+    androidResources {
+        generateLocaleConfig = true
     }
 
     compileOptions {
@@ -88,6 +92,8 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
+    implementation(libs.androidx.appcompat)
+    implementation(libs.androidx.datastore.preferences)
 
     // Hilt Dependency Injection
     implementation(libs.hilt.android)
@@ -118,6 +124,7 @@ dependencies {
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
     implementation(libs.coil.compose)
+    implementation(libs.ucrop)
     // Tooling
     debugImplementation(libs.androidx.compose.ui.tooling)
     // Instrumented tests

@@ -6,7 +6,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.miguelrodriguez19.stayleafy.data.PlantRepository
 import com.miguelrodriguez19.stayleafy.data.photo.PendingPhotoCapture
+import com.miguelrodriguez19.stayleafy.data.photo.PendingPhotoCrop
 import com.miguelrodriguez19.stayleafy.data.photo.PlantPhotoRepository
+import com.miguelrodriguez19.stayleafy.data.photo.PhotoCropResult
 import com.miguelrodriguez19.stayleafy.model.PlantDraft
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
@@ -62,9 +64,18 @@ class PlantDetailViewModel @AssistedInject constructor(
     )
     val pendingCaptureToken: StateFlow<String?> = _pendingCaptureToken.asStateFlow()
 
+    private val _pendingPhotoCrop = MutableStateFlow<PendingPhotoCrop?>(null)
+    val pendingPhotoCrop: StateFlow<PendingPhotoCrop?> = _pendingPhotoCrop.asStateFlow()
+
+    private val _photoCropLaunchStarted = MutableStateFlow(
+        savedStateHandle[PHOTO_CROP_LAUNCHED_KEY] ?: false,
+    )
+    val photoCropLaunchStarted: StateFlow<Boolean> = _photoCropLaunchStarted.asStateFlow()
+
     private var plantObservationJob: Job? = null
 
     init {
+        restorePendingPhotoCrop()
         if (plantId != null) observePlant(plantId)
     }
 
@@ -119,7 +130,10 @@ class PlantDetailViewModel @AssistedInject constructor(
             _uiState.value = state.copy(nameError = true)
             return
         }
-        if (state.isSaving || state.mode == PlantDetailMode.View) return
+        if (state.isSaving || state.mode == PlantDetailMode.View ||
+            _photoUiState.value.isMutating || _pendingCaptureToken.value != null ||
+            _pendingPhotoCrop.value != null
+        ) return
 
         _uiState.value = state.copy(isSaving = true, nameError = false, saveError = null)
         viewModelScope.launch {
@@ -159,7 +173,9 @@ class PlantDetailViewModel @AssistedInject constructor(
     }
 
     fun prepareCameraCapture(): PendingPhotoCapture? {
-        if (_photoUiState.value.isMutating || _pendingCaptureToken.value != null) return null
+        if (_photoUiState.value.isMutating || _pendingCaptureToken.value != null ||
+            _pendingPhotoCrop.value != null
+        ) return null
         return try {
             photoRepository.prepareCameraCapture().also { capture ->
                 savedStateHandle[PENDING_CAPTURE_KEY] = capture.token
@@ -184,18 +200,10 @@ class PlantDetailViewModel @AssistedInject constructor(
             }
             return
         }
-        val currentPlantId = plantId
-        if (currentPlantId == null) {
-            mutatePhoto {
-                val staged = photoRepository.stageCameraCapture(token)
-                clearPendingCapture()
-                setStagedPhoto(staged.token)
-            }
-            return
-        }
         mutatePhoto {
-            photoRepository.completeCameraCapture(currentPlantId, token)
+            val crop = photoRepository.prepareCameraCrop(token)
             clearPendingCapture()
+            setPendingPhotoCrop(crop)
         }
     }
 
@@ -212,7 +220,10 @@ class PlantDetailViewModel @AssistedInject constructor(
     }
 
     fun retryPendingCaptureCleanup() {
-        if (_pendingCaptureToken.value != null) onCameraResult(success = false)
+        when {
+            _pendingCaptureToken.value != null -> onCameraResult(success = false)
+            _pendingPhotoCrop.value != null -> onPhotoCropResult(PhotoCropResult.Cancelled)
+        }
     }
 
     fun onPickerLaunchFailed() {
@@ -220,22 +231,64 @@ class PlantDetailViewModel @AssistedInject constructor(
     }
 
     fun onPickedPhoto(uri: Uri) {
-        val state = _uiState.value as? PlantDetailUiState.Content ?: return
-        if (state.mode == PlantDetailMode.Create) {
-            mutatePhoto {
-                val previousToken = state.stagedPhoto?.token
-                val staged = photoRepository.stageImage(uri)
-                setStagedPhoto(staged.token)
-                if (previousToken != null) photoRepository.discardStagedPhoto(previousToken)
-            }
-            return
-        }
-        val id = plantId ?: return
+        if (_uiState.value !is PlantDetailUiState.Content) return
         mutatePhoto {
-            if (state.plant?.mainPhotoPath == null) {
-                photoRepository.importImage(id, uri)
-            } else {
-                photoRepository.replacePhoto(id, uri)
+            setPendingPhotoCrop(photoRepository.prepareImageCrop(uri))
+        }
+    }
+
+    /** Marks the external crop UI as launched before leaving the app, so recreation won't relaunch it. */
+    fun beginPhotoCropLaunch(): PendingPhotoCrop? {
+        val session = _pendingPhotoCrop.value ?: return null
+        if (_photoCropLaunchStarted.value) return null
+        savedStateHandle[PHOTO_CROP_LAUNCHED_KEY] = true
+        _photoCropLaunchStarted.value = true
+        return session
+    }
+
+    fun onPhotoCropLaunchFailed() {
+        onPhotoCropResult(PhotoCropResult.Failed)
+    }
+
+    fun onPhotoCropResult(result: PhotoCropResult) {
+        val session = _pendingPhotoCrop.value ?: return
+        if (_photoUiState.value.isMutating) return
+        savedStateHandle[PHOTO_CROP_LAUNCHED_KEY] = false
+        _photoCropLaunchStarted.value = false
+        _photoUiState.value = PlantPhotoUiState(isMutating = true)
+        viewModelScope.launch {
+            try {
+                when (result) {
+                    PhotoCropResult.Cancelled -> {
+                        photoRepository.discardPhotoCrop(session.sourceToken, session.outputToken)
+                        clearPendingPhotoCrop()
+                        _photoUiState.value = PlantPhotoUiState()
+                    }
+
+                    PhotoCropResult.Failed -> {
+                        photoRepository.discardPhotoCrop(session.sourceToken, session.outputToken)
+                        clearPendingPhotoCrop()
+                        _photoUiState.value = PlantPhotoUiState(error = UiErrorCategory.PhotoImport)
+                    }
+
+                    PhotoCropResult.Success -> completePhotoCrop(session)
+                }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Throwable) {
+                val cleanup = runCatching {
+                    photoRepository.discardPhotoCrop(session.sourceToken, session.outputToken)
+                }
+                if (cleanup.isSuccess) {
+                    clearPendingPhotoCrop()
+                    _photoUiState.value = when (result) {
+                        PhotoCropResult.Cancelled -> PlantPhotoUiState()
+                        PhotoCropResult.Failed, PhotoCropResult.Success ->
+                            PlantPhotoUiState(error = UiErrorCategory.PhotoImport)
+                    }
+                } else {
+                    _photoUiState.value = PlantPhotoUiState(error = UiErrorCategory.PhotoDelete)
+                }
             }
         }
     }
@@ -255,7 +308,10 @@ class PlantDetailViewModel @AssistedInject constructor(
 
     fun discardCreation(onDiscarded: () -> Unit) {
         val state = _uiState.value as? PlantDetailUiState.Content ?: return
-        if (state.mode != PlantDetailMode.Create || state.isSaving || _photoUiState.value.isMutating) return
+        if (state.mode != PlantDetailMode.Create || state.isSaving ||
+            _photoUiState.value.isMutating || _pendingPhotoCrop.value != null ||
+            _pendingCaptureToken.value != null
+        ) return
         val token = state.stagedPhoto?.token
         if (token == null) {
             clearCreationDraft()
@@ -278,6 +334,64 @@ class PlantDetailViewModel @AssistedInject constructor(
     }
 
     fun resolveStagedPhoto(token: String) = photoRepository.resolveStagedPhoto(token)
+
+    private suspend fun completePhotoCrop(session: PendingPhotoCrop) {
+        val previousStagedToken = (_uiState.value as? PlantDetailUiState.Content)?.stagedPhoto?.token
+        val staged = photoRepository.completePhotoCrop(
+            plantId = plantId,
+            sourceToken = session.sourceToken,
+            outputToken = session.outputToken,
+        )
+        clearPendingPhotoCrop()
+        if (plantId == null && staged != null) {
+            setStagedPhoto(staged.token)
+            if (previousStagedToken != null && previousStagedToken != staged.token) {
+                runCatching { photoRepository.discardStagedPhoto(previousStagedToken) }
+                    .onFailure {
+                        _photoUiState.value = PlantPhotoUiState(error = UiErrorCategory.PhotoDelete)
+                        return
+                    }
+            }
+        }
+        if (_photoUiState.value.error == null) _photoUiState.value = PlantPhotoUiState()
+    }
+
+    private fun setPendingPhotoCrop(session: PendingPhotoCrop) {
+        savedStateHandle[PHOTO_CROP_SOURCE_KEY] = session.sourceToken
+        savedStateHandle[PHOTO_CROP_OUTPUT_KEY] = session.outputToken
+        savedStateHandle[PHOTO_CROP_LAUNCHED_KEY] = false
+        _photoCropLaunchStarted.value = false
+        _pendingPhotoCrop.value = session
+    }
+
+    private fun clearPendingPhotoCrop() {
+        savedStateHandle.remove<String>(PHOTO_CROP_SOURCE_KEY)
+        savedStateHandle.remove<String>(PHOTO_CROP_OUTPUT_KEY)
+        savedStateHandle[PHOTO_CROP_LAUNCHED_KEY] = false
+        _photoCropLaunchStarted.value = false
+        _pendingPhotoCrop.value = null
+    }
+
+    private fun restorePendingPhotoCrop() {
+        val sourceToken = savedStateHandle.get<String>(PHOTO_CROP_SOURCE_KEY)
+        val outputToken = savedStateHandle.get<String>(PHOTO_CROP_OUTPUT_KEY)
+        if (sourceToken == null && outputToken == null) return
+        if (sourceToken != null && outputToken != null) {
+            val session = runCatching {
+                photoRepository.resumePhotoCrop(sourceToken, outputToken)
+            }.getOrNull()
+            if (session != null) {
+                _pendingPhotoCrop.value = session
+                return
+            }
+        }
+
+        viewModelScope.launch {
+            runCatching { photoRepository.discardPhotoCrop(sourceToken, outputToken) }
+            clearPendingPhotoCrop()
+            _photoUiState.value = PlantPhotoUiState(error = UiErrorCategory.PhotoImport)
+        }
+    }
 
     private fun observePlant(id: String) {
         plantObservationJob?.cancel()
@@ -360,7 +474,7 @@ class PlantDetailViewModel @AssistedInject constructor(
         ?.let(::StagedPhoto)
 
     private fun mutatePhoto(action: suspend () -> Any?) {
-        if (_photoUiState.value.isMutating) return
+        if (_photoUiState.value.isMutating || _pendingPhotoCrop.value != null) return
         _photoUiState.value = PlantPhotoUiState(isMutating = true)
         viewModelScope.launch {
             try {
@@ -401,6 +515,9 @@ class PlantDetailViewModel @AssistedInject constructor(
             FAVORITE_KEY,
             STAGED_PHOTO_KEY,
             PENDING_CAPTURE_KEY,
+            PHOTO_CROP_SOURCE_KEY,
+            PHOTO_CROP_OUTPUT_KEY,
+            PHOTO_CROP_LAUNCHED_KEY,
         ).forEach { key -> savedStateHandle.remove<Any?>(key) }
         _pendingCaptureToken.value = null
     }
@@ -428,6 +545,9 @@ class PlantDetailViewModel @AssistedInject constructor(
     private companion object {
         const val PENDING_CAPTURE_KEY = "pending_capture_token"
         const val STAGED_PHOTO_KEY = "staged_photo_source"
+        const val PHOTO_CROP_SOURCE_KEY = "pending_photo_crop_source"
+        const val PHOTO_CROP_OUTPUT_KEY = "pending_photo_crop_output"
+        const val PHOTO_CROP_LAUNCHED_KEY = "pending_photo_crop_launched"
         const val NAME_KEY = "create_name"
         const val SCIENTIFIC_NAME_KEY = "create_scientific_name"
         const val LOCATION_KEY = "create_location"
