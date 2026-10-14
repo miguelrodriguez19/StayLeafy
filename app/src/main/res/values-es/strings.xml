@@ -36,6 +36,7 @@
     <string name="select_date">Seleccionar fecha</string>
     <string name="clear_date">Borrar fecha</string>
     <string name="description">Descripción</string>
+    <string name="description_character_count">%1$d/%2$d</string>
     <string name="add_favorite">Añadir a favoritos</string>
     <string name="remove_favorite">Quitar de favoritos</string>
     <string name="favorite_marker_on">★</string>
@@ -51,7 +52,8 @@
     <string name="take_photo">Hacer foto</string>
     <string name="choose_photo">Elegir foto</string>
     <string name="replace_photo">Reemplazar foto</string>
-    <string name="choose_photo_source">Elige de dónde quieres obtener la foto de reemplazo.</string>
+    <string name="choose_photo_source">Elige de dónde quieres obtener la foto de la planta.</string>
+    <string name="edit_plant_photo">Cambiar foto de la planta</string>
     <string name="remove_photo">Quitar foto</string>
     <string name="remove_photo_title">¿Quitar esta foto?</string>
     <string name="remove_photo_message">La foto principal se quitará de esta planta.</string>

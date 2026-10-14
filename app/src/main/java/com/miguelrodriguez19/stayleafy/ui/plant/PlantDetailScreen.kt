@@ -5,6 +5,7 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.BorderStroke
@@ -55,8 +56,10 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.painterResource
@@ -65,7 +68,9 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.unit.dp
@@ -82,8 +87,8 @@ import com.miguelrodriguez19.stayleafy.model.CareType
 import com.miguelrodriguez19.stayleafy.ui.reminder.CareReminderUiState
 import com.miguelrodriguez19.stayleafy.ui.reminder.PlantCareStatusViewModel
 import com.miguelrodriguez19.stayleafy.ui.components.LeafyCareIcon
-import com.miguelrodriguez19.stayleafy.ui.components.LeafyPrimaryButton
 import com.miguelrodriguez19.stayleafy.ui.theme.StayLeafyTheme
+import com.miguelrodriguez19.stayleafy.ui.theme.leafyLayoutTokens
 import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -318,8 +323,8 @@ fun PlantDetailScreen(
                     }
                 },
                 actions = {
-                    if (content?.mode == PlantDetailMode.View) {
-                        IconButton(
+                    when (content?.mode) {
+                        PlantDetailMode.View -> IconButton(
                             onClick = onBeginEdit,
                             enabled = !isDeleting,
                         ) {
@@ -328,22 +333,17 @@ fun PlantDetailScreen(
                                 contentDescription = stringResource(R.string.edit_plant),
                             )
                         }
+                        PlantDetailMode.Create, PlantDetailMode.Edit -> TextButton(
+                            onClick = onSave,
+                            enabled = !content.isSaving,
+                            modifier = Modifier.semantics { contentDescription = saveLabel },
+                        ) {
+                            Text(stringResource(if (content.isSaving) R.string.saving else R.string.save))
+                        }
+                        null -> Unit
                     }
                 },
             )
-        },
-        bottomBar = {
-            if (content?.mode == PlantDetailMode.Create || content?.mode == PlantDetailMode.Edit) {
-                LeafyPrimaryButton(
-                    text = stringResource(if (content.isSaving) R.string.saving else R.string.save),
-                    onClick = onSave,
-                    enabled = !content.isSaving,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp)
-                        .semantics { contentDescription = saveLabel },
-                )
-            }
         },
     ) { innerPadding ->
         Box(Modifier.fillMaxSize().padding(innerPadding)) {
@@ -484,28 +484,71 @@ private fun PlantDetailContent(
     var pendingCareClearType by rememberSaveable { mutableStateOf<CareType?>(null) }
     val editable = state.mode != PlantDetailMode.View
     val plant = state.plant
-    val favorite = if (state.mode == PlantDetailMode.Create) state.stagedFavorite else plant?.isFavorite == true
+    val favorite = plant?.isFavorite == true
+    val hasPhoto = plant?.mainPhotoPath != null || state.stagedPhoto != null || stagedPhotoFile != null
+    val editPhotoDescription = stringResource(R.string.edit_plant_photo)
 
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        PlantPhotoBox(
-            relativePath = plant?.mainPhotoPath,
-            stagedFile = stagedPhotoFile,
-            modifier = Modifier.fillMaxWidth().height(148.dp),
-        )
-        if (plant?.mainPhotoPath == null && state.stagedPhoto == null) {
-            PhotoActions(onTakePhoto, onPickPhoto, enabled = !photoMutating && !state.isSaving)
-        } else if (state.mode == PlantDetailMode.Create) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = onReplacePhotoRequest, enabled = !photoMutating && !state.isSaving, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.replace_photo)) }
-                OutlinedButton(onClick = onRemoveStagedPhoto, enabled = !photoMutating && !state.isSaving, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.remove_photo)) }
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(148.dp)
+                .then(
+                    if (editable) {
+                        Modifier
+                            .semantics { contentDescription = editPhotoDescription }
+                            .clickable(
+                                enabled = !photoMutating && !state.isSaving,
+                                onClick = onReplacePhotoRequest,
+                            )
+                    } else {
+                        Modifier
+                    },
+                ),
+            contentAlignment = Alignment.Center,
+        ) {
+            PlantPhotoBox(
+                relativePath = plant?.mainPhotoPath,
+                stagedFile = stagedPhotoFile,
+                modifier = Modifier.matchParentSize(),
+            )
+            if (editable) {
+                Box(
+                    Modifier
+                        .matchParentSize()
+                        .clip(RoundedCornerShape(leafyLayoutTokens.radiusMd))
+                        .background(Color.Black.copy(alpha = 0.32f)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_camera),
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(28.dp),
+                    )
+                }
             }
-        } else {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = onReplacePhotoRequest, enabled = !photoMutating, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.replace_photo)) }
-                OutlinedButton(onClick = { showPhotoDeleteDialog = true }, enabled = !photoMutating, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.remove_photo)) }
+        }
+        if (hasPhoto && editable) {
+            if (state.mode == PlantDetailMode.Create) {
+                OutlinedButton(
+                    onClick = onRemoveStagedPhoto,
+                    enabled = !photoMutating && !state.isSaving,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(stringResource(R.string.remove_photo))
+                }
+            } else {
+                OutlinedButton(
+                    onClick = { showPhotoDeleteDialog = true },
+                    enabled = !photoMutating,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(stringResource(R.string.remove_photo))
+                }
             }
         }
         photoMutationError?.let { error ->
@@ -515,14 +558,6 @@ private fun PlantDetailContent(
             }
         }
 
-        if (state.mode != PlantDetailMode.View) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = { onFavoriteClick(!favorite) }, enabled = !state.isSaving, modifier = Modifier.weight(1f)) {
-                    Text(stringResource(if (favorite) R.string.remove_favorite else R.string.add_favorite))
-                }
-                OutlinedButton(onClick = onCancel, enabled = !state.isSaving, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.cancel)) }
-            }
-        }
         mutationError?.let { error ->
             Text(stringResource(if (error == UiErrorCategory.Delete) R.string.delete_plant_error else R.string.favorite_update_error), color = MaterialTheme.colorScheme.error)
         }
@@ -557,7 +592,7 @@ private fun PlantDetailContent(
             )
         }
 
-        if (state.mode != PlantDetailMode.Create) {
+        if (state.mode == PlantDetailMode.View) {
             CareSection(
                 state = careState,
                 mutationError = careMutationError,
@@ -813,6 +848,7 @@ private fun PlantFormFields(
         onValueChange = onNameChange,
         modifier = Modifier.fillMaxWidth(),
         label = { Text(stringResource(R.string.plant_name)) },
+        leadingIcon = { FormFieldIcon(R.drawable.ic_leaf) },
         supportingText = if (state.nameError) ({ Text(stringResource(R.string.plant_name_required)) }) else null,
         isError = state.nameError,
         singleLine = true,
@@ -823,6 +859,7 @@ private fun PlantFormFields(
         value = state.form.scientificName,
         onValueChange = onScientificNameChange,
         label = R.string.scientific_name,
+        icon = R.drawable.ic_note,
         focusRequester = scientificNameFocusRequester,
         onNext = { locationFocusRequester.requestFocus() },
     )
@@ -830,6 +867,7 @@ private fun PlantFormFields(
         value = state.form.location,
         onValueChange = onLocationChange,
         label = R.string.location,
+        icon = R.drawable.ic_location,
         focusRequester = locationFocusRequester,
         onNext = { descriptionFocusRequester.requestFocus() },
     )
@@ -839,21 +877,37 @@ private fun PlantFormFields(
             onValueChange = {},
             modifier = Modifier.fillMaxWidth(),
             label = { Text(stringResource(R.string.acquisition_date)) },
+            leadingIcon = { FormFieldIcon(R.drawable.ic_calendar) },
             placeholder = { Text(stringResource(R.string.select_date_hint)) },
             readOnly = true,
         )
         Box(Modifier.matchParentSize().semantics { contentDescription = acquisitionDateDescription }.clickable(onClick = openDatePicker))
     }
     if (state.form.acquiredEpochDay != null) TextButton(onClick = { onAcquiredEpochDayChange(null) }) { Text(stringResource(R.string.clear_date)) }
-    OutlinedTextField(
-        value = state.form.description,
-        onValueChange = onDescriptionChange,
-        modifier = Modifier.fillMaxWidth().focusRequester(descriptionFocusRequester),
-        label = { Text(stringResource(R.string.description)) },
-        minLines = 4,
-        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-        keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
-    )
+    val description = state.form.description.take(MAX_PLANT_DESCRIPTION_LENGTH)
+    Column(Modifier.fillMaxWidth()) {
+        OutlinedTextField(
+            value = description,
+            onValueChange = { onDescriptionChange(it.take(MAX_PLANT_DESCRIPTION_LENGTH)) },
+            modifier = Modifier.fillMaxWidth().focusRequester(descriptionFocusRequester),
+            label = { Text(stringResource(R.string.description)) },
+            leadingIcon = { FormFieldIcon(R.drawable.ic_note) },
+            minLines = 4,
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
+        )
+        Text(
+            text = stringResource(
+                R.string.description_character_count,
+                description.length,
+                MAX_PLANT_DESCRIPTION_LENGTH,
+            ),
+            modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+            textAlign = TextAlign.End,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
 }
 
 @Composable
@@ -861,6 +915,7 @@ private fun EditorTextField(
     value: String,
     onValueChange: (String) -> Unit,
     label: Int,
+    icon: Int,
     focusRequester: FocusRequester,
     onNext: () -> Unit,
 ) {
@@ -869,6 +924,7 @@ private fun EditorTextField(
         onValueChange = onValueChange,
         modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
         label = { Text(stringResource(label)) },
+        leadingIcon = { FormFieldIcon(icon) },
         singleLine = true,
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
         keyboardActions = KeyboardActions(onNext = { onNext() }),
@@ -876,18 +932,13 @@ private fun EditorTextField(
 }
 
 @Composable
-private fun PhotoActions(onTakePhoto: () -> Unit, onPickPhoto: () -> Unit, enabled: Boolean) {
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Button(onClick = onTakePhoto, enabled = enabled, modifier = Modifier.weight(1f)) {
-            Icon(
-                painterResource(R.drawable.ic_camera),
-                contentDescription = null,
-                modifier = Modifier.size(18.dp),
-            )
-            Text(stringResource(R.string.take_photo), Modifier.padding(start = 8.dp))
-        }
-        OutlinedButton(onClick = onPickPhoto, enabled = enabled, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.choose_photo)) }
-    }
+private fun FormFieldIcon(icon: Int) {
+    Icon(
+        painter = painterResource(icon),
+        contentDescription = null,
+        modifier = Modifier.size(20.dp),
+        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
 }
 
 private val PlantDetailUiState.Content.hasUnsavedCreation: Boolean

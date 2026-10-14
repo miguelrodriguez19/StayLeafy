@@ -31,6 +31,7 @@ Phase delivery note: Phase 1 implements the Plant inventory. Phase 2 implements 
 - **FR-PLANT-013** — Before a new plant is saved, the user can stage its favorite state and one primary photo. Notes are available only after the Plant row exists. Saving uses compensating cleanup if file or database persistence fails.
 - **FR-PLANT-014** — The software keyboard advances through the editable plant text fields in form order and finishes from the final field.
 - **FR-PLANT-015** — Opening an empty acquisition-date picker selects the device's current local date by default; an existing acquisition date remains selected while editing.
+- **FR-PLANT-016** — Plant descriptions are optional and limited to 500 characters; the editor shows the current count against that limit.
 
 ### Primary photo
 

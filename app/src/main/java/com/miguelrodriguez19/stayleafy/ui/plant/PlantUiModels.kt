@@ -63,6 +63,8 @@ enum class PlantDetailMode {
     Edit,
 }
 
+const val MAX_PLANT_DESCRIPTION_LENGTH = 500
+
 @Immutable
 data class PlantForm(
     val name: String = "",

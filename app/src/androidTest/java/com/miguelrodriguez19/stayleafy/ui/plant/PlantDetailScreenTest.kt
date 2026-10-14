@@ -55,17 +55,24 @@ class PlantDetailScreenTest {
         )
 
         composeTestRule.onNodeWithText(string(R.string.add_plant)).assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription(string(R.string.save)).assertIsDisplayed()
         composeTestRule.onNodeWithText(string(R.string.plant_name)).assertIsDisplayed()
         composeTestRule.onNodeWithText(string(R.string.scientific_name)).assertIsDisplayed()
         composeTestRule.onNodeWithText(string(R.string.location)).assertIsDisplayed()
         composeTestRule.onNodeWithText(string(R.string.notes)).assertDoesNotExist()
-        composeTestRule.onNodeWithText(string(R.string.take_photo)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(string(R.string.care_history)).assertDoesNotExist()
+        composeTestRule.onNodeWithText(string(R.string.add_favorite)).assertDoesNotExist()
+        composeTestRule.onNodeWithContentDescription(string(R.string.edit_plant_photo)).assertIsDisplayed()
         composeTestRule
             .onNodeWithText(string(R.string.acquisition_date))
             .performScrollTo()
             .assertIsDisplayed()
         composeTestRule
             .onNodeWithText(string(R.string.description))
+            .performScrollTo()
+            .assertIsDisplayed()
+        composeTestRule
+            .onNodeWithText(string(R.string.description_character_count, 0, MAX_PLANT_DESCRIPTION_LENGTH))
             .performScrollTo()
             .assertIsDisplayed()
     }
@@ -92,7 +99,7 @@ class PlantDetailScreenTest {
     }
 
     @Test
-    fun editMode_displaysSameFieldsAndForwardsSaveAndCancel() {
+    fun editMode_displaysFieldsWithTopSaveAndBackCancels() {
         val plant = detailPlant(
             name = "Monstera",
             scientificName = "Monstera deliciosa",
@@ -113,6 +120,7 @@ class PlantDetailScreenTest {
         )
 
         composeTestRule.onNodeWithText(string(R.string.edit_plant)).assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription(string(R.string.save)).assertIsDisplayed()
         composeTestRule.onNodeWithText(string(R.string.plant_name)).assertIsDisplayed()
         composeTestRule.onNodeWithText(string(R.string.scientific_name)).assertIsDisplayed()
         composeTestRule.onNodeWithText(string(R.string.location)).assertIsDisplayed()
@@ -121,7 +129,10 @@ class PlantDetailScreenTest {
             .performScrollTo()
             .assertIsDisplayed()
         composeTestRule.onNodeWithContentDescription(string(R.string.save)).performClick()
-        composeTestRule.onAllNodesWithText(string(R.string.cancel)).onLast().performClick()
+        composeTestRule.onNodeWithText(string(R.string.care_history)).assertDoesNotExist()
+        composeTestRule.onNodeWithText(string(R.string.notes)).assertDoesNotExist()
+        composeTestRule.onNodeWithText(string(R.string.add_favorite)).assertDoesNotExist()
+        composeTestRule.onNodeWithContentDescription(string(R.string.cancel)).performClick()
 
         assertEquals(1, saveClicks)
         assertEquals(1, cancelClicks)
@@ -158,6 +169,7 @@ class PlantDetailScreenTest {
         composeTestRule.onNodeWithText("Bright indirect light").performScrollTo().assertIsDisplayed()
         composeTestRule.onNodeWithContentDescription(string(R.string.add_favorite)).performClick()
         composeTestRule.onNodeWithContentDescription(string(R.string.edit_plant)).performClick()
+        composeTestRule.onNodeWithContentDescription(string(R.string.edit_plant_photo)).assertDoesNotExist()
 
         assertEquals(true, favorite)
         assertEquals(1, editClicks)
@@ -184,16 +196,22 @@ class PlantDetailScreenTest {
     }
 
     @Test
-    fun photoActions_withoutPhoto_offerDirectSources() {
+    fun photoActions_withoutPhoto_areOpenedFromEditablePhoto() {
         var takeClicks = 0
         var pickClicks = 0
         setScreen(
-            state = viewState(detailPlant(name = "Monstera")),
+            state = PlantDetailUiState.Content(
+                mode = PlantDetailMode.Create,
+                plant = null,
+                form = PlantForm(),
+            ),
             onTakePhoto = { takeClicks++ },
             onPickPhoto = { pickClicks++ },
         )
 
+        composeTestRule.onNodeWithContentDescription(string(R.string.edit_plant_photo)).performClick()
         composeTestRule.onNodeWithText(string(R.string.take_photo)).performClick()
+        composeTestRule.onNodeWithContentDescription(string(R.string.edit_plant_photo)).performClick()
         composeTestRule.onNodeWithText(string(R.string.choose_photo)).performClick()
 
         assertEquals(1, takeClicks)
@@ -201,22 +219,24 @@ class PlantDetailScreenTest {
     }
 
     @Test
-    fun photoActions_withPhoto_offerReplacementSourcesAndRemoval() {
+    fun photoActions_withPhoto_areOpenedFromEditablePhotoAndCanBeRemoved() {
         var takeClicks = 0
         var pickClicks = 0
         var removeClicks = 0
         setScreen(
-            state = viewState(
-                detailPlant(name = "Monstera", mainPhotoPath = "plant_photos/example.jpg"),
+            state = PlantDetailUiState.Content(
+                mode = PlantDetailMode.Edit,
+                plant = detailPlant(name = "Monstera", mainPhotoPath = "plant_photos/example.jpg"),
+                form = detailPlant(name = "Monstera", mainPhotoPath = "plant_photos/example.jpg").toForm(),
             ),
             onTakePhoto = { takeClicks++ },
             onPickPhoto = { pickClicks++ },
             onRemovePhoto = { removeClicks++ },
         )
 
-        composeTestRule.onNodeWithText(string(R.string.replace_photo)).performClick()
+        composeTestRule.onNodeWithContentDescription(string(R.string.edit_plant_photo)).performClick()
         composeTestRule.onNodeWithText(string(R.string.take_photo)).performClick()
-        composeTestRule.onNodeWithText(string(R.string.replace_photo)).performClick()
+        composeTestRule.onNodeWithContentDescription(string(R.string.edit_plant_photo)).performClick()
         composeTestRule.onNodeWithText(string(R.string.choose_photo)).performClick()
         composeTestRule.onNodeWithText(string(R.string.remove_photo)).performClick()
         composeTestRule.onAllNodesWithText(string(R.string.remove_photo)).onLast().performClick()

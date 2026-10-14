@@ -41,6 +41,16 @@ class PlantDetailViewModelTest {
     }
 
     @Test
+    fun description_isLimitedToFiveHundredCharacters() {
+        val viewModel = createViewModel(plantId = null)
+
+        viewModel.updateDescription("x".repeat(MAX_PLANT_DESCRIPTION_LENGTH + 1))
+
+        val state = viewModel.uiState.value as PlantDetailUiState.Content
+        assertEquals(MAX_PLANT_DESCRIPTION_LENGTH, state.form.description.length)
+    }
+
+    @Test
     fun existingPlant_emitsViewContentWithForm() = runTest {
         val plant = testPlant()
         val repository = FakePlantRepository().apply { observedPlant = plant }

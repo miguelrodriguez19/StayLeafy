@@ -93,7 +93,9 @@ class PlantDetailViewModel @AssistedInject constructor(
     fun updateScientificName(value: String) = updateForm { copy(scientificName = value) }
     fun updateLocation(value: String) = updateForm { copy(location = value) }
     fun updateAcquiredEpochDay(value: Long?) = updateForm { copy(acquiredEpochDay = value) }
-    fun updateDescription(value: String) = updateForm { copy(description = value) }
+    fun updateDescription(value: String) = updateForm {
+        copy(description = value.take(MAX_PLANT_DESCRIPTION_LENGTH))
+    }
 
     fun setFavorite(favorite: Boolean) {
         val state = _uiState.value as? PlantDetailUiState.Content ?: return
@@ -378,7 +380,7 @@ class PlantDetailViewModel @AssistedInject constructor(
         scientificName = savedStateHandle[SCIENTIFIC_NAME_KEY] ?: "",
         location = savedStateHandle[LOCATION_KEY] ?: "",
         acquiredEpochDay = savedStateHandle[ACQUIRED_DATE_KEY],
-        description = savedStateHandle[DESCRIPTION_KEY] ?: "",
+        description = (savedStateHandle[DESCRIPTION_KEY] ?: "").take(MAX_PLANT_DESCRIPTION_LENGTH),
     )
 
     private fun persistForm(form: PlantForm) {
@@ -408,7 +410,7 @@ class PlantDetailViewModel @AssistedInject constructor(
         scientificName = scientificName.trimToNull(),
         location = location.trimToNull(),
         acquiredEpochDay = acquiredEpochDay,
-        description = description.trimToNull(),
+        description = description.take(MAX_PLANT_DESCRIPTION_LENGTH).trimToNull(),
     )
 
     private fun String.trimToNull(): String? = trim().takeIf(String::isNotEmpty)
