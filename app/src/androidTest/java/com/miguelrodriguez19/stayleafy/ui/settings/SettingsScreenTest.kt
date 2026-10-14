@@ -104,7 +104,7 @@ class SettingsScreenTest {
         setScreen()
 
         scrollToText("Version test-build")
-        scrollToText("Stay Leafy works offline and does not use an account, cloud sync, or analytics.")
+        scrollToText("Stay Leafy works fully offline. No account, cloud sync or analytics.")
     }
 
     @Test

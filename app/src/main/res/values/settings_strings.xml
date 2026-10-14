@@ -9,20 +9,21 @@
     <string name="settings_language_apply_error">The app language couldn’t be applied.</string>
     <string name="settings_dismiss">Dismiss</string>
     <string name="settings_appearance">Appearance</string>
-    <string name="settings_theme_system">System</string>
+    <string name="settings_system">System</string>
+    <string name="settings_theme_label">Theme</string>
     <string name="settings_theme_light">Light</string>
     <string name="settings_theme_dark">Dark</string>
     <string name="settings_language">Language</string>
-    <string name="settings_language_system">System language</string>
     <string name="settings_language_english">English</string>
     <string name="settings_language_spanish">Spanish</string>
     <string name="settings_reminders">Reminders</string>
     <string name="settings_reminder_time">Daily check time</string>
-    <string name="settings_reminder_time_description">Choose when Stay Leafy should check care reminders. Android may delay background work.</string>
+    <string name="settings_reminder_time_description">Choose when StayLeafy checks care reminders.</string>
     <string name="settings_permissions">Permissions</string>
     <string name="settings_notifications">Notifications</string>
     <string name="settings_notification_status_unknown">Status not checked yet</string>
     <string name="settings_notification_status_enabled">Allowed</string>
+    <string name="settings_notification_enabled_supporting">Care alerts are enabled.</string>
     <string name="settings_notification_status_needs_permission">Permission needed</string>
     <string name="settings_notification_status_blocked">Blocked in system settings</string>
     <string name="settings_notification_action_none">No action</string>
@@ -35,4 +36,6 @@
     <string name="settings_version">Version %1$s</string>
     <string name="settings_version_unknown">Unknown</string>
     <string name="settings_offline_privacy">Stay Leafy works offline and does not use an account, cloud sync, or analytics.</string>
+    <string name="settings_privacy_summary">Stay Leafy works fully offline. No account, cloud sync or analytics.</string>
+    <string name="settings_private_by_design">Private by design</string>
 </resources>

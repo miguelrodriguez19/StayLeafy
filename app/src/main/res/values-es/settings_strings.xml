@@ -9,20 +9,21 @@
     <string name="settings_language_apply_error">No se ha podido aplicar el idioma de la aplicación.</string>
     <string name="settings_dismiss">Cerrar</string>
     <string name="settings_appearance">Aspecto</string>
-    <string name="settings_theme_system">Sistema</string>
+    <string name="settings_theme_label">Tema</string>
+    <string name="settings_system">Sistema</string>
     <string name="settings_theme_light">Claro</string>
     <string name="settings_theme_dark">Oscuro</string>
     <string name="settings_language">Idioma</string>
-    <string name="settings_language_system">Idioma del sistema</string>
     <string name="settings_language_english">Inglés</string>
     <string name="settings_language_spanish">Español</string>
     <string name="settings_reminders">Recordatorios</string>
     <string name="settings_reminder_time">Hora diaria de revisión</string>
-    <string name="settings_reminder_time_description">Elige cuándo Stay Leafy debe revisar los recordatorios de cuidados. Android puede retrasar las tareas en segundo plano.</string>
+    <string name="settings_reminder_time_description">Elige cuándo StayLeafy revisa los recordatorios de cuidados.</string>
     <string name="settings_permissions">Permisos</string>
     <string name="settings_notifications">Notificaciones</string>
     <string name="settings_notification_status_unknown">Aún no se ha comprobado el estado</string>
     <string name="settings_notification_status_enabled">Permitidas</string>
+    <string name="settings_notification_enabled_supporting">Las alertas de cuidados están activadas.</string>
     <string name="settings_notification_status_needs_permission">Se necesita permiso</string>
     <string name="settings_notification_status_blocked">Bloqueadas en los ajustes del sistema</string>
     <string name="settings_notification_action_none">Sin acciones</string>
@@ -35,4 +36,6 @@
     <string name="settings_version">Versión %1$s</string>
     <string name="settings_version_unknown">Desconocida</string>
     <string name="settings_offline_privacy">Stay Leafy funciona sin conexión y no usa cuentas, sincronización en la nube ni analítica.</string>
+    <string name="settings_privacy_summary">Stay Leafy funciona completamente sin conexión. Sin cuentas, sincronización en la nube ni analítica.</string>
+    <string name="settings_private_by_design">Privacidad por diseño</string>
 </resources>

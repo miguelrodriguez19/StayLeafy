@@ -2,16 +2,21 @@ package com.miguelrodriguez19.stayleafy.ui.settings
 
 import android.app.TimePickerDialog
 import android.text.format.DateFormat
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.selection.selectable
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -20,7 +25,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -32,6 +36,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -53,6 +59,7 @@ import com.miguelrodriguez19.stayleafy.ui.components.LeafyStateContent
 import com.miguelrodriguez19.stayleafy.ui.components.leafyTopAppBarColors
 import com.miguelrodriguez19.stayleafy.ui.theme.leafyLayoutTokens
 import com.miguelrodriguez19.stayleafy.ui.theme.StayLeafyTheme
+import com.miguelrodriguez19.stayleafy.ui.theme.leafyColors
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
@@ -116,7 +123,7 @@ fun SettingsScreen(
                 title = {
                     Text(
                         text = stringResource(R.string.settings_title),
-                        style = MaterialTheme.typography.headlineMedium,
+                        style = MaterialTheme.typography.titleLarge,
                     )
                 },
             )
@@ -170,52 +177,77 @@ fun SettingsScreen(
                         }
                     }
                     item {
-                        SettingsSectionCard(title = stringResource(R.string.settings_appearance)) {
-                            SettingsOption(
-                                label = stringResource(R.string.settings_theme_system),
-                                testTag = "settings_theme_system",
-                                selected = state.preferences.theme == ThemePreference.SYSTEM,
-                                enabled = !state.isSaving,
-                                onClick = { onThemeSelected(ThemePreference.SYSTEM) },
+                        SettingsSectionCard(
+                            title = stringResource(R.string.settings_appearance),
+                            icon = R.drawable.ic_leaf,
+                        ) {
+                            Text(
+                                text = stringResource(R.string.settings_theme_label),
+                                style = MaterialTheme.typography.labelLarge,
                             )
-                            SettingsOption(
-                                label = stringResource(R.string.settings_theme_light),
-                                testTag = "settings_theme_light",
-                                selected = state.preferences.theme == ThemePreference.LIGHT,
+                            SettingsSegmentedControl(
+                                options = listOf(
+                                    SettingsSegment(
+                                        key = THEME_SYSTEM,
+                                        label = stringResource(R.string.settings_system),
+                                        testTag = "settings_theme_system",
+                                    ),
+                                    SettingsSegment(
+                                        key = THEME_LIGHT,
+                                        label = stringResource(R.string.settings_theme_light),
+                                        testTag = "settings_theme_light",
+                                    ),
+                                    SettingsSegment(
+                                        key = THEME_DARK,
+                                        label = stringResource(R.string.settings_theme_dark),
+                                        testTag = "settings_theme_dark",
+                                    ),
+                                ),
+                                selectedKey = state.preferences.theme.segmentKey,
                                 enabled = !state.isSaving,
-                                onClick = { onThemeSelected(ThemePreference.LIGHT) },
+                                onSelected = { key ->
+                                    onThemeSelected(
+                                        when (key) {
+                                            THEME_LIGHT -> ThemePreference.LIGHT
+                                            THEME_DARK -> ThemePreference.DARK
+                                            else -> ThemePreference.SYSTEM
+                                        },
+                                    )
+                                },
                             )
-                            SettingsOption(
-                                label = stringResource(R.string.settings_theme_dark),
-                                testTag = "settings_theme_dark",
-                                selected = state.preferences.theme == ThemePreference.DARK,
-                                enabled = !state.isSaving,
-                                onClick = { onThemeSelected(ThemePreference.DARK) },
+                            Text(
+                                text = stringResource(R.string.settings_language),
+                                style = MaterialTheme.typography.labelLarge,
                             )
-                        }
-                    }
-                    item {
-                        SettingsSectionCard(title = stringResource(R.string.settings_language)) {
-                            SettingsOption(
-                                label = stringResource(R.string.settings_language_system),
-                                testTag = "settings_language_system",
-                                selected = state.preferences.language == AppLanguage.SYSTEM,
+                            SettingsSegmentedControl(
+                                options = listOf(
+                                    SettingsSegment(
+                                        key = LANGUAGE_SYSTEM,
+                                        label = stringResource(R.string.settings_system),
+                                        testTag = "settings_language_system",
+                                    ),
+                                    SettingsSegment(
+                                        key = LANGUAGE_ENGLISH,
+                                        label = stringResource(R.string.settings_language_english),
+                                        testTag = "settings_language_english",
+                                    ),
+                                    SettingsSegment(
+                                        key = LANGUAGE_SPANISH,
+                                        label = stringResource(R.string.settings_language_spanish),
+                                        testTag = "settings_language_spanish",
+                                    ),
+                                ),
+                                selectedKey = state.preferences.language.segmentKey,
                                 enabled = !state.isSaving,
-                                onClick = { onLanguageSelected(AppLanguage.SYSTEM) },
-                            )
-                            SettingsOption(
-                                label = stringResource(R.string.settings_language_english),
-                                testTag = "settings_language_english",
-                                selected = state.preferences.language == AppLanguage.ENGLISH,
-                                enabled = !state.isSaving,
-                                onClick = { onLanguageSelected(AppLanguage.ENGLISH) },
-                            )
-                            SettingsOption(
-                                label = stringResource(R.string.settings_language_spanish),
-                                testTag = "settings_language_spanish",
-                                selected = state.preferences.language == AppLanguage.SPANISH,
-                                enabled = !state.isSaving,
-                                onClick = { onLanguageSelected(AppLanguage.SPANISH) },
+                                onSelected = { key ->
+                                    onLanguageSelected(
+                                        when (key) {
+                                            LANGUAGE_ENGLISH -> AppLanguage.ENGLISH
+                                            LANGUAGE_SPANISH -> AppLanguage.SPANISH
+                                            else -> AppLanguage.SYSTEM
+                                        },
+                                    )
+                                },
                             )
                         }
                     }
@@ -244,59 +276,105 @@ fun SettingsScreen(
 @Composable
 private fun SettingsSectionCard(
     title: String,
+    icon: Int,
     content: @Composable () -> Unit,
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.large,
+        shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
         Column(
             modifier = Modifier.padding(leafyLayoutTokens.spacingLg),
             verticalArrangement = Arrangement.spacedBy(leafyLayoutTokens.spacingSm),
         ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(leafyLayoutTokens.spacingSm),
+            ) {
+                Icon(
+                    painter = painterResource(icon),
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
             content()
         }
     }
 }
 
+private data class SettingsSegment(
+    val key: String,
+    val label: String,
+    val testTag: String,
+)
+
 @Composable
-private fun SettingsOption(
-    label: String,
-    testTag: String,
-    selected: Boolean,
+private fun SettingsSegmentedControl(
+    options: List<SettingsSegment>,
+    selectedKey: String,
     enabled: Boolean,
-    onClick: () -> Unit,
+    onSelected: (String) -> Unit,
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .selectable(
-                selected = selected,
-                enabled = enabled,
-                role = Role.RadioButton,
-                onClick = onClick,
-            )
-            .semantics(mergeDescendants = true) {}
-            .testTag(testTag)
-            .padding(vertical = 2.dp),
-        verticalAlignment = Alignment.CenterVertically,
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.medium,
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
     ) {
-        RadioButton(
-            selected = selected,
-            onClick = null,
-            enabled = enabled,
-        )
-        Text(
-            text = label,
-            modifier = Modifier.padding(start = leafyLayoutTokens.spacingSm),
-            color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(36.dp)
+                .padding(2.dp),
+            horizontalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            options.forEach { option ->
+                val selected = option.key == selectedKey
+                Surface(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .clip(MaterialTheme.shapes.small)
+                        .selectable(
+                            selected = selected,
+                            enabled = enabled,
+                            role = Role.RadioButton,
+                        ) { onSelected(option.key) }
+                        .testTag(option.testTag),
+                    shape = MaterialTheme.shapes.small,
+                    color = if (selected) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        Color.Transparent
+                    },
+                ) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = option.label,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (selected) {
+                                MaterialTheme.colorScheme.onPrimary
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            },
+                            maxLines = 1,
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 @Composable
@@ -312,7 +390,10 @@ private fun ReminderTimeSection(
         selectedTime.format(DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT).withLocale(locale))
     }
 
-    SettingsSectionCard(title = stringResource(R.string.settings_reminders)) {
+    SettingsSectionCard(
+        title = stringResource(R.string.settings_reminders),
+        icon = R.drawable.ic_water,
+    ) {
         Text(
             text = stringResource(R.string.settings_reminder_time_description),
             style = MaterialTheme.typography.bodyMedium,
@@ -334,11 +415,24 @@ private fun ReminderTimeSection(
             color = MaterialTheme.colorScheme.surfaceContainerHigh,
         ) {
             Row(
-                modifier = Modifier.padding(leafyLayoutTokens.spacingLg),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(leafyLayoutTokens.spacingLg),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(stringResource(R.string.settings_reminder_time))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(leafyLayoutTokens.spacingSm),
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_clock),
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                        tint = MaterialTheme.colorScheme.primary,
+                    )
+                    Text(stringResource(R.string.settings_reminder_time))
+                }
                 Text(
                     text = timeText,
                     color = MaterialTheme.colorScheme.primary,
@@ -354,38 +448,57 @@ private fun PermissionSection(
     summary: NotificationPermissionSummary,
     onAction: (NotificationPermissionAction) -> Unit,
 ) {
-    SettingsSectionCard(title = stringResource(R.string.settings_permissions)) {
+    SettingsSectionCard(
+        title = stringResource(R.string.settings_permissions),
+        icon = R.drawable.ic_bell,
+    ) {
         PermissionRow(
+            icon = R.drawable.ic_bell,
             title = stringResource(R.string.settings_notifications),
-            supporting = stringResource(
-                when (summary.status) {
-                    NotificationPermissionStatus.UNKNOWN -> R.string.settings_notification_status_unknown
-                    NotificationPermissionStatus.ENABLED -> R.string.settings_notification_status_enabled
-                    NotificationPermissionStatus.NEEDS_PERMISSION -> R.string.settings_notification_status_needs_permission
-                    NotificationPermissionStatus.BLOCKED -> R.string.settings_notification_status_blocked
-                },
-            ),
-        )
-        if (summary.action != NotificationPermissionAction.NONE) {
-            Button(onClick = { onAction(summary.action) }) {
-                Text(
-                    stringResource(
-                        when (summary.action) {
-                            NotificationPermissionAction.NONE -> R.string.settings_notification_action_none
-                            NotificationPermissionAction.REQUEST_PERMISSION -> R.string.settings_allow_notifications
-                            NotificationPermissionAction.OPEN_SYSTEM_SETTINGS -> R.string.settings_open_notification_settings
-                        },
-                    ),
+            supporting = if (summary.status == NotificationPermissionStatus.ENABLED) {
+                stringResource(R.string.settings_notification_enabled_supporting)
+            } else {
+                stringResource(
+                    when (summary.status) {
+                        NotificationPermissionStatus.UNKNOWN -> R.string.settings_notification_status_unknown
+                        NotificationPermissionStatus.ENABLED -> R.string.settings_notification_status_enabled
+                        NotificationPermissionStatus.NEEDS_PERMISSION -> R.string.settings_notification_status_needs_permission
+                        NotificationPermissionStatus.BLOCKED -> R.string.settings_notification_status_blocked
+                    },
                 )
-            }
-        }
+            },
+            trailing = {
+                Column(horizontalAlignment = Alignment.End) {
+                    PermissionStatusPill(status = summary.status)
+                    if (summary.action != NotificationPermissionAction.NONE) {
+                        TextButton(
+                            onClick = { onAction(summary.action) },
+                            contentPadding = PaddingValues(horizontal = 0.dp, vertical = 0.dp),
+                        ) {
+                            Text(
+                                stringResource(
+                                    when (summary.action) {
+                                        NotificationPermissionAction.NONE -> R.string.settings_notification_action_none
+                                        NotificationPermissionAction.REQUEST_PERMISSION -> R.string.settings_allow_notifications
+                                        NotificationPermissionAction.OPEN_SYSTEM_SETTINGS -> R.string.settings_open_notification_settings
+                                    },
+                                ),
+                                style = MaterialTheme.typography.labelMedium,
+                            )
+                        }
+                    }
+                }
+            },
+        )
         HorizontalDivider()
         PermissionRow(
+            icon = R.drawable.ic_camera,
             title = stringResource(R.string.settings_camera),
             supporting = stringResource(R.string.settings_no_permission_required),
         )
         HorizontalDivider()
         PermissionRow(
+            icon = R.drawable.ic_image,
             title = stringResource(R.string.settings_photos),
             supporting = stringResource(R.string.settings_no_permission_required),
         )
@@ -393,20 +506,82 @@ private fun PermissionSection(
 }
 
 @Composable
-private fun PermissionRow(title: String, supporting: String) {
-    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        Text(title, style = MaterialTheme.typography.bodyLarge)
+private fun PermissionRow(
+    icon: Int,
+    title: String,
+    supporting: String,
+    trailing: @Composable (() -> Unit)? = null,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(leafyLayoutTokens.spacingSm),
+    ) {
+        Icon(
+            painter = painterResource(icon),
+            contentDescription = null,
+            modifier = Modifier.size(18.dp),
+            tint = MaterialTheme.colorScheme.primary,
+        )
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            Text(title, style = MaterialTheme.typography.bodyLarge)
+            Text(
+                text = supporting,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        trailing?.invoke()
+    }
+}
+
+@Composable
+private fun PermissionStatusPill(status: NotificationPermissionStatus) {
+    val colors = MaterialTheme.leafyColors
+    val (containerColor, contentColor, label) = when (status) {
+        NotificationPermissionStatus.ENABLED -> Triple(
+            colors.upcomingContainer,
+            colors.onUpcoming,
+            stringResource(R.string.settings_notification_status_enabled),
+        )
+        NotificationPermissionStatus.NEEDS_PERMISSION -> Triple(
+            colors.dueContainer,
+            colors.onDue,
+            stringResource(R.string.settings_notification_status_needs_permission),
+        )
+        NotificationPermissionStatus.BLOCKED -> Triple(
+            colors.overdueContainer,
+            colors.onOverdue,
+            stringResource(R.string.settings_notification_status_blocked),
+        )
+        NotificationPermissionStatus.UNKNOWN -> Triple(
+            MaterialTheme.colorScheme.surfaceContainerHigh,
+            MaterialTheme.colorScheme.onSurfaceVariant,
+            stringResource(R.string.settings_notification_status_unknown),
+        )
+    }
+    Surface(
+        shape = MaterialTheme.shapes.extraLarge,
+        color = containerColor,
+    ) {
         Text(
-            text = supporting,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            text = label,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+            style = MaterialTheme.typography.labelSmall,
+            color = contentColor,
         )
     }
 }
 
 @Composable
 private fun AboutSection(appVersionName: String) {
-    SettingsSectionCard(title = stringResource(R.string.settings_about)) {
+    SettingsSectionCard(
+        title = stringResource(R.string.settings_about),
+        icon = R.drawable.ic_info,
+    ) {
         Text(
             text = stringResource(
                 R.string.settings_version,
@@ -415,10 +590,33 @@ private fun AboutSection(appVersionName: String) {
             style = MaterialTheme.typography.bodyLarge,
         )
         Text(
-            text = stringResource(R.string.settings_offline_privacy),
+            text = stringResource(R.string.settings_privacy_summary),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        Surface(
+            shape = MaterialTheme.shapes.extraLarge,
+            color = MaterialTheme.leafyColors.upcomingContainer,
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_leaf),
+                    contentDescription = null,
+                    modifier = Modifier.size(14.dp),
+                    tint = MaterialTheme.leafyColors.onUpcoming,
+                )
+                Text(
+                    text = stringResource(R.string.settings_private_by_design),
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.leafyColors.onUpcoming,
+                )
+            }
+        }
     }
 }
 
@@ -453,6 +651,26 @@ private fun SettingsErrorBanner(error: SettingsError, onDismiss: () -> Unit) {
 }
 
 private const val SETTINGS_PREVIEW_VERSION = "preview"
+private const val THEME_SYSTEM = "theme_system"
+private const val THEME_LIGHT = "theme_light"
+private const val THEME_DARK = "theme_dark"
+private const val LANGUAGE_SYSTEM = "language_system"
+private const val LANGUAGE_ENGLISH = "language_english"
+private const val LANGUAGE_SPANISH = "language_spanish"
+
+private val ThemePreference.segmentKey: String
+    get() = when (this) {
+        ThemePreference.SYSTEM -> THEME_SYSTEM
+        ThemePreference.LIGHT -> THEME_LIGHT
+        ThemePreference.DARK -> THEME_DARK
+    }
+
+private val AppLanguage.segmentKey: String
+    get() = when (this) {
+        AppLanguage.SYSTEM -> LANGUAGE_SYSTEM
+        AppLanguage.ENGLISH -> LANGUAGE_ENGLISH
+        AppLanguage.SPANISH -> LANGUAGE_SPANISH
+    }
 
 @Preview(name = "Settings light", showBackground = true)
 @Preview(
