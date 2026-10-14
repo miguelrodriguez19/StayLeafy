@@ -1,6 +1,7 @@
 package com.miguelrodriguez19.stayleafy.ui.plant
 
 import android.content.res.Configuration
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -21,6 +22,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FabPosition
 import androidx.compose.material3.Icon
@@ -49,13 +51,15 @@ import com.miguelrodriguez19.stayleafy.R
 import com.miguelrodriguez19.stayleafy.model.Plant
 import com.miguelrodriguez19.stayleafy.model.CareDueStatus
 import com.miguelrodriguez19.stayleafy.model.CareStatusSummary
+import com.miguelrodriguez19.stayleafy.model.CareType
 import com.miguelrodriguez19.stayleafy.ui.reminder.PlantCareSummaryViewModel
 import com.miguelrodriguez19.stayleafy.ui.reminder.localizedName
 import com.miguelrodriguez19.stayleafy.ui.components.LeafyAddFab
-import com.miguelrodriguez19.stayleafy.ui.components.leafyTopAppBarColors
 import com.miguelrodriguez19.stayleafy.ui.components.LeafyEmptyState
 import com.miguelrodriguez19.stayleafy.ui.components.LeafyPrimaryButton
+import com.miguelrodriguez19.stayleafy.ui.components.leafyHomeTopAppBarColors
 import com.miguelrodriguez19.stayleafy.ui.theme.StayLeafyTheme
+import com.miguelrodriguez19.stayleafy.ui.theme.leafyLayoutTokens
 import com.miguelrodriguez19.stayleafy.ui.theme.leafyColors
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -123,11 +127,11 @@ fun PlantListScreen(
         modifier = modifier,
         topBar = {
             TopAppBar(
-                colors = leafyTopAppBarColors(),
+                colors = leafyHomeTopAppBarColors(),
                 title = {
                     Text(
                         stringResource(R.string.plants_title),
-                        style = MaterialTheme.typography.headlineMedium,
+                        style = MaterialTheme.typography.titleLarge,
                     )
                 },
                 actions = {
@@ -152,13 +156,14 @@ fun PlantListScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(horizontal = 16.dp),
+                .padding(horizontal = leafyLayoutTokens.spacingXxl),
         ) {
             TextField(
                 value = filterQuery,
                 onValueChange = onQueryChange,
                 modifier = Modifier
                     .fillMaxWidth()
+                    .height(48.dp)
                     .padding(top = 4.dp),
                 placeholder = { Text(stringResource(R.string.search_plants)) },
                 leadingIcon = {
@@ -167,7 +172,7 @@ fun PlantListScreen(
                         contentDescription = null,
                     )
                 },
-                shape = MaterialTheme.shapes.extraLarge,
+                shape = MaterialTheme.shapes.medium,
                 singleLine = true,
                 colors = TextFieldDefaults.colors(
                     focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -187,17 +192,59 @@ fun PlantListScreen(
                 FilterChip(
                     selected = favoritesOnly,
                     onClick = { onFavoritesOnlyChange(!favoritesOnly) },
-                    label = { Text(stringResource(R.string.favorites_only)) },
+                    modifier = Modifier.height(32.dp),
+                    shape = MaterialTheme.shapes.extraLarge,
+                    colors = FilterChipDefaults.filterChipColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        labelColor = MaterialTheme.colorScheme.onSurface,
+                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                        selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    ),
+                    border = null,
+                    label = {
+                        Text(
+                            stringResource(R.string.favorites_only),
+                            style = MaterialTheme.typography.labelSmall,
+                        )
+                    },
                 )
                 FilterChip(
                     selected = upcomingOnly,
                     onClick = { onUpcomingOnlyChange(!upcomingOnly) },
-                    label = { Text(stringResource(R.string.upcoming_filter)) },
+                    modifier = Modifier.height(32.dp),
+                    shape = MaterialTheme.shapes.extraLarge,
+                    colors = FilterChipDefaults.filterChipColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        labelColor = MaterialTheme.colorScheme.onSurface,
+                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                        selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    ),
+                    border = null,
+                    label = {
+                        Text(
+                            stringResource(R.string.upcoming_filter),
+                            style = MaterialTheme.typography.labelSmall,
+                        )
+                    },
                 )
                 FilterChip(
                     selected = overdueOnly,
                     onClick = { onOverdueOnlyChange(!overdueOnly) },
-                    label = { Text(stringResource(R.string.overdue_filter)) },
+                    modifier = Modifier.height(32.dp),
+                    shape = MaterialTheme.shapes.extraLarge,
+                    colors = FilterChipDefaults.filterChipColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        labelColor = MaterialTheme.colorScheme.onSurface,
+                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                        selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    ),
+                    border = null,
+                    label = {
+                        Text(
+                            stringResource(R.string.overdue_filter),
+                            style = MaterialTheme.typography.labelSmall,
+                        )
+                    },
                 )
             }
             if (filterQuery.isNotBlank() || favoritesOnly || upcomingOnly || overdueOnly) {
@@ -314,23 +361,25 @@ private fun PlantListItem(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
+        shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+            containerColor = MaterialTheme.colorScheme.surface,
         ),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(12.dp),
+            modifier = Modifier.fillMaxWidth().padding(leafyLayoutTokens.cardPadding),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(leafyLayoutTokens.spacingMd),
         ) {
             PlantPhotoBox(
                 relativePath = plant.mainPhotoPath,
-                modifier = Modifier.size(72.dp),
+                modifier = Modifier.size(leafyLayoutTokens.thumbnailSize),
             )
             Column(
-                modifier = Modifier.weight(1f).heightIn(min = 72.dp),
-                verticalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.weight(1f).heightIn(min = leafyLayoutTokens.thumbnailSize),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 Row(verticalAlignment = Alignment.Top) {
                     Column(modifier = Modifier.weight(1f)) {
@@ -422,8 +471,8 @@ private fun CareStatusCompact(summaries: List<CareStatusSummary>) {
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier
                 .weight(1f, fill = false)
-                .background(container, MaterialTheme.shapes.extraSmall)
-                .padding(horizontal = 9.dp, vertical = 5.dp),
+                .background(container, MaterialTheme.shapes.extraLarge)
+                .padding(horizontal = 12.dp, vertical = 5.dp),
         )
         if (active.size > 1) {
             Text(
@@ -473,6 +522,16 @@ private fun PlantListPreview() {
             onPlantClick = {},
             onFavoriteClick = { _, _ -> },
             onDismissMutationError = {},
+            careSummaries = mapOf(
+                "preview-1" to listOf(
+                    CareStatusSummary(
+                        plantId = "preview-1",
+                        careType = CareType.WATERING,
+                        nextDueEpochDay = 21_000,
+                        status = CareDueStatus.UPCOMING,
+                    ),
+                ),
+            ),
         )
     }
 }
@@ -568,12 +627,12 @@ private fun PlantListFilteredEmptyPreview() {
 internal val previewPlants = listOf(
     Plant(
         id = "preview-1",
-        name = "Ficus del salón",
-        scientificName = "Ficus lyrata",
+        name = "Monstera",
+        scientificName = "Monstera deliciosa",
         location = "Living room",
         acquiredEpochDay = null,
         description = null,
-        mainPhotoPath = "plant_photos/preview.jpg",
+        mainPhotoPath = null,
         isFavorite = true,
         createdAt = 0L,
         updatedAt = 0L,

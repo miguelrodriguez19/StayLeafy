@@ -5,6 +5,7 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -556,12 +557,19 @@ private fun PlantDetailContent(
                 ),
             contentAlignment = Alignment.Center,
         ) {
-            PlantPhotoBox(
-                relativePath = plant?.mainPhotoPath,
-                stagedFile = stagedPhotoFile,
+            Crossfade(
+                targetState = !editable && photoExpanded,
+                animationSpec = tween(durationMillis = 300),
                 modifier = Modifier.matchParentSize(),
-                contentScale = if (!editable && photoExpanded) ContentScale.Fit else ContentScale.Crop,
-            )
+                label = "plant photo content scale",
+            ) { expanded ->
+                PlantPhotoBox(
+                    relativePath = plant?.mainPhotoPath,
+                    stagedFile = stagedPhotoFile,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = if (expanded) ContentScale.Fit else ContentScale.Crop,
+                )
+            }
             if (editable) {
                 Box(
                     Modifier

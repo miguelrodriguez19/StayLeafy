@@ -66,11 +66,7 @@ private fun PlantPhotoPlaceholder(
     modifier: Modifier,
     hasPhoto: Boolean,
 ) {
-    val background = if (hasPhoto) {
-        MaterialTheme.colorScheme.primaryContainer
-    } else {
-        MaterialTheme.colorScheme.surfaceVariant
-    }
+    val background = MaterialTheme.colorScheme.primaryContainer
     Box(
         modifier = modifier.background(background),
         contentAlignment = Alignment.Center,
@@ -80,11 +76,7 @@ private fun PlantPhotoPlaceholder(
             contentDescription = stringResource(
                 if (hasPhoto) R.string.plant_photo else R.string.no_plant_photo,
             ),
-            tint = if (hasPhoto) {
-                MaterialTheme.colorScheme.onPrimaryContainer
-            } else {
-                MaterialTheme.colorScheme.onSurfaceVariant
-            },
+            tint = MaterialTheme.colorScheme.onPrimaryContainer,
         )
     }
 }

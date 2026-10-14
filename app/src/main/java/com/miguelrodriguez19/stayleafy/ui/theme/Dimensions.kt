@@ -14,9 +14,10 @@ data class LeafyLayoutTokens(
     val radiusMd: androidx.compose.ui.unit.Dp = 16.dp,
     val radiusLg: androidx.compose.ui.unit.Dp = 20.dp,
     val radiusXl: androidx.compose.ui.unit.Dp = 28.dp,
+    val cardPadding: androidx.compose.ui.unit.Dp = 10.dp,
     val controlHeight: androidx.compose.ui.unit.Dp = 48.dp,
     val navigationHeight: androidx.compose.ui.unit.Dp = 64.dp,
-    val thumbnailSize: androidx.compose.ui.unit.Dp = 72.dp,
+    val thumbnailSize: androidx.compose.ui.unit.Dp = 76.dp,
 )
 
 val leafyLayoutTokens = LeafyLayoutTokens()

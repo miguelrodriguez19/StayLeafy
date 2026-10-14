@@ -45,6 +45,15 @@ fun leafyTopAppBarColors(): TopAppBarColors = TopAppBarDefaults.topAppBarColors(
 )
 
 @Composable
+fun leafyHomeTopAppBarColors(): TopAppBarColors = TopAppBarDefaults.topAppBarColors(
+    containerColor = MaterialTheme.colorScheme.background,
+    scrolledContainerColor = MaterialTheme.colorScheme.background,
+    navigationIconContentColor = MaterialTheme.colorScheme.onBackground,
+    titleContentColor = MaterialTheme.colorScheme.onBackground,
+    actionIconContentColor = MaterialTheme.colorScheme.onBackground,
+)
+
+@Composable
 fun LeafyDiscardChangesDialog(
     title: String,
     message: String,
