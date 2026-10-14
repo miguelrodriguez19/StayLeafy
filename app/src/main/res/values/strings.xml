@@ -122,6 +122,7 @@
     <string name="interval_days_error">Enter a number greater than zero.</string>
     <string name="calculate_next_due_from">Calculate next due date from</string>
     <string name="select_due_source">Choose how to calculate the first due date.</string>
+    <string name="choose_start_date">Choose a start date</string>
     <string name="latest_care">Latest care</string>
     <string name="choose_due_date">Choose date</string>
     <string name="choose_another_start_date">Choose another start date</string>

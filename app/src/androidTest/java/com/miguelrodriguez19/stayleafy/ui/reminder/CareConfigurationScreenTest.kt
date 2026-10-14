@@ -71,6 +71,32 @@ class CareConfigurationScreenTest {
     }
 
     @Test
+    fun intervalWithoutLatestCare_offersCustomStartDate() {
+        var selectedSource: ReminderDueSourceChoice? = null
+        setScreen(
+            CareConfigurationUiState.Content(
+                plantName = "Monstera",
+                forms = listOf(
+                    CareRuleForm(
+                        careType = CareType.WATERING,
+                        enabled = true,
+                        mode = CareScheduleMode.INTERVAL,
+                        intervalDays = "7",
+                    ),
+                    CareRuleForm(CareType.PRUNING),
+                    CareRuleForm(CareType.FERTILIZING),
+                ),
+                latestCareEpochDays = emptyMap(),
+            ),
+            onSourceChange = { _, source -> selectedSource = source },
+        )
+
+        composeTestRule.onNodeWithText(string(R.string.choose_start_date)).performClick()
+        composeTestRule.onNodeWithText(string(R.string.select_date)).assertIsDisplayed()
+        assertEquals(ReminderDueSourceChoice.CustomDate, selectedSource)
+    }
+
+    @Test
     fun permissionEducation_forwardsContinue() {
         var continues = 0
         setScreen(
@@ -159,6 +185,7 @@ class CareConfigurationScreenTest {
         onBack: () -> Unit = {},
         onSave: () -> Unit = {},
         onPermissionEducationContinue: () -> Unit = {},
+        onSourceChange: (CareType, ReminderDueSourceChoice) -> Unit = { _, _ -> },
     ) {
         composeTestRule.setContent {
             StayLeafyTheme(dynamicColor = false) {
@@ -168,7 +195,7 @@ class CareConfigurationScreenTest {
                     onRetry = {},
                     onEnabledChange = { _, _ -> },
                     onIntervalChange = { _, _ -> },
-                    onSourceChange = { _, _ -> },
+                    onSourceChange = onSourceChange,
                     onDateChange = { _, _ -> },
                     onSave = onSave,
                     onPermissionEducationContinue = onPermissionEducationContinue,

@@ -182,7 +182,7 @@ fun NoticeListScreen(
                     modifier = Modifier.fillMaxSize(),
                 )
                 is NoticeListUiState.Content -> LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier.fillMaxWidth().weight(1f),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     items(state.notices, key = AppNotice::id) { notice ->

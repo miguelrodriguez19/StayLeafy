@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -328,7 +329,7 @@ private fun PlantListItem(
                 modifier = Modifier.size(72.dp),
             )
             Column(
-                modifier = Modifier.weight(1f).height(72.dp),
+                modifier = Modifier.weight(1f).heightIn(min = 72.dp),
                 verticalArrangement = Arrangement.SpaceBetween,
             ) {
                 Row(verticalAlignment = Alignment.Top) {

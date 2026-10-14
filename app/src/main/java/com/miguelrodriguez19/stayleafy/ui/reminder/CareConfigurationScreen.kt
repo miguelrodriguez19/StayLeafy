@@ -380,7 +380,18 @@ private fun CareRuleCard(
                         },
                     )
                 }
-                if (form.dueSource == ReminderDueSourceChoice.LatestCare) {
+                if (form.dueSource == null) {
+                    TextButton(
+                        onClick = {
+                            onSourceChange(ReminderDueSourceChoice.CustomDate)
+                            showDatePicker = true
+                        },
+                        enabled = enabled,
+                        modifier = Modifier.align(Alignment.End),
+                    ) {
+                        Text(stringResource(R.string.choose_start_date))
+                    }
+                } else if (form.dueSource == ReminderDueSourceChoice.LatestCare) {
                     TextButton(
                         onClick = { onSourceChange(ReminderDueSourceChoice.CustomDate) },
                         enabled = enabled,
