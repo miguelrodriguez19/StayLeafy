@@ -383,7 +383,7 @@ fun PlantDetailScreen(
                             onClick = onSave,
                             enabled = !content.isSaving && !photoMutating,
                             colors = ButtonDefaults.textButtonColors(
-                                contentColor = MaterialTheme.colorScheme.onPrimary,
+                                contentColor = MaterialTheme.colorScheme.primary,
                             ),
                             modifier = Modifier.semantics { contentDescription = saveLabel },
                         ) {
