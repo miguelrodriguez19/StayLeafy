@@ -27,8 +27,10 @@ import androidx.appcompat.app.AppCompatDelegate
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.miguelrodriguez19.stayleafy.data.settings.AppLocaleController
@@ -38,6 +40,7 @@ import com.miguelrodriguez19.stayleafy.data.settings.ThemePreference
 import com.miguelrodriguez19.stayleafy.ui.theme.StayLeafyTheme
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
+import kotlinx.coroutines.flow.map
 
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
@@ -57,28 +60,19 @@ class MainActivity : AppCompatActivity() {
         )
         super.onCreate(savedInstanceState)
         setContent {
-            val preferences by settingsRepository.preferences.collectAsStateWithLifecycle(
-                initialValue = SettingsPreferences(),
-            )
-            LaunchedEffect(preferences.theme) {
-                val mode = when (preferences.theme) {
-                    ThemePreference.SYSTEM -> AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
-                    ThemePreference.LIGHT -> AppCompatDelegate.MODE_NIGHT_NO
-                    ThemePreference.DARK -> AppCompatDelegate.MODE_NIGHT_YES
-                }
-                if (AppCompatDelegate.getDefaultNightMode() != mode) {
-                    AppCompatDelegate.setDefaultNightMode(mode)
-                }
+            val nullablePreferences = remember(settingsRepository) {
+                settingsRepository.preferences.map<SettingsPreferences, SettingsPreferences?> { it }
             }
-            LaunchedEffect(preferences.language) {
-                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
-                    localeController.apply(preferences.language)
-                }
-            }
-            LaunchedEffect(Unit) {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val preferences by nullablePreferences.collectAsStateWithLifecycle(initialValue = null)
+            ApplyThemePreference(preferences?.theme)
+            preferences?.let { loadedPreferences ->
+                LaunchedEffect(loadedPreferences.language) {
                     val platformLanguage = localeController.current()
-                    if (platformLanguage != preferences.language) {
+                    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+                        if (platformLanguage != loadedPreferences.language) {
+                            localeController.apply(loadedPreferences.language)
+                        }
+                    } else if (platformLanguage != loadedPreferences.language) {
                         settingsRepository.setLanguage(platformLanguage)
                     }
                 }
@@ -99,5 +93,22 @@ class MainActivity : AppCompatActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         AndroidNoticeNavigation.handleIntent(intent)
+    }
+}
+
+@Composable
+internal fun ApplyThemePreference(
+    theme: ThemePreference?,
+    currentMode: () -> Int = { AppCompatDelegate.getDefaultNightMode() },
+    setMode: (Int) -> Unit = { AppCompatDelegate.setDefaultNightMode(it) },
+) {
+    if (theme == null) return
+    LaunchedEffect(theme) {
+        val mode = when (theme) {
+            ThemePreference.SYSTEM -> AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
+            ThemePreference.LIGHT -> AppCompatDelegate.MODE_NIGHT_NO
+            ThemePreference.DARK -> AppCompatDelegate.MODE_NIGHT_YES
+        }
+        if (currentMode() != mode) setMode(mode)
     }
 }

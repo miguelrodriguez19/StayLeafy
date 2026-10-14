@@ -1,12 +1,15 @@
 package com.miguelrodriguez19.stayleafy.ui
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onLast
 import androidx.compose.ui.test.onFirst
@@ -127,6 +130,20 @@ class NavigationTest {
 
         composeTestRule.onNodeWithText(string(R.string.plants_title)).assertIsDisplayed()
         composeTestRule.onNodeWithText("Monstera").assertIsDisplayed()
+    }
+
+    @Test
+    fun settingsTheme_remainsInteractiveAcrossDarkAndLightRecreations() {
+        composeTestRule.onNodeWithContentDescription(string(R.string.settings)).performClick()
+
+        composeTestRule.onNodeWithTag("settings_theme_dark").performClick()
+        waitForSelectedTheme("settings_theme_dark")
+
+        composeTestRule.onNodeWithTag("settings_theme_light").performClick()
+        waitForSelectedTheme("settings_theme_light")
+
+        composeTestRule.onNodeWithTag("settings_theme_system").performClick()
+        waitForSelectedTheme("settings_theme_system")
     }
 
     @Test
@@ -290,6 +307,15 @@ class NavigationTest {
 
     private fun string(id: Int, vararg arguments: Any): String =
         composeTestRule.activity.getString(id, *arguments)
+
+    private fun waitForSelectedTheme(tag: String) {
+        composeTestRule.waitUntil(timeoutMillis = 10_000) {
+            runCatching {
+                composeTestRule.onNodeWithTag(tag).assertIsSelected().assertIsEnabled()
+                true
+            }.getOrDefault(false)
+        }
+    }
 
     private fun testNotice() = AppNotice(
         id = "notice-id",
