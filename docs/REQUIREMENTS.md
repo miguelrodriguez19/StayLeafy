@@ -33,6 +33,7 @@ Phase delivery note: Phase 1 implements the Plant inventory. Phase 2 implements 
 - **FR-PLANT-015** — Opening an empty acquisition-date picker selects the device's current local date by default; an existing acquisition date remains selected while editing.
 - **FR-PLANT-016** — Plant descriptions are optional and limited to 500 characters; the editor shows the current count against that limit.
 - **FR-PLANT-017** — Leaving Plant create or edit with unsaved changes through the back arrow asks for confirmation before discarding them.
+- **FR-PLANT-018** — In Plant detail preview, tapping a primary photo expands it with an animated layout change that preserves the complete image; tapping again restores the compact size.
 
 ### Primary photo
 

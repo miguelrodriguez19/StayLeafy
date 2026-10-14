@@ -176,6 +176,29 @@ class PlantDetailScreenTest {
     }
 
     @Test
+    fun viewMode_photoTogglesBetweenCompactAndExpandedStates() {
+        setScreen(
+            state = viewState(
+                detailPlant(
+                    name = "Monstera",
+                    mainPhotoPath = "plant_photos/example.jpg",
+                ),
+            ),
+        )
+
+        composeTestRule
+            .onNodeWithContentDescription(string(R.string.expand_plant_photo))
+            .performClick()
+        composeTestRule
+            .onNodeWithContentDescription(string(R.string.collapse_plant_photo))
+            .assertIsDisplayed()
+            .performClick()
+        composeTestRule
+            .onNodeWithContentDescription(string(R.string.expand_plant_photo))
+            .assertIsDisplayed()
+    }
+
+    @Test
     fun deleteDialog_cancelDoesNotDelete_confirmForwardsDelete() {
         var deleteClicks = 0
         setScreen(

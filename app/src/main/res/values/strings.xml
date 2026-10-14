@@ -56,6 +56,8 @@
     <string name="replace_photo">Replace photo</string>
     <string name="choose_photo_source">Choose where the plant photo comes from.</string>
     <string name="edit_plant_photo">Change plant photo</string>
+    <string name="expand_plant_photo">Expand plant photo</string>
+    <string name="collapse_plant_photo">Collapse plant photo</string>
     <string name="remove_photo">Remove photo</string>
     <string name="remove_photo_title">Remove this photo?</string>
     <string name="remove_photo_message">The primary photo will be removed from this plant.</string>

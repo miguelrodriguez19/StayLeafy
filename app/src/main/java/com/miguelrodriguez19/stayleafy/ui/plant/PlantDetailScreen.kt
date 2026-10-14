@@ -5,6 +5,8 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.clickable
@@ -61,6 +63,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.painterResource
@@ -93,6 +96,7 @@ import com.miguelrodriguez19.stayleafy.ui.components.leafyTopAppBarColors
 import com.miguelrodriguez19.stayleafy.ui.theme.StayLeafyTheme
 import com.miguelrodriguez19.stayleafy.ui.theme.leafyLayoutTokens
 import java.io.File
+import java.time.LocalDate
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -165,12 +169,14 @@ fun PlantDetailRoute(
         retryReminders = reminderViewModel::retry
     }
 
-    val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
-        viewModel.onCameraResult(success)
-    }
-    val pickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
-        uri?.let(viewModel::onPickedPhoto)
-    }
+    val cameraLauncher =
+        rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
+            viewModel.onCameraResult(success)
+        }
+    val pickerLauncher =
+        rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+            uri?.let(viewModel::onPickedPhoto)
+        }
 
     LaunchedEffect(deleted) {
         if (deleted) onDeleted()
@@ -306,6 +312,7 @@ fun PlantDetailScreen(
             content?.mode == PlantDetailMode.Create && content.hasUnsavedCreation -> {
                 showDiscardDialog = true
             }
+
             else -> onBack()
         }
     }
@@ -341,6 +348,7 @@ fun PlantDetailScreen(
                                 contentDescription = stringResource(R.string.edit_plant),
                             )
                         }
+
                         PlantDetailMode.Create, PlantDetailMode.Edit -> TextButton(
                             onClick = onSave,
                             enabled = !content.isSaving,
@@ -351,13 +359,18 @@ fun PlantDetailScreen(
                         ) {
                             Text(stringResource(if (content.isSaving) R.string.saving else R.string.save))
                         }
+
                         null -> Unit
                     }
                 },
             )
         },
     ) { innerPadding ->
-        Box(Modifier.fillMaxSize().padding(innerPadding)) {
+        Box(
+            Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+        ) {
             when (state) {
                 PlantDetailUiState.Loading -> LoadingContent(Modifier.align(Alignment.Center))
                 is PlantDetailUiState.Error -> DetailError(onRetry)
@@ -492,24 +505,50 @@ private fun PlantDetailContent(
     val editable = state.mode != PlantDetailMode.View
     val plant = state.plant
     val favorite = plant?.isFavorite == true
-    val hasPhoto = plant?.mainPhotoPath != null || state.stagedPhoto != null || stagedPhotoFile != null
+    val hasPhoto =
+        plant?.mainPhotoPath != null || state.stagedPhoto != null || stagedPhotoFile != null
     val editPhotoDescription = stringResource(R.string.edit_plant_photo)
+    var photoExpanded by rememberSaveable { mutableStateOf(false) }
+    val photoHeight by animateDpAsState(
+        targetValue = if (!editable && photoExpanded) 320.dp else 148.dp,
+        animationSpec = tween(durationMillis = 300),
+        label = "plant photo expansion",
+    )
+    val photoDescription = when {
+        editable -> editPhotoDescription
+        photoExpanded -> stringResource(R.string.collapse_plant_photo)
+        else -> stringResource(R.string.expand_plant_photo)
+    }
+    LaunchedEffect(editable) {
+        if (editable) photoExpanded = false
+    }
 
     Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
+        Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(148.dp)
+                .height(photoHeight)
                 .then(
-                    if (editable) {
+                    if (editable || hasPhoto) {
                         Modifier
-                            .semantics { contentDescription = editPhotoDescription }
+                            .semantics(mergeDescendants = true) {
+                                contentDescription = photoDescription
+                            }
                             .clickable(
-                                enabled = !photoMutating && !state.isSaving,
-                                onClick = onReplacePhotoRequest,
+                                enabled = if (editable) !photoMutating && !state.isSaving else true,
+                                onClick = {
+                                    if (editable) {
+                                        onReplacePhotoRequest()
+                                    } else {
+                                        photoExpanded = !photoExpanded
+                                    }
+                                },
                             )
                     } else {
                         Modifier
@@ -521,6 +560,7 @@ private fun PlantDetailContent(
                 relativePath = plant?.mainPhotoPath,
                 stagedFile = stagedPhotoFile,
                 modifier = Modifier.matchParentSize(),
+                contentScale = if (!editable && photoExpanded) ContentScale.Fit else ContentScale.Crop,
             )
             if (editable) {
                 Box(
@@ -560,15 +600,31 @@ private fun PlantDetailContent(
         }
         photoMutationError?.let { error ->
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text(stringResource(if (error == UiErrorCategory.PhotoDelete) R.string.photo_delete_error else R.string.photo_import_error), color = MaterialTheme.colorScheme.error, modifier = Modifier.weight(1f))
-                if (photoCleanupRetryEnabled) TextButton(onClick = onRetryPhotoCleanup) { Text(stringResource(R.string.retry)) }
+                Text(
+                    stringResource(if (error == UiErrorCategory.PhotoDelete) R.string.photo_delete_error else R.string.photo_import_error),
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.weight(1f)
+                )
+                if (photoCleanupRetryEnabled) TextButton(onClick = onRetryPhotoCleanup) {
+                    Text(
+                        stringResource(R.string.retry)
+                    )
+                }
             }
         }
 
         mutationError?.let { error ->
-            Text(stringResource(if (error == UiErrorCategory.Delete) R.string.delete_plant_error else R.string.favorite_update_error), color = MaterialTheme.colorScheme.error)
+            Text(
+                stringResource(if (error == UiErrorCategory.Delete) R.string.delete_plant_error else R.string.favorite_update_error),
+                color = MaterialTheme.colorScheme.error
+            )
         }
-        state.saveError?.let { Text(stringResource(R.string.save_plant_error), color = MaterialTheme.colorScheme.error) }
+        state.saveError?.let {
+            Text(
+                stringResource(R.string.save_plant_error),
+                color = MaterialTheme.colorScheme.error
+            )
+        }
 
         if (editable) {
             Card(
@@ -581,7 +637,14 @@ private fun PlantDetailContent(
                     Modifier.padding(14.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    PlantFormFields(state, onNameChange, onScientificNameChange, onLocationChange, onAcquiredEpochDayChange, onDescriptionChange) { showDatePicker = true }
+                    PlantFormFields(
+                        state,
+                        onNameChange,
+                        onScientificNameChange,
+                        onLocationChange,
+                        onAcquiredEpochDayChange,
+                        onDescriptionChange
+                    ) { showDatePicker = true }
                 }
             }
         } else if (plant != null) {
@@ -623,7 +686,11 @@ private fun PlantDetailContent(
             )
         }
         if (state.mode == PlantDetailMode.View) {
-            OutlinedButton(onClick = onDeleteRequest, modifier = Modifier.fillMaxWidth(), enabled = !isDeleting) { Text(stringResource(R.string.delete_plant)) }
+            OutlinedButton(
+                onClick = onDeleteRequest,
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !isDeleting
+            ) { Text(stringResource(R.string.delete_plant)) }
         }
     }
 
@@ -659,7 +726,14 @@ private fun PlantDetailContent(
     pendingCareClearType?.let { careType ->
         AlertDialog(
             onDismissRequest = { if (!careMutating) pendingCareClearType = null },
-            title = { Text(stringResource(R.string.clear_care_history_title, careType.historyLabel())) },
+            title = {
+                Text(
+                    stringResource(
+                        R.string.clear_care_history_title,
+                        careType.historyLabel()
+                    )
+                )
+            },
             text = { Text(stringResource(R.string.clear_care_history_message)) },
             dismissButton = {
                 TextButton(onClick = { pendingCareClearType = null }, enabled = !careMutating) {
@@ -730,11 +804,19 @@ private fun PlantDetailContent(
             onDismissRequest = { showDatePicker = false },
             confirmButton = {
                 TextButton(onClick = {
-                    pickerState.selectedDateMillis?.let { onAcquiredEpochDayChange(pickerMillisToEpochDay(it)) }
+                    pickerState.selectedDateMillis?.let {
+                        onAcquiredEpochDayChange(
+                            pickerMillisToEpochDay(it)
+                        )
+                    }
                     showDatePicker = false
                 }) { Text(stringResource(R.string.select_date)) }
             },
-            dismissButton = { TextButton(onClick = { showDatePicker = false }) { Text(stringResource(R.string.cancel)) } },
+            dismissButton = {
+                TextButton(onClick = {
+                    showDatePicker = false
+                }) { Text(stringResource(R.string.cancel)) }
+            },
         ) { DatePicker(state = pickerState, showModeToggle = false) }
     }
 }
@@ -751,7 +833,9 @@ private fun PlantIdentity(
         if (favorite) R.string.remove_favorite else R.string.add_favorite,
     )
     Row(
-        Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {
@@ -817,7 +901,9 @@ private fun PlantMetadata(
 @Composable
 private fun PlantMetadataRow(icon: Int, value: String) {
     Row(
-        Modifier.fillMaxWidth().padding(vertical = 12.dp),
+        Modifier
+            .fillMaxWidth()
+            .padding(vertical = 12.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.Top,
     ) {
@@ -880,7 +966,9 @@ private fun PlantFormFields(
     )
     Box(Modifier.fillMaxWidth()) {
         OutlinedTextField(
-            value = state.form.acquiredEpochDay?.let(::formatEpochDay).orEmpty(),
+            value = state.form.acquiredEpochDay
+                ?.let(::formatEpochDay)
+                ?: formatEpochDay(LocalDate.now().toEpochDay()),
             onValueChange = {},
             modifier = Modifier.fillMaxWidth(),
             label = { Text(stringResource(R.string.acquisition_date)) },
@@ -888,15 +976,25 @@ private fun PlantFormFields(
             placeholder = { Text(stringResource(R.string.select_date_hint)) },
             readOnly = true,
         )
-        Box(Modifier.matchParentSize().semantics { contentDescription = acquisitionDateDescription }.clickable(onClick = openDatePicker))
+        Box(
+            Modifier
+                .matchParentSize()
+                .semantics { contentDescription = acquisitionDateDescription }
+                .clickable(onClick = openDatePicker))
     }
-    if (state.form.acquiredEpochDay != null) TextButton(onClick = { onAcquiredEpochDayChange(null) }) { Text(stringResource(R.string.clear_date)) }
+    if (state.form.acquiredEpochDay != null) TextButton(onClick = { onAcquiredEpochDayChange(null) }) {
+        Text(
+            stringResource(R.string.clear_date)
+        )
+    }
     val description = state.form.description.take(MAX_PLANT_DESCRIPTION_LENGTH)
     Column(Modifier.fillMaxWidth()) {
         OutlinedTextField(
             value = description,
             onValueChange = { onDescriptionChange(it.take(MAX_PLANT_DESCRIPTION_LENGTH)) },
-            modifier = Modifier.fillMaxWidth().focusRequester(descriptionFocusRequester),
+            modifier = Modifier
+                .fillMaxWidth()
+                .focusRequester(descriptionFocusRequester),
             label = { Text(stringResource(R.string.description)) },
             leadingIcon = { FormFieldIcon(R.drawable.ic_note) },
             minLines = 4,
@@ -909,7 +1007,9 @@ private fun PlantFormFields(
                 description.length,
                 MAX_PLANT_DESCRIPTION_LENGTH,
             ),
-            modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 4.dp),
             textAlign = TextAlign.End,
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -929,7 +1029,9 @@ private fun EditorTextField(
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
-        modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
+        modifier = Modifier
+            .fillMaxWidth()
+            .focusRequester(focusRequester),
         label = { Text(stringResource(label)) },
         leadingIcon = { FormFieldIcon(icon) },
         singleLine = true,
@@ -966,7 +1068,8 @@ private fun CareSection(
 ) {
     val events = (state as? CareEventsUiState.Content)?.events.orEmpty()
     val summaries = (reminderState as? CareReminderUiState.Content)?.summaries.orEmpty()
-    val seasonalSummaries = (reminderState as? CareReminderUiState.Content)?.seasonalSummaries.orEmpty()
+    val seasonalSummaries =
+        (reminderState as? CareReminderUiState.Content)?.seasonalSummaries.orEmpty()
     Card(
         Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
@@ -1002,6 +1105,7 @@ private fun CareSection(
                     stringResource(R.string.loading_care_schedule),
                     style = MaterialTheme.typography.bodySmall,
                 )
+
                 CareReminderUiState.Error -> Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         stringResource(R.string.load_care_schedule_error),
@@ -1010,14 +1114,20 @@ private fun CareSection(
                     )
                     TextButton(onClick = onRetryReminders) { Text(stringResource(R.string.retry)) }
                 }
+
                 is CareReminderUiState.Content -> Unit
             }
             when (state) {
                 CareEventsUiState.Loading -> CircularProgressIndicator()
                 is CareEventsUiState.Error -> Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(stringResource(R.string.load_care_error), Modifier.weight(1f), color = MaterialTheme.colorScheme.error)
+                    Text(
+                        stringResource(R.string.load_care_error),
+                        Modifier.weight(1f),
+                        color = MaterialTheme.colorScheme.error
+                    )
                     TextButton(onClick = onRetry) { Text(stringResource(R.string.retry)) }
                 }
+
                 CareEventsUiState.Empty -> Unit
                 is CareEventsUiState.Content -> Unit
             }
@@ -1214,7 +1324,10 @@ private fun CareHistoryContent(
     var menuExpanded by remember { mutableStateOf(false) }
     val moreOptionsLabel = stringResource(R.string.more_options)
     Column(
-        Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 24.dp),
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp)
+            .padding(bottom = 24.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -1249,7 +1362,9 @@ private fun CareHistoryContent(
             Text(stringResource(R.string.no_care_events_for_type))
         } else {
             LazyColumn(
-                modifier = Modifier.fillMaxWidth().height(360.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(360.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 items(events, key = CareEvent::id) { event ->
@@ -1259,7 +1374,12 @@ private fun CareHistoryContent(
                             verticalArrangement = Arrangement.spacedBy(4.dp),
                         ) {
                             Text(formatCareDate(event.performedAt))
-                            event.note?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
+                            event.note?.let {
+                                Text(
+                                    it,
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                            }
                         }
                     }
                 }
@@ -1294,16 +1414,31 @@ private fun NotesSection(
 ) {
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text(stringResource(R.string.notes), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-            TextButton(onClick = onAdd, enabled = !mutating) { Text(stringResource(R.string.add_note)) }
+            Text(
+                stringResource(R.string.notes),
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.weight(1f)
+            )
+            TextButton(
+                onClick = onAdd,
+                enabled = !mutating
+            ) { Text(stringResource(R.string.add_note)) }
         }
         when (state) {
             PlantNotesUiState.Loading -> CircularProgressIndicator()
-            is PlantNotesUiState.Error -> Row(verticalAlignment = Alignment.CenterVertically) { Text(stringResource(R.string.load_notes_error), Modifier.weight(1f), color = MaterialTheme.colorScheme.error); TextButton(onClick = onRetry) { Text(stringResource(R.string.retry)) } }
+            is PlantNotesUiState.Error -> Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    stringResource(R.string.load_notes_error),
+                    Modifier.weight(1f),
+                    color = MaterialTheme.colorScheme.error
+                ); TextButton(onClick = onRetry) { Text(stringResource(R.string.retry)) }
+            }
+
             PlantNotesUiState.Empty -> Text(
                 stringResource(R.string.no_notes_yet),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+
             is PlantNotesUiState.Content -> state.notes.forEach { note ->
                 PlantNoteCard(
                     note = note,
@@ -1313,7 +1448,12 @@ private fun NotesSection(
                 )
             }
         }
-        mutationError?.let { Text(stringResource(R.string.delete_note_error), color = MaterialTheme.colorScheme.error) }
+        mutationError?.let {
+            Text(
+                stringResource(R.string.delete_note_error),
+                color = MaterialTheme.colorScheme.error
+            )
+        }
     }
 }
 
@@ -1331,7 +1471,11 @@ private fun PlantNoteCard(
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
-        Row(Modifier.fillMaxWidth().padding(start = 14.dp, top = 10.dp, bottom = 12.dp)) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(start = 14.dp, top = 10.dp, bottom = 12.dp)
+        ) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
                     formatTimestamp(note.createdAt),
@@ -1375,16 +1519,35 @@ private fun PlantNoteCard(
 }
 
 @Composable
-private fun PhotoSourceDialog(isBusy: Boolean, onDismiss: () -> Unit, onTakePhoto: () -> Unit, onPickPhoto: () -> Unit) {
+private fun PhotoSourceDialog(
+    isBusy: Boolean,
+    onDismiss: () -> Unit,
+    onTakePhoto: () -> Unit,
+    onPickPhoto: () -> Unit
+) {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.choose_photo_source)) },
         text = {},
         confirmButton = {
             Column(Modifier.fillMaxWidth()) {
-                Button(onClick = onTakePhoto, enabled = !isBusy, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.take_photo)) }
-                OutlinedButton(onClick = onPickPhoto, enabled = !isBusy, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) { Text(stringResource(R.string.choose_photo)) }
-                TextButton(onClick = onDismiss, enabled = !isBusy, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.cancel)) }
+                Button(
+                    onClick = onTakePhoto,
+                    enabled = !isBusy,
+                    modifier = Modifier.fillMaxWidth()
+                ) { Text(stringResource(R.string.take_photo)) }
+                OutlinedButton(
+                    onClick = onPickPhoto,
+                    enabled = !isBusy,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp)
+                ) { Text(stringResource(R.string.choose_photo)) }
+                TextButton(
+                    onClick = onDismiss,
+                    enabled = !isBusy,
+                    modifier = Modifier.fillMaxWidth()
+                ) { Text(stringResource(R.string.cancel)) }
             }
         },
         dismissButton = {},
@@ -1397,24 +1560,71 @@ private fun RemovePhotoDialog(isBusy: Boolean, onDismiss: () -> Unit, onConfirm:
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.remove_photo_title)) },
         text = { Text(stringResource(R.string.remove_photo_message)) },
-        dismissButton = { TextButton(onClick = onDismiss, enabled = !isBusy) { Text(stringResource(R.string.cancel)) } },
-        confirmButton = { Button(onClick = onConfirm, enabled = !isBusy) { Text(stringResource(R.string.remove_photo)) } },
+        dismissButton = {
+            TextButton(
+                onClick = onDismiss,
+                enabled = !isBusy
+            ) { Text(stringResource(R.string.cancel)) }
+        },
+        confirmButton = {
+            Button(
+                onClick = onConfirm,
+                enabled = !isBusy
+            ) { Text(stringResource(R.string.remove_photo)) }
+        },
     )
 }
 
 @Composable
 private fun DetailError(onRetry: () -> Unit) {
-    Column(Modifier.fillMaxWidth().padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally) { Text(stringResource(R.string.load_plant_error)); Button(onClick = onRetry, Modifier.padding(top = 16.dp)) { Text(stringResource(R.string.retry)) } }
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .padding(32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(stringResource(R.string.load_plant_error)); Button(
+        onClick = onRetry,
+        Modifier.padding(top = 16.dp)
+    ) { Text(stringResource(R.string.retry)) }
+    }
 }
 
 @Composable
 private fun NotFoundContent(onBack: () -> Unit) {
-    Column(Modifier.fillMaxWidth().padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally) { Text(stringResource(R.string.plant_not_found), style = MaterialTheme.typography.titleMedium); Button(onClick = onBack, Modifier.padding(top = 16.dp)) { Text(stringResource(R.string.back_to_plants)) } }
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .padding(32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            stringResource(R.string.plant_not_found),
+            style = MaterialTheme.typography.titleMedium
+        ); Button(
+        onClick = onBack,
+        Modifier.padding(top = 16.dp)
+    ) { Text(stringResource(R.string.back_to_plants)) }
+    }
 }
 
 @Composable
 private fun DeletePlantDialog(isDeleting: Boolean, onDismiss: () -> Unit, onConfirm: () -> Unit) {
-    AlertDialog(onDismissRequest = onDismiss, title = { Text(stringResource(R.string.delete_plant_title)) }, text = { Text(stringResource(R.string.delete_plant_message)) }, dismissButton = { TextButton(onClick = onDismiss, enabled = !isDeleting) { Text(stringResource(R.string.cancel)) } }, confirmButton = { Button(onClick = onConfirm, enabled = !isDeleting) { Text(stringResource(R.string.delete_plant)) } })
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.delete_plant_title)) },
+        text = { Text(stringResource(R.string.delete_plant_message)) },
+        dismissButton = {
+            TextButton(onClick = onDismiss, enabled = !isDeleting) {
+                Text(stringResource(R.string.cancel))
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onConfirm,
+                enabled = !isDeleting
+            ) { Text(stringResource(R.string.delete_plant)) }
+        })
 }
 
 @Preview(name = "Create - Light", showBackground = true, uiMode = Configuration.UI_MODE_NIGHT_NO)
@@ -1432,7 +1642,27 @@ private fun PlantDetailCreatePreview() {
             photoCleanupRetryEnabled = false,
             mutationError = null,
             isDeleting = false,
-            onBack = {}, onRetry = {}, onBeginEdit = {}, onCancelEdit = {}, onNameChange = {}, onScientificNameChange = {}, onLocationChange = {}, onAcquiredEpochDayChange = {}, onDescriptionChange = {}, onFavoriteClick = {}, onSave = {}, onDelete = {}, onAddNote = {}, onEditNote = {}, onDeleteNote = {}, onRetryNotes = {}, onTakePhoto = {}, onPickPhoto = {}, onRemoveStagedPhoto = {}, onRemovePhoto = {}, onRetryPhotoCleanup = {},
+            onBack = {},
+            onRetry = {},
+            onBeginEdit = {},
+            onCancelEdit = {},
+            onNameChange = {},
+            onScientificNameChange = {},
+            onLocationChange = {},
+            onAcquiredEpochDayChange = {},
+            onDescriptionChange = {},
+            onFavoriteClick = {},
+            onSave = {},
+            onDelete = {},
+            onAddNote = {},
+            onEditNote = {},
+            onDeleteNote = {},
+            onRetryNotes = {},
+            onTakePhoto = {},
+            onPickPhoto = {},
+            onRemoveStagedPhoto = {},
+            onRemovePhoto = {},
+            onRetryPhotoCleanup = {},
         )
     }
 }
@@ -1443,10 +1673,50 @@ private fun PlantDetailCreatePreview() {
 private fun PlantDetailPreview() {
     StayLeafyTheme(dynamicColor = false) {
         PlantDetailScreen(
-            state = PlantDetailUiState.Content(PlantDetailMode.View, previewPlants.first(), previewPlants.first().toPlantForm()),
-            notesState = PlantNotesUiState.Content(listOf(PlantNote("n", "p", "Watered today", 0, 0))),
-            notesMutationError = null, notesMutating = false, photoMutating = false, photoMutationError = null, photoCleanupRetryEnabled = false, mutationError = null, isDeleting = false,
-            onBack = {}, onRetry = {}, onBeginEdit = {}, onCancelEdit = {}, onNameChange = {}, onScientificNameChange = {}, onLocationChange = {}, onAcquiredEpochDayChange = {}, onDescriptionChange = {}, onFavoriteClick = {}, onSave = {}, onDelete = {}, onAddNote = {}, onEditNote = {}, onDeleteNote = {}, onRetryNotes = {}, onTakePhoto = {}, onPickPhoto = {}, onRemoveStagedPhoto = {}, onRemovePhoto = {}, onRetryPhotoCleanup = {},
+            state = PlantDetailUiState.Content(
+                PlantDetailMode.View,
+                previewPlants.first(),
+                previewPlants.first().toPlantForm()
+            ),
+            notesState = PlantNotesUiState.Content(
+                listOf(
+                    PlantNote(
+                        "n",
+                        "p",
+                        "Watered today",
+                        0,
+                        0
+                    )
+                )
+            ),
+            notesMutationError = null,
+            notesMutating = false,
+            photoMutating = false,
+            photoMutationError = null,
+            photoCleanupRetryEnabled = false,
+            mutationError = null,
+            isDeleting = false,
+            onBack = {},
+            onRetry = {},
+            onBeginEdit = {},
+            onCancelEdit = {},
+            onNameChange = {},
+            onScientificNameChange = {},
+            onLocationChange = {},
+            onAcquiredEpochDayChange = {},
+            onDescriptionChange = {},
+            onFavoriteClick = {},
+            onSave = {},
+            onDelete = {},
+            onAddNote = {},
+            onEditNote = {},
+            onDeleteNote = {},
+            onRetryNotes = {},
+            onTakePhoto = {},
+            onPickPhoto = {},
+            onRemoveStagedPhoto = {},
+            onRemovePhoto = {},
+            onRetryPhotoCleanup = {},
             reminderState = CareReminderUiState.Content(
                 summaries = emptyList(),
                 seasonalSummaries = listOf(
@@ -1463,8 +1733,16 @@ private fun PlantDetailPreview() {
     }
 }
 
-@Preview(name = "Care history - Light", showBackground = true, uiMode = Configuration.UI_MODE_NIGHT_NO)
-@Preview(name = "Care history - Dark", showBackground = true, uiMode = Configuration.UI_MODE_NIGHT_YES)
+@Preview(
+    name = "Care history - Light",
+    showBackground = true,
+    uiMode = Configuration.UI_MODE_NIGHT_NO
+)
+@Preview(
+    name = "Care history - Dark",
+    showBackground = true,
+    uiMode = Configuration.UI_MODE_NIGHT_YES
+)
 @Composable
 private fun CareHistoryPreview() {
     val events = listOf(

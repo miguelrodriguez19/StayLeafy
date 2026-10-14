@@ -30,6 +30,7 @@ internal fun PlantPhotoBox(
     relativePath: String?,
     stagedFile: File? = null,
     modifier: Modifier = Modifier,
+    contentScale: ContentScale = ContentScale.Crop,
 ) {
     val context = LocalContext.current
     val isPreview = LocalInspectionMode.current
@@ -53,7 +54,7 @@ internal fun PlantPhotoBox(
                 model = file,
                 contentDescription = stringResource(R.string.plant_photo),
                 modifier = Modifier.matchParentSize(),
-                contentScale = ContentScale.Crop,
+                contentScale = contentScale,
                 onError = { decodeFailed = true },
             )
         }
