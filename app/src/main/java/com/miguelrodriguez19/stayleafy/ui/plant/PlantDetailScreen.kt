@@ -7,6 +7,7 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -81,6 +82,7 @@ import com.miguelrodriguez19.stayleafy.model.CareType
 import com.miguelrodriguez19.stayleafy.ui.reminder.CareReminderUiState
 import com.miguelrodriguez19.stayleafy.ui.reminder.PlantCareStatusViewModel
 import com.miguelrodriguez19.stayleafy.ui.components.LeafyCareIcon
+import com.miguelrodriguez19.stayleafy.ui.components.LeafyPrimaryButton
 import com.miguelrodriguez19.stayleafy.ui.theme.StayLeafyTheme
 import java.io.File
 
@@ -332,16 +334,15 @@ fun PlantDetailScreen(
         },
         bottomBar = {
             if (content?.mode == PlantDetailMode.Create || content?.mode == PlantDetailMode.Edit) {
-                Button(
+                LeafyPrimaryButton(
+                    text = stringResource(if (content.isSaving) R.string.saving else R.string.save),
                     onClick = onSave,
                     enabled = !content.isSaving,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 12.dp)
                         .semantics { contentDescription = saveLabel },
-                ) {
-                    Text(stringResource(if (content.isSaving) R.string.saving else R.string.save))
-                }
+                )
             }
         },
     ) { innerPadding ->
@@ -492,7 +493,7 @@ private fun PlantDetailContent(
         PlantPhotoBox(
             relativePath = plant?.mainPhotoPath,
             stagedFile = stagedPhotoFile,
-            modifier = Modifier.fillMaxWidth().height(196.dp),
+            modifier = Modifier.fillMaxWidth().height(148.dp),
         )
         if (plant?.mainPhotoPath == null && state.stagedPhoto == null) {
             PhotoActions(onTakePhoto, onPickPhoto, enabled = !photoMutating && !state.isSaving)
@@ -531,6 +532,7 @@ private fun PlantDetailContent(
             Card(
                 Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                 elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
             ) {
                 Column(
@@ -749,6 +751,7 @@ private fun PlantMetadata(
     Card(
         Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
         Column(Modifier.padding(horizontal = 14.dp)) {
@@ -909,17 +912,15 @@ private fun CareSection(
     Card(
         Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
         Column(Modifier.padding(horizontal = 14.dp, vertical = 10.dp)) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    stringResource(R.string.care_history),
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.weight(1f),
-                )
-                TextButton(onClick = onConfigureCare) { Text(stringResource(R.string.configure_care)) }
-            }
+            Text(
+                stringResource(R.string.care_history),
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(bottom = 2.dp),
+            )
             if (state is CareEventsUiState.Empty || state is CareEventsUiState.Content) {
                 CareType.values().forEachIndexed { index, type ->
                     if (index > 0) {
@@ -974,6 +975,34 @@ private fun CareSection(
                     color = MaterialTheme.colorScheme.error,
                 )
             }
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            Row(
+                Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_settings),
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                TextButton(
+                    onClick = onConfigureCare,
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                ) {
+                    Text(
+                        stringResource(R.string.configure_care),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+                Icon(
+                    painter = painterResource(R.drawable.ic_chevron_right),
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
     }
 }
@@ -1000,6 +1029,7 @@ private fun CareSummaryRow(
         LeafyCareIcon(
             careType = type,
             contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Column(Modifier.weight(1f)) {
             Text(type.historyLabel(), style = MaterialTheme.typography.titleSmall)
@@ -1240,6 +1270,7 @@ private fun PlantNoteCard(
     Card(
         Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
         Row(Modifier.fillMaxWidth().padding(start = 14.dp, top = 10.dp, bottom = 12.dp)) {

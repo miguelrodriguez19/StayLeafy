@@ -137,6 +137,8 @@ fun MainNavigation(
                         entry<PlantList> {
                             PlantListRoute(
                                 onAddPlant = { plantsBackStack.add(PlantDetail()) },
+                                // Settings is intentionally not navigable until its product behavior is defined.
+                                onSettingsClick = { },
                                 onPlantClick = { plantId -> plantsBackStack.add(PlantDetail(plantId)) },
                             )
                         }
@@ -213,7 +215,7 @@ private fun RootNavigationBar(
     onSelect: (RootTab) -> Unit,
 ) {
     NavigationBar(
-        modifier = Modifier.height(72.dp),
+        modifier = Modifier.height(64.dp),
         containerColor = MaterialTheme.colorScheme.surface,
         tonalElevation = 0.dp,
     ) {
@@ -246,7 +248,12 @@ private fun RootNavigationBar(
                             Badge(
                                 containerColor = MaterialTheme.colorScheme.tertiary,
                                 contentColor = MaterialTheme.colorScheme.onTertiary,
-                            ) { Text(if (unreadCount > 99) "99+" else unreadCount.toString()) }
+                            ) {
+                                Text(
+                                    if (unreadCount > 99) stringResource(R.string.unread_count_overflow)
+                                    else unreadCount.toString(),
+                                )
+                            }
                         }
                     },
                 ) {

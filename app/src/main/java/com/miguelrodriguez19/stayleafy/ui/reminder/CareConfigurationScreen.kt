@@ -65,6 +65,7 @@ import com.miguelrodriguez19.stayleafy.ui.plant.initialAcquisitionDatePickerMill
 import com.miguelrodriguez19.stayleafy.ui.plant.pickerMillisToEpochDay
 import com.miguelrodriguez19.stayleafy.ui.plant.PlantPhotoBox
 import com.miguelrodriguez19.stayleafy.ui.components.LeafyCareIcon
+import com.miguelrodriguez19.stayleafy.ui.components.LeafyPrimaryButton
 import com.miguelrodriguez19.stayleafy.ui.theme.StayLeafyTheme
 import java.time.LocalDate
 import java.time.Year
@@ -147,13 +148,12 @@ fun CareConfigurationScreen(
         },
         bottomBar = {
             if (content != null) {
-                Button(
+                LeafyPrimaryButton(
+                    text = stringResource(if (content.isSaving) R.string.saving else R.string.save),
                     onClick = onSave,
                     enabled = !content.isSaving,
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
-                ) {
-                    Text(stringResource(if (content.isSaving) R.string.saving else R.string.save))
-                }
+                )
             }
         },
     ) { innerPadding ->
@@ -290,6 +290,7 @@ private fun CareRuleCard(
                     careType = form.careType,
                     contentDescription = null,
                     modifier = Modifier.padding(end = 12.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Text(form.careType.localizedName(), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
             }
@@ -325,20 +326,6 @@ private fun CareRuleCard(
                     onValueChange = onIntervalChange,
                 )
                 Text(stringResource(R.string.calculate_next_due_from), style = MaterialTheme.typography.labelLarge)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilterChip(
-                        selected = form.dueSource == ReminderDueSourceChoice.LatestCare,
-                        onClick = { onSourceChange(ReminderDueSourceChoice.LatestCare) },
-                        enabled = enabled && latestCareEpochDay != null,
-                        label = { Text(stringResource(R.string.latest_care)) },
-                    )
-                    FilterChip(
-                        selected = form.dueSource == ReminderDueSourceChoice.Date,
-                        onClick = { onSourceChange(ReminderDueSourceChoice.Date) },
-                        enabled = enabled,
-                        label = { Text(stringResource(R.string.choose_due_date)) },
-                    )
-                }
                 when (form.dueSource) {
                     ReminderDueSourceChoice.LatestCare -> Text(
                         text = latestCareEpochDay?.let {
@@ -346,7 +333,7 @@ private fun CareRuleCard(
                         } ?: stringResource(R.string.no_latest_care),
                         color = if (form.sourceError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
                     )
-                    ReminderDueSourceChoice.Date -> {
+                    ReminderDueSourceChoice.CustomDate -> {
                         val dateLabel = form.selectedEpochDay?.let(::formatEpochDay)
                             ?: stringResource(R.string.select_due_date)
                         Card(
@@ -369,6 +356,23 @@ private fun CareRuleCard(
                             MaterialTheme.colorScheme.onSurfaceVariant
                         },
                     )
+                }
+                if (form.dueSource == ReminderDueSourceChoice.LatestCare) {
+                    TextButton(
+                        onClick = { onSourceChange(ReminderDueSourceChoice.CustomDate) },
+                        enabled = enabled,
+                        modifier = Modifier.align(Alignment.End),
+                    ) {
+                        Text(stringResource(R.string.choose_another_start_date))
+                    }
+                } else if (form.dueSource == ReminderDueSourceChoice.CustomDate) {
+                    TextButton(
+                        onClick = { onSourceChange(ReminderDueSourceChoice.LatestCare) },
+                        enabled = enabled && latestCareEpochDay != null,
+                        modifier = Modifier.align(Alignment.End),
+                    ) {
+                        Text(stringResource(R.string.use_latest_care_instead))
+                    }
                 }
             }
             if (form.mode == CareScheduleMode.SEASONAL) {
@@ -644,7 +648,7 @@ private fun CareConfigurationPreview() {
                         seasonStart = AnnualDate(11, 15),
                         seasonEnd = AnnualDate(2, 10),
                     ),
-                    CareRuleForm(CareType.FERTILIZING, true, "30", ReminderDueSourceChoice.Date, 21_000),
+                    CareRuleForm(CareType.FERTILIZING, true, "30", ReminderDueSourceChoice.CustomDate, 21_000),
                 ),
                 latestCareEpochDays = mapOf(CareType.WATERING to 20_990),
             ),

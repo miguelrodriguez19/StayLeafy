@@ -30,12 +30,12 @@ The user opens Stay Leafy and sees their plants, including each plant's primary 
 ## Visual direction
 
 - Material 3 provides the interaction and accessibility foundation, while the visual identity remains recognizably Stay Leafy.
-- The canonical brand anchors are botanical green `#115129`, terracotta `#DF6645`, warm light background `#FBF8F1`, dark botanical background `#0D1712`, and launcher cream `#F7F1E6`.
+- The canonical Botanical Calm anchors are pine `#184A36`, sage `#7FA58A`, clay `#C97052`, cream `#F7F3E9`, paper `#FFFCF7`, ink `#1F2923`, dark background `#0E1A15`, and dark surface `#17271F`.
 - Light and dark schemes are explicit and follow the system theme. Dynamic system color is deliberately disabled so the identity and care-status meanings remain stable.
 - Lora is bundled locally and reserved for display headings; platform sans-serif typography keeps body copy, forms, and controls compact and readable.
 - Cards use warm tonal surfaces, rounded 12/16/24 dp shapes, low elevation, and a 4/8/12/16/24/32 dp spacing rhythm.
 - The reference compositions are structural guidance, not just a palette: inventory and Notice lists stay compact and image-led, Plant detail starts with a wide hero image, related information is grouped in flat sections, and editor/configuration primary actions remain pinned near the bottom edge.
-- Plant context travels into note and care editors through the plant thumbnail and identity. Secondary note actions live in contextual menus so the main reading path remains quiet.
+- Plant context travels into note and care editors through the plant thumbnail and identity. The note editor itself exposes only back, content, and Save; note list actions remain contextual where editing and deletion are already supported.
 - Terracotta is restrained to identity accents and unread/favorite emphasis. Upcoming, due-today, and overdue care each combine distinct wording with accessible semantic colors rather than relying on color alone.
 - Navigation and actions use deterministic local vector icons. The cactus-and-pot master artwork is preserved under `design/brand/`; production launcher assets are derived from it without packaging the source SVG.
 - The product name remains `Stay Leafy` in both supported languages.

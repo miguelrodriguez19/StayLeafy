@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.miguelrodriguez19.stayleafy.R
+import com.miguelrodriguez19.stayleafy.ui.components.LeafyPrimaryButton
 import com.miguelrodriguez19.stayleafy.ui.theme.StayLeafyTheme
 
 @Composable
@@ -80,7 +81,7 @@ fun PlantNoteEditorScreen(
                     IconButton(onClick = onBack) {
                         Icon(
                             painterResource(R.drawable.ic_back),
-                            contentDescription = stringResource(R.string.cancel),
+                            contentDescription = stringResource(R.string.back),
                         )
                     }
                 },
@@ -88,11 +89,12 @@ fun PlantNoteEditorScreen(
         },
         bottomBar = {
             if (!state.isLoading && !state.notFound && state.loadError == null) {
-                Button(
+                LeafyPrimaryButton(
+                    text = stringResource(if (state.isSaving) R.string.saving else R.string.save),
                     onClick = onSave,
                     enabled = !state.isSaving,
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
-                ) { Text(stringResource(if (state.isSaving) R.string.saving else R.string.save)) }
+                )
             }
         },
     ) { innerPadding ->

@@ -17,8 +17,9 @@
     <string name="search_plants">Buscar plantas</string>
     <string name="favorites_only">Solo favoritas</string>
     <string name="clear_filters">Borrar filtros</string>
-    <string name="no_plants_yet">Aún no hay plantas</string>
-    <string name="add_first_plant_hint">Añade tu primera planta para empezar tu colección.</string>
+    <string name="no_plants_yet">Tu rincón verde empieza aquí</string>
+    <string name="add_first_plant_hint">Añade tu primera planta para cuidar de ella de forma sencilla y sin conexión.</string>
+    <string name="settings">Ajustes</string>
     <string name="no_matching_plants">No hay plantas coincidentes</string>
     <string name="try_different_filter">Prueba con otra búsqueda o filtro.</string>
     <string name="load_plants_error">No se han podido cargar tus plantas.</string>
@@ -94,6 +95,7 @@
     <string name="clear_care_history_message">Se eliminarán todos los eventos registrados de este tipo para esta planta. El resto de plantas no se verá afectado.</string>
     <string name="navigation_plants">Plantas</string>
     <string name="navigation_notices">Avisos</string>
+    <string name="unread_count_overflow">99+</string>
     <string name="upcoming_filter">Próximas</string>
     <string name="overdue_filter">Vencidas</string>
     <string name="compact_care_status">%1$s · %2$s</string>
@@ -115,6 +117,8 @@
     <string name="select_due_source">Elige cómo calcular la primera fecha prevista.</string>
     <string name="latest_care">Último cuidado</string>
     <string name="choose_due_date">Elegir fecha</string>
+    <string name="choose_another_start_date">Elegir otra fecha de inicio</string>
+    <string name="use_latest_care_instead">Usar el último cuidado</string>
     <string name="latest_care_date">Último cuidado: %1$s</string>
     <string name="no_latest_care">No se ha registrado ningún cuidado coincidente.</string>
     <string name="select_due_date">Seleccionar la primera fecha prevista</string>
@@ -155,8 +159,8 @@
     <string name="notifications_blocked_message">Las notificaciones están bloqueadas. Los recordatorios y avisos siguen activos en la aplicación.</string>
     <string name="open_settings">Abrir ajustes</string>
     <string name="load_notices_error">No se han podido cargar tus avisos.</string>
-    <string name="no_notices">Aún no hay avisos</string>
-    <string name="no_notices_hint">Los recordatorios de cuidados vencidos aparecerán aquí.</string>
+    <string name="no_notices">Todo al día</string>
+    <string name="no_notices_hint">Los nuevos recordatorios de cuidados aparecerán aquí cuando venzan.</string>
     <string name="notice_row_title">%1$s · %2$s</string>
     <string name="season_notice_row_title">Temporada de %1$s · %2$s</string>
     <string name="notice_due_date">Previsto: %1$s</string>

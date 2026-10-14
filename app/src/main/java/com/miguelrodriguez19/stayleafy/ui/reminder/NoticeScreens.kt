@@ -55,7 +55,10 @@ import com.miguelrodriguez19.stayleafy.model.NoticeDeliveryState
 import com.miguelrodriguez19.stayleafy.model.ReminderScheduleType
 import com.miguelrodriguez19.stayleafy.ui.plant.formatEpochDay
 import com.miguelrodriguez19.stayleafy.ui.plant.formatTimestamp
+import com.miguelrodriguez19.stayleafy.ui.plant.PlantPhotoBox
 import com.miguelrodriguez19.stayleafy.ui.components.LeafyCareIcon
+import com.miguelrodriguez19.stayleafy.ui.components.LeafyEmptyState
+import com.miguelrodriguez19.stayleafy.ui.components.LeafyPrimaryButton
 import com.miguelrodriguez19.stayleafy.ui.components.LeafyStateContent
 import com.miguelrodriguez19.stayleafy.ui.theme.StayLeafyTheme
 import com.miguelrodriguez19.stayleafy.ui.theme.leafyColors
@@ -171,9 +174,10 @@ fun NoticeListScreen(
                     action = stringResource(R.string.retry),
                     onAction = onRetry,
                 )
-                NoticeListUiState.Empty -> NoticeMessage(
-                    message = stringResource(R.string.no_notices),
+                NoticeListUiState.Empty -> LeafyEmptyState(
+                    title = stringResource(R.string.no_notices),
                     supporting = stringResource(R.string.no_notices_hint),
+                    modifier = Modifier.fillMaxSize(),
                 )
                 is NoticeListUiState.Content -> LazyColumn(
                     modifier = Modifier.fillMaxSize(),
@@ -206,18 +210,10 @@ private fun NoticeRow(notice: AppNotice, onClick: () -> Unit) {
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.Top,
         ) {
-            Box(
-                Modifier
-                    .size(54.dp)
-                    .background(MaterialTheme.colorScheme.primaryContainer, MaterialTheme.shapes.small),
-                contentAlignment = Alignment.Center,
-            ) {
-                LeafyCareIcon(
-                    careType = notice.careType,
-                    contentDescription = notice.careType.localizedName(),
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                )
-            }
+            PlantPhotoBox(
+                relativePath = notice.plantPhotoPath,
+                modifier = Modifier.size(54.dp),
+            )
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
@@ -304,10 +300,11 @@ fun NoticeDetailScreen(
         },
         bottomBar = {
             if (state is NoticeDetailUiState.Content) {
-                Button(
+                LeafyPrimaryButton(
+                    text = stringResource(R.string.view_plant),
                     onClick = { onViewPlant(state.notice.plantId) },
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
-                ) { Text(stringResource(R.string.view_plant)) }
+                )
             }
         },
     ) { innerPadding ->
@@ -377,19 +374,10 @@ private fun NoticeHero(notice: AppNotice) {
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Box(
-                Modifier.size(56.dp).background(
-                    MaterialTheme.colorScheme.primaryContainer,
-                    MaterialTheme.shapes.small,
-                ),
-                contentAlignment = Alignment.Center,
-            ) {
-                LeafyCareIcon(
-                    careType = notice.careType,
-                    contentDescription = notice.careType.localizedName(),
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                )
-            }
+            PlantPhotoBox(
+                relativePath = notice.plantPhotoPath,
+                modifier = Modifier.size(56.dp),
+            )
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 Text(notice.plantName, style = MaterialTheme.typography.titleMedium)
                 Text(notice.careType.localizedName(), style = MaterialTheme.typography.bodySmall)

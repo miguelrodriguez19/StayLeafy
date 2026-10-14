@@ -216,7 +216,7 @@ Check the existing deterministic previews and an emulator/device in this matrix 
 
 Also inspect the launcher under circle, square, rounded-square, squircle, teardrop, and themed-icon masks. Verify photo and placeholder rendering, bottom-navigation selected states and badge, software-keyboard traversal, dialogs/sheets, edge-to-edge bars, and system-owned picker/calendar surfaces. Compose tests continue to assert localized semantics and callbacks instead of pixel output.
 
-The reference-fidelity correction was manually reviewed on an emulator in light and dark themes against `design/references/stay_leafy_ui_direction.png`. The review covered the Plants root, Plant detail, nested bottom navigation, care configuration, interval expansion, local-image placeholders, pinned actions, and long English labels.
+The V2 visual direction was manually reviewed on an emulator in light and dark themes against `design/StayLeafy_mockups_v2.svg`. The review covered the Plants and Notices roots, randomized empty illustrations, plant thumbnails, Plant detail, nested bottom navigation, care configuration start-date states, local-image placeholders, pinned actions, and long English/Spanish labels.
 
 ## Commands
 

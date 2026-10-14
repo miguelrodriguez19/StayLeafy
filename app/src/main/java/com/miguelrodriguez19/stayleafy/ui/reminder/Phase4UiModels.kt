@@ -10,7 +10,7 @@ import com.miguelrodriguez19.stayleafy.model.SeasonalCareSummary
 
 enum class ReminderDueSourceChoice {
     LatestCare,
-    Date,
+    CustomDate,
 }
 
 @Immutable

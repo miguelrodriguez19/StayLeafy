@@ -21,6 +21,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FabPosition
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -49,6 +50,9 @@ import com.miguelrodriguez19.stayleafy.model.CareDueStatus
 import com.miguelrodriguez19.stayleafy.model.CareStatusSummary
 import com.miguelrodriguez19.stayleafy.ui.reminder.PlantCareSummaryViewModel
 import com.miguelrodriguez19.stayleafy.ui.reminder.localizedName
+import com.miguelrodriguez19.stayleafy.ui.components.LeafyAddFab
+import com.miguelrodriguez19.stayleafy.ui.components.LeafyEmptyState
+import com.miguelrodriguez19.stayleafy.ui.components.LeafyPrimaryButton
 import com.miguelrodriguez19.stayleafy.ui.theme.StayLeafyTheme
 import com.miguelrodriguez19.stayleafy.ui.theme.leafyColors
 
@@ -56,6 +60,7 @@ import com.miguelrodriguez19.stayleafy.ui.theme.leafyColors
 @Composable
 fun PlantListRoute(
     onAddPlant: () -> Unit,
+    onSettingsClick: () -> Unit = {},
     onPlantClick: (String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: PlantViewModel = hiltViewModel(),
@@ -76,6 +81,7 @@ fun PlantListRoute(
         onClearFilters = viewModel::clearFilters,
         onRetry = viewModel::retry,
         onAddPlant = onAddPlant,
+        onSettingsClick = onSettingsClick,
         onPlantClick = onPlantClick,
         onFavoriteClick = viewModel::setFavorite,
         onDismissMutationError = viewModel::clearMutationError,
@@ -100,6 +106,7 @@ fun PlantListScreen(
     onClearFilters: () -> Unit,
     onRetry: () -> Unit,
     onAddPlant: () -> Unit,
+    onSettingsClick: () -> Unit = {},
     onPlantClick: (String) -> Unit,
     onFavoriteClick: (String, Boolean) -> Unit,
     onDismissMutationError: () -> Unit,
@@ -121,15 +128,22 @@ fun PlantListScreen(
                     )
                 },
                 actions = {
-                    TextButton(onClick = onAddPlant) {
-                        Text(
-                            stringResource(R.string.add_plant),
-                            style = MaterialTheme.typography.labelLarge,
+                    IconButton(onClick = onSettingsClick) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_settings),
+                            contentDescription = stringResource(R.string.settings),
                         )
                     }
                 },
             )
         },
+        floatingActionButton = {
+            LeafyAddFab(
+                contentDescription = stringResource(R.string.add_plant),
+                onClick = onAddPlant,
+            )
+        },
+        floatingActionButtonPosition = FabPosition.End,
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -247,37 +261,17 @@ private fun EmptyPlantList(
     onAddPlant: () -> Unit,
     onClearFilters: () -> Unit,
 ) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(32.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                text = stringResource(
-                    if (isFiltered) R.string.no_matching_plants else R.string.no_plants_yet,
-                ),
-                style = MaterialTheme.typography.titleMedium,
-            )
-            Text(
-                text = stringResource(
-                    if (isFiltered) R.string.try_different_filter else R.string.add_first_plant_hint,
-                ),
-                modifier = Modifier.padding(top = 8.dp),
-            )
-            Button(
-                onClick = if (isFiltered) onClearFilters else onAddPlant,
-                modifier = Modifier.padding(top = 16.dp),
-            ) {
-                Text(
-                    stringResource(
-                        if (isFiltered) R.string.clear_filters else R.string.add_plant,
-                    ),
-                )
-            }
-        }
-    }
+    LeafyEmptyState(
+        title = stringResource(
+            if (isFiltered) R.string.no_matching_plants else R.string.no_plants_yet,
+        ),
+        supporting = stringResource(
+            if (isFiltered) R.string.try_different_filter else R.string.add_first_plant_hint,
+        ),
+        modifier = Modifier.fillMaxWidth(),
+        action = stringResource(if (isFiltered) R.string.clear_filters else R.string.add_plant),
+        onAction = if (isFiltered) onClearFilters else onAddPlant,
+    )
 }
 
 @Composable
@@ -289,7 +283,7 @@ private fun PlantListContent(
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 16.dp),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 88.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         items(plants, key = { it.id }) { plant ->
@@ -323,16 +317,16 @@ private fun PlantListItem(
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(8.dp),
+            modifier = Modifier.fillMaxWidth().padding(12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             PlantPhotoBox(
                 relativePath = plant.mainPhotoPath,
-                modifier = Modifier.size(width = 78.dp, height = 100.dp),
+                modifier = Modifier.size(72.dp),
             )
             Column(
-                modifier = Modifier.weight(1f).height(100.dp),
+                modifier = Modifier.weight(1f).height(72.dp),
                 verticalArrangement = Arrangement.SpaceBetween,
             ) {
                 Row(verticalAlignment = Alignment.Top) {

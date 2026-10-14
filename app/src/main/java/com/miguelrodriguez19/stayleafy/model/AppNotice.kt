@@ -5,6 +5,8 @@ data class AppNotice(
     val ruleId: String,
     val plantId: String,
     val plantName: String,
+    /** Derived from Plants for presentation; the notice schema remains unchanged. */
+    val plantPhotoPath: String? = null,
     val careType: CareType,
     val scheduleType: ReminderScheduleType = ReminderScheduleType.INTERVAL,
     val dueEpochDay: Long,

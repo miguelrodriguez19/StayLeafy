@@ -39,6 +39,7 @@ data class NoticeRecord(
     val occurrenceKey: String,
     val plantId: String,
     val plantName: String,
+    val plantPhotoPath: String?,
     val careType: String,
     val scheduleType: String,
     val dueEpochDay: Long,

@@ -59,7 +59,7 @@ class PlantNoteEditorScreenTest {
 
         composeTestRule.onNode(hasSetTextAction()).performTextReplacement("Watered today")
         composeTestRule.onAllNodesWithText(string(R.string.save)).onFirst().performClick()
-        composeTestRule.onNodeWithContentDescription(string(R.string.cancel)).performClick()
+        composeTestRule.onNodeWithContentDescription(string(R.string.back)).performClick()
 
         assertEquals("Watered today", body)
         assertEquals(1, saveClicks)

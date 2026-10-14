@@ -91,7 +91,7 @@ class PlantScreenTest {
             onPlantClick = { clickedId = it },
         )
 
-        composeTestRule.onNodeWithText(string(R.string.add_plant)).performClick()
+        composeTestRule.onNodeWithContentDescription(string(R.string.add_plant)).performClick()
         composeTestRule.onNodeWithText("Aloe").assertIsDisplayed()
         composeTestRule.onNodeWithText("Aloe barbadensis").assertIsDisplayed()
         composeTestRule.onNodeWithText("Kitchen").assertIsDisplayed()

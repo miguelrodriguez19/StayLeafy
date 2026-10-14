@@ -133,6 +133,7 @@ Phase 6 applies the approved Stay Leafy visual identity to every existing screen
 ### Visual design reference
 
 - [x] Use [`design/references/stay_leafy_ui_direction.png`](../design/references/stay_leafy_ui_direction.png) as the primary visual-direction reference for Phase 6.
+- [x] Apply the V2 screen specification in [`design/StayLeafy_mockups_v2.svg`](../design/StayLeafy_mockups_v2.svg) as the current visual source for Plants, Notices, Plant details, Notice details, Configure care, Add note, and randomized empty states.
 - [x] Treat the reference as guidance for hierarchy, botanical palette, warm neutral surfaces, typography character, spacing, card treatment, photography, icon weight, controls, and the overall light/dark visual atmosphere.
 - [x] Use its six compositions—Plants, Notices, Plant details, Notice details, Configure care, and Add note—to guide the redesign of the corresponding implemented destinations and states.
 - [x] Reconcile every referenced composition against the current application before implementation. Existing navigation, fields, actions, scheduling rules, state ownership, accessibility semantics, and localized copy take precedence over illustrative content in the mockup.
@@ -170,7 +171,7 @@ Phase 6 applies the approved Stay Leafy visual identity to every existing screen
 
 ### Plants flow
 
-- [x] Redesign the Plants root while preserving Add plant, literal search, Favorites, Upcoming, Overdue, Clear filters, and their existing combination semantics.
+- [x] Redesign the Plants root while preserving literal search, Favorites, Upcoming, Overdue, Clear filters, and their existing combination semantics; creation now uses the visual-direction FAB and Settings remains a pending destination.
 - [x] Redesign plant rows around the primary photo or deterministic placeholder, plant name, optional scientific name, location, favorite action, and compact most-urgent interval-care summary.
 - [x] Redesign loading, empty inventory, filtered-empty, content, and error states in both themes.
 - [x] Redesign the shared create/view/edit plant destination without splitting it into separate screens.
@@ -183,7 +184,7 @@ Phase 6 applies the approved Stay Leafy visual identity to every existing screen
 ### Care configuration and Notices flow
 
 - [x] Redesign care configuration for Watering, Pruning, and Fertilizing while preserving the mutually exclusive Off, Interval, and Once-a-year modes and the single atomic Save action.
-- [x] Redesign interval source selection, validation, latest-care context, direct due-date selection, and the annual day-or-period calendar field without changing scheduling rules.
+- [x] Redesign interval source selection, validation, latest-care context, direct due-date selection, and the annual day-or-period calendar field without changing scheduling rules. The UI explicitly switches between latest care and a custom start date.
 - [x] Redesign notification-permission education while preserving the rule that denial never disables in-app reminders or Notices.
 - [x] Redesign the Notices root list, unread markers, unread badge, blocked-notification warning, Mark all as read action, loading, empty, error, and content states.
 - [x] Redesign Notice detail while preserving read-on-open behavior, schedule metadata, and View plant navigation.
@@ -212,7 +213,7 @@ Phase 6 boundary: this phase does not add root tabs, a dashboard, a calendar ove
 
 Phase 6 status: complete. The fixed light/dark brand system, launcher assets, vector iconography, redesigned screens, localized semantics, visual checks, and automated regression coverage are implemented.
 
-Reference-fidelity correction: complete. The production compositions now follow the reference directly: compact image-led inventory rows, a photo-first Plant detail with flat grouped sections, contextual note menus, visual Notice rows, Plant context in care/note editors, compact interval controls, and bottom-pinned primary actions.
+Reference-fidelity correction: complete. The production compositions now follow the V2 specification directly: compact image-led inventory rows, botanical light/dark surfaces, randomized reusable empty illustrations, a photo-first Plant detail with flat grouped sections, plant thumbnails in Notices, Plant context in care/note editors, compact interval controls, and bottom-pinned primary actions.
 
 Exit condition met: every currently implemented Stay Leafy flow uses the approved visual identity consistently in English and Spanish and in light and dark themes; the launcher icon renders correctly across supported Android icon modes; existing behavior remains covered; and the full local verification suite passes.
 

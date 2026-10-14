@@ -68,6 +68,7 @@ private fun NoticeRecord.toModel(): AppNotice = AppNotice(
     ruleId = ruleId,
     plantId = plantId,
     plantName = plantName,
+    plantPhotoPath = plantPhotoPath,
     careType = CareType.valueOf(careType),
     scheduleType = ReminderScheduleType.valueOf(scheduleType),
     dueEpochDay = dueEpochDay,

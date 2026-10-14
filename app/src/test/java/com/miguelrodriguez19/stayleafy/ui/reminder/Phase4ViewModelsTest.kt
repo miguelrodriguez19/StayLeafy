@@ -24,6 +24,7 @@ import com.miguelrodriguez19.stayleafy.model.SeasonalReminderConfiguration
 import com.miguelrodriguez19.stayleafy.model.SeasonalReminderRule
 import com.miguelrodriguez19.stayleafy.test.MainDispatcherRule
 import java.time.ZoneId
+import java.time.LocalDate
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flow
@@ -116,6 +117,50 @@ class Phase4ViewModelsTest {
                 .all { it.mode == CareScheduleMode.DISABLED },
         )
         assertTrue((viewModel.uiState.value as CareConfigurationUiState.Content).saved)
+    }
+
+    @Test
+    fun careConfiguration_defaultsNewIntervalToLatestCareAndSupportsExplicitSwitch() = runTest {
+        val latestCareDate = LocalDate.of(2026, 10, 10)
+        val viewModel = CareConfigurationViewModel(
+            plantId = "plant",
+            plantRepository = FakePlantRepository(plant()),
+            careEventRepository = FakeCareEventRepository(
+                events = listOf(
+                    CareEvent(
+                        id = "watering-event",
+                        plantId = "plant",
+                        careType = CareType.WATERING,
+                        performedAt = latestCareDate.atStartOfDay(FixedZoneIdProvider.currentZoneId()).toInstant().toEpochMilli(),
+                        note = null,
+                        createdAt = 1L,
+                        updatedAt = 1L,
+                    ),
+                ),
+            ),
+            gateway = FakePhase4Gateway(),
+            zoneIdProvider = FixedZoneIdProvider,
+        )
+        advanceUntilIdle()
+
+        val initial = viewModel.uiState.value as CareConfigurationUiState.Content
+        assertEquals(
+            ReminderDueSourceChoice.LatestCare,
+            initial.forms.single { it.careType == CareType.WATERING }.dueSource,
+        )
+
+        viewModel.setSource(CareType.WATERING, ReminderDueSourceChoice.CustomDate)
+        assertEquals(
+            ReminderDueSourceChoice.CustomDate,
+            (viewModel.uiState.value as CareConfigurationUiState.Content)
+                .forms.single { it.careType == CareType.WATERING }.dueSource,
+        )
+        viewModel.setSource(CareType.WATERING, ReminderDueSourceChoice.LatestCare)
+        assertEquals(
+            ReminderDueSourceChoice.LatestCare,
+            (viewModel.uiState.value as CareConfigurationUiState.Content)
+                .forms.single { it.careType == CareType.WATERING }.dueSource,
+        )
     }
 
     @Test
@@ -245,8 +290,10 @@ private class FakePlantRepository(initialPlant: Plant?) : PlantRepository {
     override suspend fun deletePlant(id: String) = Unit
 }
 
-private class FakeCareEventRepository : CareEventRepository {
-    override fun observeEvents(plantId: String): Flow<List<CareEvent>> = flowOf(emptyList())
+private class FakeCareEventRepository(
+    private val events: List<CareEvent> = emptyList(),
+) : CareEventRepository {
+    override fun observeEvents(plantId: String): Flow<List<CareEvent>> = flowOf(events)
 
     override fun observeEvent(plantId: String, eventId: String): Flow<CareEvent?> = flowOf(null)
 

@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.miguelrodriguez19.stayleafy.R
 import com.miguelrodriguez19.stayleafy.data.photo.PLANT_PHOTO_DIRECTORY
+import com.miguelrodriguez19.stayleafy.ui.theme.leafyLayoutTokens
 import java.io.File
 
 @Composable
@@ -35,7 +36,7 @@ internal fun PlantPhotoBox(
     val file = stagedFile?.takeIf(File::isFile)
         ?: relativePath?.let { resolvePlantPhotoFile(context.filesDir, it) }
     var decodeFailed by remember(file) { mutableStateOf(false) }
-    val clippedModifier = modifier.clip(RoundedCornerShape(12.dp))
+    val clippedModifier = modifier.clip(RoundedCornerShape(leafyLayoutTokens.radiusMd))
     when {
         isPreview && relativePath != null -> PlantPhotoPlaceholder(
             modifier = clippedModifier,

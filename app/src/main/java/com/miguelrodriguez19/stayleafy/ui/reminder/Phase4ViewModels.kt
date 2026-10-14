@@ -99,9 +99,17 @@ class CareConfigurationViewModel @AssistedInject constructor(
     }
 
     fun setEnabled(type: CareType, enabled: Boolean) = updateForm(type) {
+        val latestCare = (_uiState.value as? CareConfigurationUiState.Content)
+            ?.latestCareEpochDays
+            ?.get(type)
         copy(
             enabled = enabled,
             mode = if (enabled) CareScheduleMode.INTERVAL else CareScheduleMode.DISABLED,
+            dueSource = if (enabled && dueSource == null && latestCare != null) {
+                ReminderDueSourceChoice.LatestCare
+            } else {
+                dueSource
+            },
             intervalError = false,
             sourceError = false,
             seasonStartError = false,
@@ -109,9 +117,17 @@ class CareConfigurationViewModel @AssistedInject constructor(
     }
 
     fun setMode(type: CareType, mode: CareScheduleMode) = updateForm(type) {
+        val latestCare = (_uiState.value as? CareConfigurationUiState.Content)
+            ?.latestCareEpochDays
+            ?.get(type)
         copy(
             enabled = mode != CareScheduleMode.DISABLED,
             mode = mode,
+            dueSource = if (mode == CareScheduleMode.INTERVAL && dueSource == null && latestCare != null) {
+                ReminderDueSourceChoice.LatestCare
+            } else {
+                dueSource
+            },
             intervalError = false,
             sourceError = false,
             seasonStartError = false,
@@ -127,7 +143,7 @@ class CareConfigurationViewModel @AssistedInject constructor(
     }
 
     fun setDate(type: CareType, epochDay: Long) = updateForm(type) {
-        copy(selectedEpochDay = epochDay, dueSource = ReminderDueSourceChoice.Date, sourceError = false)
+        copy(selectedEpochDay = epochDay, dueSource = ReminderDueSourceChoice.CustomDate, sourceError = false)
     }
 
     fun setSeasonStart(type: CareType, date: AnnualDate) = updateForm(type) {
@@ -146,7 +162,7 @@ class CareConfigurationViewModel @AssistedInject constructor(
             val invalidInterval = form.mode == CareScheduleMode.INTERVAL && (interval == null || interval <= 0)
             val invalidSource = form.mode == CareScheduleMode.INTERVAL && when (form.dueSource) {
                 ReminderDueSourceChoice.LatestCare -> state.latestCareEpochDays[form.careType] == null
-                ReminderDueSourceChoice.Date -> form.selectedEpochDay == null
+                ReminderDueSourceChoice.CustomDate -> form.selectedEpochDay == null
                 null -> true
             }
             form.copy(
@@ -169,7 +185,7 @@ class CareConfigurationViewModel @AssistedInject constructor(
                         ReminderDueSourceChoice.LatestCare -> {
                             if (state.latestCareEpochDays[form.careType] != null) ReminderDueSource.LatestCare else null
                         }
-                        ReminderDueSourceChoice.Date -> form.selectedEpochDay?.let(ReminderDueSource::Date)
+                        ReminderDueSourceChoice.CustomDate -> form.selectedEpochDay?.let(ReminderDueSource::Date)
                         null -> null
                     }
                     CareScheduleDraft(
@@ -344,7 +360,8 @@ private fun List<IntervalReminderRule>.toForm(
         enabled = mode != CareScheduleMode.DISABLED,
         intervalDays = rule?.intervalDays?.toString().orEmpty(),
         dueSource = when {
-            rule != null -> ReminderDueSourceChoice.Date
+            rule != null -> ReminderDueSourceChoice.CustomDate
+            latestCareEpochDay != null -> ReminderDueSourceChoice.LatestCare
             else -> null
         },
         selectedEpochDay = rule?.nextDueEpochDay,

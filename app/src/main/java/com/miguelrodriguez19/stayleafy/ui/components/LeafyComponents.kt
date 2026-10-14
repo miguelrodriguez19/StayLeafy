@@ -2,20 +2,33 @@ package com.miguelrodriguez19.stayleafy.ui.components
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.IconButton
+import androidx.compose.foundation.Image
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.miguelrodriguez19.stayleafy.R
 import com.miguelrodriguez19.stayleafy.model.CareType
+import kotlin.random.Random
 
 @Composable
 fun LeafyCareIcon(
@@ -36,6 +49,94 @@ fun LeafyCareIcon(
         modifier = modifier,
         tint = tint,
     )
+}
+
+@Composable
+fun LeafyPrimaryButton(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+) {
+    Button(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = modifier.height(48.dp),
+        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 0.dp),
+        colors = ButtonDefaults.buttonColors(),
+    ) {
+        Text(text)
+    }
+}
+
+@Composable
+fun LeafyAddFab(
+    contentDescription: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    FloatingActionButton(
+        onClick = onClick,
+        modifier = modifier.size(65.dp),
+        containerColor = MaterialTheme.colorScheme.primary,
+        contentColor = MaterialTheme.colorScheme.onPrimary,
+    ) {
+        Icon(
+            painter = painterResource(R.drawable.ic_add),
+            contentDescription = contentDescription,
+        )
+    }
+}
+
+private val EmptyIllustrations = intArrayOf(
+    R.drawable.cherry_blossom_bro,
+    R.drawable.cherry_blossom_rafiki,
+)
+
+@Composable
+fun rememberEmptyIllustration(): Int = rememberSaveable {
+    EmptyIllustrations[Random.nextInt(EmptyIllustrations.size)]
+}
+
+@Composable
+fun LeafyEmptyState(
+    title: String,
+    supporting: String,
+    modifier: Modifier = Modifier,
+    action: String? = null,
+    onAction: () -> Unit = {},
+    illustration: Int = rememberEmptyIllustration(),
+) {
+    Column(
+        modifier = modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 20.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Image(
+            painter = painterResource(illustration),
+            contentDescription = null,
+            modifier = Modifier.size(196.dp),
+            contentScale = ContentScale.Fit,
+        )
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(top = 8.dp),
+        )
+        Text(
+            text = supporting,
+            modifier = Modifier.padding(top = 8.dp),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center
+        )
+        action?.let {
+            LeafyPrimaryButton(
+                text = it,
+                onClick = onAction,
+                modifier = Modifier.padding(top = 16.dp),
+            )
+        }
+    }
 }
 
 @Composable
@@ -60,7 +161,11 @@ fun LeafyStateContent(
             )
         }
         action?.let {
-            Button(onClick = onAction, Modifier.padding(top = 16.dp)) { Text(it) }
+            LeafyPrimaryButton(
+                text = it,
+                onClick = onAction,
+                modifier = Modifier.padding(top = 16.dp),
+            )
         }
     }
 }

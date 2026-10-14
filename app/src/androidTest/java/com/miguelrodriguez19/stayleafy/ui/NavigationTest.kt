@@ -84,7 +84,7 @@ class NavigationTest {
     @Test
     fun listCreateAndBack_returnsToPlantList() {
         composeTestRule.onNodeWithText(string(R.string.plants_title)).assertIsDisplayed()
-        composeTestRule.onNodeWithText(string(R.string.add_plant)).performClick()
+        composeTestRule.onNodeWithContentDescription(string(R.string.add_plant)).performClick()
         composeTestRule.onNodeWithText(string(R.string.add_plant)).assertIsDisplayed()
 
         composeTestRule.onNodeWithContentDescription(string(R.string.cancel)).performClick()

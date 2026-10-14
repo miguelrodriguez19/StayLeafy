@@ -96,6 +96,7 @@ Unique periodic WorkManager work evaluates interval and seasonal reminders appro
 - WorkManager persists work across normal process death and device reboot.
 - Delivery is best effort. The application does not promise an exact clock time or use exact alarms.
 - A rule saved after the day's approximate 09:00 run is evaluated the following morning, even when its selected date is already due or overdue.
+- New interval configuration starts from the latest matching care when one exists. The editor exposes an explicit custom start-date state and lets the user switch back to latest care; existing stored manual due dates remain unchanged unless the user chooses that switch.
 - Date evaluation is isolated from the Worker and accepts an injected clock and local zone for deterministic tests.
 
 For each due occurrence, the worker inserts or obtains its unique Notice with delivery state `PENDING`, then resolves Android delivery:

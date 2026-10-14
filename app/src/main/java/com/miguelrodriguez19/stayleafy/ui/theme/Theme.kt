@@ -19,11 +19,11 @@ private val DarkColorScheme = darkColorScheme(
     secondaryContainer = Color(0xFF293C31), onSecondaryContainer = Color(0xFFD5E8D1),
     tertiary = DarkTertiary, onTertiary = Color(0xFF5A1B0D),
     tertiaryContainer = Color(0xFF5C2A1D), onTertiaryContainer = Color(0xFFFFDAD0),
-    background = LeafDark, onBackground = Color(0xFFE4E9E1),
-    surface = LeafDark, onSurface = Color(0xFFE4E9E1),
+    background = LeafDark, onBackground = Color(0xFFE2EAE3),
+    surface = LeafDarkSurface, onSurface = Color(0xFFE2EAE3),
     surfaceVariant = DarkSurfaceVariant, onSurfaceVariant = DarkOnSurfaceVariant,
     surfaceDim = Color(0xFF08120D),
-    surfaceBright = Color(0xFF2A3A31),
+    surfaceBright = Color(0xFF30453A),
     surfaceContainerLowest = Color(0xFF07100B),
     surfaceContainerLow = Color(0xFF101F18),
     surfaceContainer = Color(0xFF14241C),
@@ -40,11 +40,11 @@ private val LightColorScheme = lightColorScheme(
     secondaryContainer = Color(0xFFDDE7DA), onSecondaryContainer = Color(0xFF182719),
     tertiary = LightTertiary, onTertiary = Color.White,
     tertiaryContainer = Color(0xFFFFDAD0), onTertiaryContainer = Color(0xFF3B0A02),
-    background = LeafCream, onBackground = Color(0xFF1A1C18),
-    surface = Color(0xFFFFFCF6), onSurface = Color(0xFF1A1C18),
+    background = LeafCream, onBackground = LeafInk,
+    surface = LeafPaper, onSurface = LeafInk,
     surfaceVariant = LightSurfaceVariant, onSurfaceVariant = LightOnSurfaceVariant,
     surfaceDim = Color(0xFFE2DED6),
-    surfaceBright = Color(0xFFFFFCF6),
+    surfaceBright = LeafPaper,
     surfaceContainerLowest = Color(0xFFFFFFFF),
     surfaceContainerLow = Color(0xFFF8F4ED),
     surfaceContainer = Color(0xFFF2EEE7),
@@ -55,11 +55,11 @@ private val LightColorScheme = lightColorScheme(
 )
 
 private val LeafyShapes = Shapes(
-    extraSmall = RoundedCornerShape(8.dp),
-    small = RoundedCornerShape(10.dp),
-    medium = RoundedCornerShape(14.dp),
-    large = RoundedCornerShape(18.dp),
-    extraLarge = RoundedCornerShape(24.dp),
+    extraSmall = RoundedCornerShape(leafyLayoutTokens.radiusXs),
+    small = RoundedCornerShape(leafyLayoutTokens.radiusSm),
+    medium = RoundedCornerShape(leafyLayoutTokens.radiusMd),
+    large = RoundedCornerShape(leafyLayoutTokens.radiusLg),
+    extraLarge = RoundedCornerShape(leafyLayoutTokens.radiusXl),
 )
 
 val LocalLeafyColors = staticCompositionLocalOf { LightExtendedColors }

@@ -61,7 +61,7 @@ class NoticeScreensTest {
         }
 
         composeTestRule.onNodeWithText("Avisos").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Aún no hay avisos").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Todo al día").assertIsDisplayed()
     }
 
     @Test

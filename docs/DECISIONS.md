@@ -254,3 +254,14 @@ The approved `design/brand/stay_leafy_master.svg` remains unchanged. `stay_leafy
 The Phase 6 reference at `design/references/stay_leafy_ui_direction.png` is the primary composition specification, not merely a palette or mood board. Production screens therefore use compact image-led root rows, restrained zero-elevation tonal containers, a wide Plant-detail hero, grouped icon metadata, three flat care rows, contextual secondary actions, visible Plant identity in child editors, and bottom-pinned primary actions. Existing product behavior, localized content, accessibility semantics, root navigation, and immutable UI-state contracts still take precedence where illustrative mock content differs from the implemented application.
 
 Lora remains reserved for the distinctive Plants root display heading. Screen app bars, entity names, form controls, and dense reading surfaces use the platform sans-serif hierarchy to preserve the compact character shown in the reference. The interval frequency is adjusted with a localized compact stepper while scheduling validation and persistence remain unchanged.
+
+## D-027 — Botanical Calm V2 visual system and explicit interval start states
+
+- **Date:** 2026-10-14
+- **Status:** Accepted
+
+The V2 screen specification in `design/StayLeafy_mockups_v2.svg` supersedes the earlier reference for production composition. The app uses the Botanical Calm pine, sage, clay, cream, paper, ink, and dark-surface tokens in explicit light and dark Material 3 schemes. Shared Compose tokens cover semantic colors, spacing, radii, controls, thumbnails, and the compact 64dp root navigation bar. Empty Plants and Notices states use reusable vector illustrations selected once per state appearance and retained across recompositions.
+
+Plants keeps the existing two-root navigation and behavior while presenting creation through a FAB. The Settings icon is a visual affordance only; no Settings destination is introduced until its product behavior is defined. Notices derive the plant thumbnail from the existing Plants row through Room joins, without changing the persisted notice schema.
+
+The care configuration UI models interval origin explicitly as `LatestCare` or `CustomDate`. Newly initialized interval forms use latest care when available. Stored manual due dates remain custom until the user selects `Use latest care instead`, preserving the scheduling rule that editing does not silently reinterpret persisted due dates. Add note keeps only back navigation, content, and Save.
