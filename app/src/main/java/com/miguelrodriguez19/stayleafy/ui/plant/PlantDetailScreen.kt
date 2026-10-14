@@ -25,6 +25,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -87,6 +88,8 @@ import com.miguelrodriguez19.stayleafy.model.CareType
 import com.miguelrodriguez19.stayleafy.ui.reminder.CareReminderUiState
 import com.miguelrodriguez19.stayleafy.ui.reminder.PlantCareStatusViewModel
 import com.miguelrodriguez19.stayleafy.ui.components.LeafyCareIcon
+import com.miguelrodriguez19.stayleafy.ui.components.LeafyDiscardChangesDialog
+import com.miguelrodriguez19.stayleafy.ui.components.leafyTopAppBarColors
 import com.miguelrodriguez19.stayleafy.ui.theme.StayLeafyTheme
 import com.miguelrodriguez19.stayleafy.ui.theme.leafyLayoutTokens
 import java.io.File
@@ -293,8 +296,12 @@ fun PlantDetailScreen(
         if (content?.mode == PlantDetailMode.View) R.string.back else R.string.cancel,
     )
     val saveLabel = stringResource(R.string.save)
+    val hasUnsavedEdit = content?.let {
+        it.mode == PlantDetailMode.Edit && it.plant?.toPlantForm() != it.form
+    } == true
     val requestBack = {
         when {
+            content?.mode == PlantDetailMode.Edit && hasUnsavedEdit -> showDiscardDialog = true
             content?.mode == PlantDetailMode.Edit -> onCancelEdit()
             content?.mode == PlantDetailMode.Create && content.hasUnsavedCreation -> {
                 showDiscardDialog = true
@@ -307,6 +314,7 @@ fun PlantDetailScreen(
         modifier = modifier,
         topBar = {
             TopAppBar(
+                colors = leafyTopAppBarColors(),
                 title = {
                     Text(
                         title,
@@ -336,6 +344,9 @@ fun PlantDetailScreen(
                         PlantDetailMode.Create, PlantDetailMode.Edit -> TextButton(
                             onClick = onSave,
                             enabled = !content.isSaving,
+                            colors = ButtonDefaults.textButtonColors(
+                                contentColor = MaterialTheme.colorScheme.onPrimary,
+                            ),
                             modifier = Modifier.semantics { contentDescription = saveLabel },
                         ) {
                             Text(stringResource(if (content.isSaving) R.string.saving else R.string.save))
@@ -412,22 +423,18 @@ fun PlantDetailScreen(
         )
     }
     if (showDiscardDialog) {
-        AlertDialog(
-            onDismissRequest = { showDiscardDialog = false },
-            title = { Text(stringResource(R.string.discard_plant_title)) },
-            text = { Text(stringResource(R.string.discard_plant_message)) },
-            dismissButton = {
-                TextButton(onClick = { showDiscardDialog = false }) {
-                    Text(stringResource(R.string.keep_editing))
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        showDiscardDialog = false
-                        onDiscardCreation()
-                    },
-                ) { Text(stringResource(R.string.discard)) }
+        val isCreating = content?.mode == PlantDetailMode.Create
+        LeafyDiscardChangesDialog(
+            title = stringResource(
+                if (isCreating) R.string.discard_plant_title else R.string.discard_changes_title,
+            ),
+            message = stringResource(
+                if (isCreating) R.string.discard_plant_message else R.string.discard_changes_message,
+            ),
+            onDismiss = { showDiscardDialog = false },
+            onConfirm = {
+                showDiscardDialog = false
+                if (isCreating) onDiscardCreation() else onCancelEdit()
             },
         )
     }
@@ -859,7 +866,7 @@ private fun PlantFormFields(
         value = state.form.scientificName,
         onValueChange = onScientificNameChange,
         label = R.string.scientific_name,
-        icon = R.drawable.ic_note,
+        icon = R.drawable.ic_science,
         focusRequester = scientificNameFocusRequester,
         onNext = { locationFocusRequester.requestFocus() },
     )

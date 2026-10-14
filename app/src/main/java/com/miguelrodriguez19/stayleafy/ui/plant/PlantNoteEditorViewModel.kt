@@ -23,6 +23,7 @@ data class PlantNoteEditorState(
     val plantScientificName: String? = null,
     val plantPhotoPath: String? = null,
     val body: String = "",
+    val initialBody: String = "",
     val isLoading: Boolean = true,
     val isSaving: Boolean = false,
     val saved: Boolean = false,
@@ -31,6 +32,8 @@ data class PlantNoteEditorState(
     val saveError: UiErrorCategory? = null,
     val bodyError: Boolean = false,
 )
+
+const val MAX_NOTE_BODY_LENGTH = 500
 
 @HiltViewModel(assistedFactory = PlantNoteEditorViewModel.Factory::class)
 class PlantNoteEditorViewModel @AssistedInject constructor(
@@ -48,7 +51,10 @@ class PlantNoteEditorViewModel @AssistedInject constructor(
     }
 
     fun updateBody(body: String) {
-        _state.value = _state.value.copy(body = body, bodyError = false)
+        _state.value = _state.value.copy(
+            body = body.take(MAX_NOTE_BODY_LENGTH),
+            bodyError = false,
+        )
     }
 
     fun retryLoad() {
@@ -117,7 +123,8 @@ class PlantNoteEditorViewModel @AssistedInject constructor(
                             plantScientificName = plant.scientificName,
                             plantPhotoPath = plant.mainPhotoPath,
                             isLoading = false,
-                            body = note.body,
+                            body = note.body.take(MAX_NOTE_BODY_LENGTH),
+                            initialBody = note.body.take(MAX_NOTE_BODY_LENGTH),
                             notFound = false,
                         )
                     }

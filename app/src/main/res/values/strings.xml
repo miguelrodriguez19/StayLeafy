@@ -47,6 +47,8 @@
     <string name="delete_plant_message">This action cannot be undone.</string>
     <string name="discard_plant_title">Discard this plant?</string>
     <string name="discard_plant_message">The plant, its prepared photo, and its notes will not be saved.</string>
+    <string name="discard_changes_title">Discard changes?</string>
+    <string name="discard_changes_message">Your unsaved changes will be lost.</string>
     <string name="discard">Discard</string>
     <string name="keep_editing">Keep editing</string>
     <string name="take_photo">Take photo</string>
@@ -68,6 +70,7 @@
     <string name="delete_note_title">Delete this note?</string>
     <string name="delete_note_message">This action cannot be undone.</string>
     <string name="note_body">Note</string>
+    <string name="note_character_count">%1$d/%2$d</string>
     <string name="note_required">Enter a note.</string>
     <string name="no_notes_yet">No notes yet.</string>
     <string name="load_notes_error">We couldn’t load the notes.</string>

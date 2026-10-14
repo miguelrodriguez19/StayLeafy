@@ -90,6 +90,29 @@ class CareConfigurationScreenTest {
     }
 
     @Test
+    fun unsavedBack_showsConfirmationBeforeLeaving() {
+        var backClicks = 0
+        setScreen(
+            CareConfigurationUiState.Content(
+                plantName = "Monstera",
+                forms = CareType.values().map { CareRuleForm(careType = it) },
+                initialForms = emptyList(),
+                latestCareEpochDays = emptyMap(),
+            ),
+            onBack = { backClicks++ },
+        )
+
+        composeTestRule.onNodeWithContentDescription(string(R.string.back)).performClick()
+        composeTestRule.onNodeWithText(string(R.string.discard_changes_title)).assertIsDisplayed()
+        assertEquals(0, backClicks)
+        composeTestRule.onNodeWithText(string(R.string.keep_editing)).performClick()
+        composeTestRule.onNodeWithContentDescription(string(R.string.back)).performClick()
+        composeTestRule.onNodeWithText(string(R.string.discard)).performClick()
+
+        assertEquals(1, backClicks)
+    }
+
+    @Test
     fun annualRule_displaysSingleSelectionAndOpensRangeCalendar() {
         setScreen(
             CareConfigurationUiState.Content(

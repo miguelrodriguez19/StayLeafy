@@ -56,13 +56,45 @@ class PlantNoteEditorScreenTest {
 
         composeTestRule.onNodeWithText(string(R.string.add_note)).assertIsDisplayed()
         composeTestRule.onNodeWithText(string(R.string.note_body)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(string(R.string.note_character_count, 0, MAX_NOTE_BODY_LENGTH)).assertIsDisplayed()
 
         composeTestRule.onNode(hasSetTextAction()).performTextReplacement("Watered today")
         composeTestRule.onAllNodesWithText(string(R.string.save)).onFirst().performClick()
         composeTestRule.onNodeWithContentDescription(string(R.string.back)).performClick()
+        composeTestRule.onNodeWithText(string(R.string.discard_changes_title)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(string(R.string.discard)).performClick()
 
         assertEquals("Watered today", body)
         assertEquals(1, saveClicks)
+        assertEquals(1, backClicks)
+    }
+
+    @Test
+    fun unsavedBack_showsConfirmationBeforeLeaving() {
+        var backClicks = 0
+        var state by mutableStateOf(PlantNoteEditorState(noteId = null, isLoading = false))
+        composeTestRule.setContent {
+            StayLeafyTheme(dynamicColor = false) {
+                PlantNoteEditorScreen(
+                    state = state,
+                    onBack = { backClicks++ },
+                    onBodyChange = { state = state.copy(body = it) },
+                    onRetry = {},
+                    onSave = {},
+                )
+            }
+        }
+        composeTestRule.waitForIdle()
+
+        state = state.copy(body = "Draft note")
+        composeTestRule.onNodeWithContentDescription(string(R.string.back)).performClick()
+
+        composeTestRule.onNodeWithText(string(R.string.discard_changes_title)).assertIsDisplayed()
+        assertEquals(0, backClicks)
+        composeTestRule.onNodeWithText(string(R.string.keep_editing)).performClick()
+        assertEquals(0, backClicks)
+        composeTestRule.onNodeWithContentDescription(string(R.string.back)).performClick()
+        composeTestRule.onNodeWithText(string(R.string.discard)).performClick()
         assertEquals(1, backClicks)
     }
 
@@ -143,5 +175,6 @@ class PlantNoteEditorScreenTest {
         composeTestRule.waitForIdle()
     }
 
-    private fun string(id: Int): String = composeTestRule.activity.getString(id)
+    private fun string(id: Int, vararg arguments: Any): String =
+        composeTestRule.activity.getString(id, *arguments)
 }

@@ -47,6 +47,8 @@
     <string name="delete_plant_message">Esta acción no se puede deshacer.</string>
     <string name="discard_plant_title">¿Descartar esta planta?</string>
     <string name="discard_plant_message">La planta, su foto preparada y sus notas no se guardarán.</string>
+    <string name="discard_changes_title">¿Descartar los cambios?</string>
+    <string name="discard_changes_message">Se perderán los cambios que no hayas guardado.</string>
     <string name="discard">Descartar</string>
     <string name="keep_editing">Seguir editando</string>
     <string name="take_photo">Hacer foto</string>
@@ -68,6 +70,7 @@
     <string name="delete_note_title">¿Eliminar esta nota?</string>
     <string name="delete_note_message">Esta acción no se puede deshacer.</string>
     <string name="note_body">Nota</string>
+    <string name="note_character_count">%1$d/%2$d</string>
     <string name="note_required">Escribe una nota.</string>
     <string name="no_notes_yet">Aún no hay notas.</string>
     <string name="load_notes_error">No se han podido cargar las notas.</string>
@@ -104,9 +107,9 @@
     <string name="more_care_rules">+%1$d</string>
     <string name="configure_care">Configurar cuidados</string>
     <string name="care_configuration_help">Elige un tipo de recordatorio por cuidado: un intervalo repetitivo o una vez al año.</string>
-    <string name="schedule_disabled">Desactivado</string>
+    <string name="schedule_disabled">Off</string>
     <string name="schedule_interval">Intervalo</string>
-    <string name="schedule_seasonal">Una vez al año</string>
+    <string name="schedule_seasonal">Anual</string>
     <string name="interval_days">Intervalo en días</string>
     <string name="decrease_interval">Reducir intervalo</string>
     <string name="increase_interval">Aumentar intervalo</string>

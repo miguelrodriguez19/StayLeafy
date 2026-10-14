@@ -59,6 +59,7 @@ import com.miguelrodriguez19.stayleafy.ui.plant.PlantPhotoBox
 import com.miguelrodriguez19.stayleafy.ui.components.LeafyCareIcon
 import com.miguelrodriguez19.stayleafy.ui.components.LeafyEmptyState
 import com.miguelrodriguez19.stayleafy.ui.components.LeafyPrimaryButton
+import com.miguelrodriguez19.stayleafy.ui.components.leafyTopAppBarColors
 import com.miguelrodriguez19.stayleafy.ui.components.LeafyStateContent
 import com.miguelrodriguez19.stayleafy.ui.theme.StayLeafyTheme
 import com.miguelrodriguez19.stayleafy.ui.theme.leafyColors
@@ -115,6 +116,7 @@ fun NoticeListScreen(
         modifier = modifier,
         topBar = {
             TopAppBar(
+                colors = leafyTopAppBarColors(),
                 title = {
                     Text(
                         stringResource(R.string.notices_title),
@@ -287,6 +289,7 @@ fun NoticeDetailScreen(
         modifier = modifier,
         topBar = {
             TopAppBar(
+                colors = leafyTopAppBarColors(),
                 title = { Text(stringResource(R.string.notice_details)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {

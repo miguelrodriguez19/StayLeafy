@@ -32,6 +32,7 @@ Phase delivery note: Phase 1 implements the Plant inventory. Phase 2 implements 
 - **FR-PLANT-014** — The software keyboard advances through the editable plant text fields in form order and finishes from the final field.
 - **FR-PLANT-015** — Opening an empty acquisition-date picker selects the device's current local date by default; an existing acquisition date remains selected while editing.
 - **FR-PLANT-016** — Plant descriptions are optional and limited to 500 characters; the editor shows the current count against that limit.
+- **FR-PLANT-017** — Leaving Plant create or edit with unsaved changes through the back arrow asks for confirmation before discarding them.
 
 ### Primary photo
 
@@ -53,6 +54,7 @@ Phase delivery note: Phase 1 implements the Plant inventory. Phase 2 implements 
 - **FR-NOTE-004** — Notes are displayed newest first.
 - **FR-NOTE-005** — Notes are stored as independent rows with UUID, Plant foreign key, body, creation timestamp, and update timestamp; they remain present after the schema v3-to-v4 migration, and deleting a plant cascades to its notes.
 - **FR-NOTE-006** — Note bodies are trimmed and must remain non-blank. Creation timestamps remain stable when a note is edited.
+- **FR-NOTE-007** — Note bodies are limited to 500 characters, and the editor shows the current count against that limit. Leaving with unsaved changes through the back arrow asks for confirmation.
 
 ### Care history
 
@@ -80,6 +82,7 @@ Phase delivery note: Phase 1 implements the Plant inventory. Phase 2 implements 
 - **FR-INTERVAL-010** — A retroactive care event older than the latest matching event does not move the next due date backwards.
 - **FR-INTERVAL-011** — Clearing one care type's history for the current plant preserves that rule's currently stored next due date.
 - **FR-INTERVAL-012** — Plant detail shows the last-care date, next due date, and due state for each supported type. Inventory rows show the most urgent active rule and `+N` when more active rules exist.
+- **FR-INTERVAL-013** — Leaving care configuration with unsaved rule changes through the back arrow asks for confirmation before discarding them.
 
 ### Seasonal reminders
 

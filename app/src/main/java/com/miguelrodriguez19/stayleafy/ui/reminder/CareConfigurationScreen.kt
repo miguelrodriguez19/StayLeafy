@@ -66,6 +66,8 @@ import com.miguelrodriguez19.stayleafy.ui.plant.pickerMillisToEpochDay
 import com.miguelrodriguez19.stayleafy.ui.plant.PlantPhotoBox
 import com.miguelrodriguez19.stayleafy.ui.components.LeafyCareIcon
 import com.miguelrodriguez19.stayleafy.ui.components.LeafyPrimaryButton
+import com.miguelrodriguez19.stayleafy.ui.components.LeafyDiscardChangesDialog
+import com.miguelrodriguez19.stayleafy.ui.components.leafyTopAppBarColors
 import com.miguelrodriguez19.stayleafy.ui.theme.StayLeafyTheme
 import java.time.LocalDate
 import java.time.Year
@@ -126,10 +128,20 @@ fun CareConfigurationScreen(
     onSeasonEndChange: (CareType, AnnualDate?) -> Unit = { _, _ -> },
 ) {
     val content = state as? CareConfigurationUiState.Content
+    var showDiscardDialog by rememberSaveable { mutableStateOf(false) }
+    val hasUnsavedChanges = content?.initialForms?.let { it != content.forms } == true
+    val requestBack = {
+        if (hasUnsavedChanges && !content.isSaving) {
+            showDiscardDialog = true
+        } else {
+            onBack()
+        }
+    }
     Scaffold(
         modifier = modifier,
         topBar = {
             TopAppBar(
+                colors = leafyTopAppBarColors(),
                 title = {
                     Text(
                         stringResource(R.string.configure_care),
@@ -137,7 +149,7 @@ fun CareConfigurationScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onBack, enabled = content?.isSaving != true) {
+                    IconButton(onClick = requestBack, enabled = content?.isSaving != true) {
                         Icon(
                             painterResource(R.drawable.ic_back),
                             contentDescription = stringResource(R.string.back),
@@ -248,6 +260,17 @@ fun CareConfigurationScreen(
                 Button(onClick = onPermissionEducationContinue) {
                     Text(stringResource(R.string.continue_action))
                 }
+            },
+        )
+    }
+    if (showDiscardDialog) {
+        LeafyDiscardChangesDialog(
+            title = stringResource(R.string.discard_changes_title),
+            message = stringResource(R.string.discard_changes_message),
+            onDismiss = { showDiscardDialog = false },
+            onConfirm = {
+                showDiscardDialog = false
+                onBack()
             },
         )
     }

@@ -46,6 +46,7 @@ sealed interface CareConfigurationUiState {
         val plantName: String,
         val forms: List<CareRuleForm>,
         val latestCareEpochDays: Map<CareType, Long>,
+        val initialForms: List<CareRuleForm>? = null,
         val plantScientificName: String? = null,
         val plantPhotoPath: String? = null,
         val isSaving: Boolean = false,

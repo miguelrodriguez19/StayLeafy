@@ -51,6 +51,7 @@ import com.miguelrodriguez19.stayleafy.model.CareStatusSummary
 import com.miguelrodriguez19.stayleafy.ui.reminder.PlantCareSummaryViewModel
 import com.miguelrodriguez19.stayleafy.ui.reminder.localizedName
 import com.miguelrodriguez19.stayleafy.ui.components.LeafyAddFab
+import com.miguelrodriguez19.stayleafy.ui.components.leafyTopAppBarColors
 import com.miguelrodriguez19.stayleafy.ui.components.LeafyEmptyState
 import com.miguelrodriguez19.stayleafy.ui.components.LeafyPrimaryButton
 import com.miguelrodriguez19.stayleafy.ui.theme.StayLeafyTheme
@@ -121,6 +122,7 @@ fun PlantListScreen(
         modifier = modifier,
         topBar = {
             TopAppBar(
+                colors = leafyTopAppBarColors(),
                 title = {
                     Text(
                         stringResource(R.string.plants_title),

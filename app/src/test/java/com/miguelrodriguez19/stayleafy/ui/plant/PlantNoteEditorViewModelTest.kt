@@ -44,6 +44,21 @@ class PlantNoteEditorViewModelTest {
     }
 
     @Test
+    fun body_isLimitedToFiveHundredCharacters() = runTest {
+        val viewModel = PlantNoteEditorViewModel(
+            "plant-1",
+            null,
+            FakeEditorNotesRepository(),
+            FakeEditorPlantRepository(),
+        )
+        advanceUntilIdle()
+
+        viewModel.updateBody("x".repeat(MAX_NOTE_BODY_LENGTH + 1))
+
+        assertEquals(MAX_NOTE_BODY_LENGTH, viewModel.state.value.body.length)
+    }
+
+    @Test
     fun create_saveTrimsBodyAndMarksSaved() = runTest {
         val repository = FakeEditorNotesRepository()
         val viewModel = PlantNoteEditorViewModel(
