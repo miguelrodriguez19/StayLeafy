@@ -30,7 +30,8 @@ private val DarkColorScheme = darkColorScheme(
     surfaceContainerHigh = Color(0xFF1A2B22),
     surfaceContainerHighest = Color(0xFF21342A),
     outline = DarkOutline, outlineVariant = DarkOutlineVariant,
-    error = Color(0xFFFFB4AB), onError = Color(0xFF690005),
+    error = DarkExtendedColors.accent, onError = DarkExtendedColors.onAccent,
+    errorContainer = Color(0xFF57251B), onErrorContainer = Color(0xFFFFDDD4),
 )
 
 private val LightColorScheme = lightColorScheme(
@@ -51,7 +52,8 @@ private val LightColorScheme = lightColorScheme(
     surfaceContainerHigh = Color(0xFFECE8E1),
     surfaceContainerHighest = Color(0xFFE6E2DB),
     outline = LightOutline, outlineVariant = LightOutlineVariant,
-    error = Color(0xFFBA1A1A), onError = Color.White,
+    error = LightExtendedColors.accent, onError = LightExtendedColors.onAccent,
+    errorContainer = Color(0xFFF5D7CD), onErrorContainer = Color(0xFF4A1B0F),
 )
 
 private val LeafyShapes = Shapes(

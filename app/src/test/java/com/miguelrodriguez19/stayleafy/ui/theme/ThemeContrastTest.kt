@@ -22,6 +22,8 @@ class ThemeContrastTest {
             0xFFC8F2D3 to 0xFF19382A,
             0xFFFFE6A8 to 0xFF3E2E00,
             0xFFFFDAD0 to 0xFF5A1B0D,
+            0xFF0E1A15 to 0xFFC97052,
+            0xFF0E1A15 to 0xFFE2A08A,
         ).forEach { (foreground, background) ->
             assertTrue(
                 "Contrast was ${contrast(foreground, background)} for ${foreground.toString(16)} on ${background.toString(16)}",

@@ -69,6 +69,7 @@ import com.miguelrodriguez19.stayleafy.ui.components.LeafyPrimaryButton
 import com.miguelrodriguez19.stayleafy.ui.components.LeafyDiscardChangesDialog
 import com.miguelrodriguez19.stayleafy.ui.components.leafyTopAppBarColors
 import com.miguelrodriguez19.stayleafy.ui.theme.StayLeafyTheme
+import com.miguelrodriguez19.stayleafy.ui.theme.leafyColors
 import java.time.LocalDate
 import java.time.Year
 import java.time.format.DateTimeFormatter
@@ -244,7 +245,7 @@ fun CareConfigurationScreen(
                 if (state.saveError) {
                     Text(
                         stringResource(R.string.save_care_configuration_error),
-                        color = MaterialTheme.colorScheme.error,
+                        color = MaterialTheme.leafyColors.accent,
                     )
                 }
             }
@@ -354,7 +355,7 @@ private fun CareRuleCard(
                         text = latestCareEpochDay?.let {
                             stringResource(R.string.latest_care_date, formatEpochDay(it))
                         } ?: stringResource(R.string.no_latest_care),
-                        color = if (form.sourceError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
+                        color = if (form.sourceError) MaterialTheme.leafyColors.accent else MaterialTheme.colorScheme.onSurface,
                     )
                     ReminderDueSourceChoice.CustomDate -> {
                         val dateLabel = form.selectedEpochDay?.let(::formatEpochDay)
@@ -367,14 +368,14 @@ private fun CareRuleCard(
                         if (form.sourceError) {
                             Text(
                                 stringResource(R.string.due_date_required),
-                                color = MaterialTheme.colorScheme.error,
+                                color = MaterialTheme.leafyColors.accent,
                             )
                         }
                     }
                     null -> Text(
                         text = stringResource(R.string.select_due_source),
                         color = if (form.sourceError) {
-                            MaterialTheme.colorScheme.error
+                            MaterialTheme.leafyColors.accent
                         } else {
                             MaterialTheme.colorScheme.onSurfaceVariant
                         },
@@ -402,7 +403,7 @@ private fun CareRuleCard(
                 } else if (form.dueSource == ReminderDueSourceChoice.CustomDate) {
                     TextButton(
                         onClick = { onSourceChange(ReminderDueSourceChoice.LatestCare) },
-                        enabled = enabled && latestCareEpochDay != null,
+                        enabled = enabled,
                         modifier = Modifier.align(Alignment.End),
                     ) {
                         Text(stringResource(R.string.use_latest_care_instead))
@@ -459,7 +460,7 @@ private fun CareRuleCard(
                     )
                 }
                 if (form.seasonStartError) {
-                    Text(stringResource(R.string.annual_selection_required), color = MaterialTheme.colorScheme.error)
+                    Text(stringResource(R.string.annual_selection_required), color = MaterialTheme.leafyColors.accent)
                 }
                 if (form.seasonStart != null && form.seasonEnd != null &&
                     annualDateComesBefore(form.seasonEnd, form.seasonStart)
@@ -563,7 +564,7 @@ private fun IntervalStepper(
                 pluralStringResource(R.plurals.interval_every_days, parsedValue, parsedValue),
                 style = MaterialTheme.typography.bodyLarge,
                 modifier = Modifier.weight(1f),
-                color = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
+                color = if (isError) MaterialTheme.leafyColors.accent else MaterialTheme.colorScheme.onSurface,
             )
             Surface(
                 shape = MaterialTheme.shapes.small,
@@ -608,7 +609,7 @@ private fun IntervalStepper(
         if (isError) {
             Text(
                 stringResource(R.string.interval_days_error),
-                color = MaterialTheme.colorScheme.error,
+                color = MaterialTheme.leafyColors.accent,
                 style = MaterialTheme.typography.bodySmall,
             )
         }

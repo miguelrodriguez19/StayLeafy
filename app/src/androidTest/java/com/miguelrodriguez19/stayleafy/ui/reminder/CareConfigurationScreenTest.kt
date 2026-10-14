@@ -97,6 +97,36 @@ class CareConfigurationScreenTest {
     }
 
     @Test
+    fun customStartDate_canSwitchBackToLatestCareChoice() {
+        var selectedSource: ReminderDueSourceChoice? = null
+        setScreen(
+            CareConfigurationUiState.Content(
+                plantName = "Monstera",
+                forms = listOf(
+                    CareRuleForm(
+                        careType = CareType.WATERING,
+                        enabled = true,
+                        mode = CareScheduleMode.INTERVAL,
+                        intervalDays = "7",
+                        dueSource = ReminderDueSourceChoice.CustomDate,
+                        selectedEpochDay = 21_000,
+                    ),
+                    CareRuleForm(CareType.PRUNING),
+                    CareRuleForm(CareType.FERTILIZING),
+                ),
+                latestCareEpochDays = emptyMap(),
+            ),
+            onSourceChange = { _, source -> selectedSource = source },
+        )
+
+        composeTestRule.onNodeWithText(string(R.string.use_latest_care_instead))
+            .assertIsDisplayed()
+            .performClick()
+
+        assertEquals(ReminderDueSourceChoice.LatestCare, selectedSource)
+    }
+
+    @Test
     fun permissionEducation_forwardsContinue() {
         var continues = 0
         setScreen(

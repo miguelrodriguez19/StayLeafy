@@ -43,6 +43,7 @@ import com.miguelrodriguez19.stayleafy.ui.components.LeafyDiscardChangesDialog
 import com.miguelrodriguez19.stayleafy.ui.components.leafyTopAppBarColors
 import com.miguelrodriguez19.stayleafy.ui.components.LeafyPrimaryButton
 import com.miguelrodriguez19.stayleafy.ui.theme.StayLeafyTheme
+import com.miguelrodriguez19.stayleafy.ui.theme.leafyColors
 
 @Composable
 fun PlantNoteEditorRoute(
@@ -181,7 +182,13 @@ fun PlantNoteEditorScreen(
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
-                        state.saveError?.let { Text(stringResource(R.string.save_note_error), color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 12.dp)) }
+                        state.saveError?.let {
+                            Text(
+                                stringResource(R.string.save_note_error),
+                                color = MaterialTheme.leafyColors.accent,
+                                modifier = Modifier.padding(top = 12.dp),
+                            )
+                        }
                     }
                 }
             }

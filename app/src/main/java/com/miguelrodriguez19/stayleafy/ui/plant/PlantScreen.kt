@@ -8,11 +8,14 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.minus
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -42,9 +45,14 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.miguelrodriguez19.stayleafy.R
@@ -57,7 +65,7 @@ import com.miguelrodriguez19.stayleafy.ui.reminder.localizedName
 import com.miguelrodriguez19.stayleafy.ui.components.LeafyAddFab
 import com.miguelrodriguez19.stayleafy.ui.components.LeafyEmptyState
 import com.miguelrodriguez19.stayleafy.ui.components.LeafyPrimaryButton
-import com.miguelrodriguez19.stayleafy.ui.components.leafyHomeTopAppBarColors
+import com.miguelrodriguez19.stayleafy.ui.components.leafyTopAppBarColors
 import com.miguelrodriguez19.stayleafy.ui.theme.StayLeafyTheme
 import com.miguelrodriguez19.stayleafy.ui.theme.leafyLayoutTokens
 import com.miguelrodriguez19.stayleafy.ui.theme.leafyColors
@@ -123,15 +131,27 @@ fun PlantListScreen(
     onOverdueOnlyChange: (Boolean) -> Unit = {},
     careSummaries: Map<String, List<CareStatusSummary>> = emptyMap(),
 ) {
+    val filtersHaveNoResults = (state as? PlantListUiState.Empty)?.isFiltered == true
+    val selectedFilterContainerColor = if (filtersHaveNoResults) {
+        MaterialTheme.leafyColors.accent
+    } else {
+        MaterialTheme.colorScheme.primaryContainer
+    }
+    val selectedFilterLabelColor = if (filtersHaveNoResults) {
+        MaterialTheme.leafyColors.onAccent
+    } else {
+        MaterialTheme.colorScheme.onPrimaryContainer
+    }
+
     Scaffold(
         modifier = modifier,
         topBar = {
             TopAppBar(
-                colors = leafyHomeTopAppBarColors(),
+                colors = leafyTopAppBarColors(),
                 title = {
                     Text(
                         stringResource(R.string.plants_title),
-                        style = MaterialTheme.typography.titleLarge,
+                        style = MaterialTheme.typography.headlineMedium,
                     )
                 },
                 actions = {
@@ -156,14 +176,14 @@ fun PlantListScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(horizontal = leafyLayoutTokens.spacingXxl),
+                .padding(horizontal = leafyLayoutTokens.spacingXl),
         ) {
             TextField(
                 value = filterQuery,
                 onValueChange = onQueryChange,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(48.dp)
+                    .height(IntrinsicSize.Max)
                     .padding(top = 4.dp),
                 placeholder = { Text(stringResource(R.string.search_plants)) },
                 leadingIcon = {
@@ -197,8 +217,8 @@ fun PlantListScreen(
                     colors = FilterChipDefaults.filterChipColors(
                         containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                         labelColor = MaterialTheme.colorScheme.onSurface,
-                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                        selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        selectedContainerColor = selectedFilterContainerColor,
+                        selectedLabelColor = selectedFilterLabelColor,
                     ),
                     border = null,
                     label = {
@@ -216,8 +236,8 @@ fun PlantListScreen(
                     colors = FilterChipDefaults.filterChipColors(
                         containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                         labelColor = MaterialTheme.colorScheme.onSurface,
-                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                        selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        selectedContainerColor = selectedFilterContainerColor,
+                        selectedLabelColor = selectedFilterLabelColor,
                     ),
                     border = null,
                     label = {
@@ -235,8 +255,8 @@ fun PlantListScreen(
                     colors = FilterChipDefaults.filterChipColors(
                         containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                         labelColor = MaterialTheme.colorScheme.onSurface,
-                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                        selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        selectedContainerColor = selectedFilterContainerColor,
+                        selectedLabelColor = selectedFilterLabelColor,
                     ),
                     border = null,
                     label = {
@@ -271,11 +291,13 @@ fun PlantListScreen(
                     actionLabel = stringResource(R.string.retry),
                     onAction = onRetry,
                 )
+
                 is PlantListUiState.Empty -> EmptyPlantList(
                     isFiltered = state.isFiltered,
                     onAddPlant = onAddPlant,
                     onClearFilters = onClearFilters,
                 )
+
                 is PlantListUiState.Content -> PlantListContent(
                     plants = state.plants,
                     onPlantClick = onPlantClick,
@@ -369,7 +391,9 @@ private fun PlantListItem(
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(leafyLayoutTokens.cardPadding),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(leafyLayoutTokens.cardPadding),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(leafyLayoutTokens.spacingMd),
         ) {
@@ -378,8 +402,10 @@ private fun PlantListItem(
                 modifier = Modifier.size(leafyLayoutTokens.thumbnailSize),
             )
             Column(
-                modifier = Modifier.weight(1f).heightIn(min = leafyLayoutTokens.thumbnailSize),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
+                modifier = Modifier
+                    .weight(1f)
+                    .heightIn(min = leafyLayoutTokens.thumbnailSize),
+                verticalArrangement = Arrangement.Top,
             ) {
                 Row(verticalAlignment = Alignment.Top) {
                     Column(modifier = Modifier.weight(1f)) {
@@ -393,6 +419,7 @@ private fun PlantListItem(
                             Text(
                                 text = scientificName,
                                 style = MaterialTheme.typography.bodySmall,
+                                fontStyle = FontStyle.Italic,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
@@ -411,11 +438,7 @@ private fun PlantListItem(
                                 else R.drawable.ic_favorite_border,
                             ),
                             contentDescription = null,
-                            tint = if (plant.isFavorite) {
-                                MaterialTheme.leafyColors.accent
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            },
+                            tint = MaterialTheme.leafyColors.accent,
                         )
                     }
                 }
@@ -602,8 +625,16 @@ private fun PlantListErrorPreview() {
     }
 }
 
-@Preview(name = "Filtered empty - Light", showBackground = true, uiMode = Configuration.UI_MODE_NIGHT_NO)
-@Preview(name = "Filtered empty - Dark", showBackground = true, uiMode = Configuration.UI_MODE_NIGHT_YES)
+@Preview(
+    name = "Filtered empty - Light",
+    showBackground = true,
+    uiMode = Configuration.UI_MODE_NIGHT_NO
+)
+@Preview(
+    name = "Filtered empty - Dark",
+    showBackground = true,
+    uiMode = Configuration.UI_MODE_NIGHT_YES
+)
 @Composable
 private fun PlantListFilteredEmptyPreview() {
     StayLeafyTheme(dynamicColor = false) {

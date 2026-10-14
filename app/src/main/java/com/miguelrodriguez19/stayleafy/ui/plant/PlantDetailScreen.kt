@@ -92,9 +92,12 @@ import com.miguelrodriguez19.stayleafy.model.CareType
 import com.miguelrodriguez19.stayleafy.ui.reminder.CareReminderUiState
 import com.miguelrodriguez19.stayleafy.ui.reminder.PlantCareStatusViewModel
 import com.miguelrodriguez19.stayleafy.ui.components.LeafyCareIcon
+import com.miguelrodriguez19.stayleafy.ui.components.LeafyDestructiveButton
+import com.miguelrodriguez19.stayleafy.ui.components.LeafyDestructiveOutlinedButton
 import com.miguelrodriguez19.stayleafy.ui.components.LeafyDiscardChangesDialog
 import com.miguelrodriguez19.stayleafy.ui.components.leafyTopAppBarColors
 import com.miguelrodriguez19.stayleafy.ui.theme.StayLeafyTheme
+import com.miguelrodriguez19.stayleafy.ui.theme.leafyColors
 import com.miguelrodriguez19.stayleafy.ui.theme.leafyLayoutTokens
 import java.io.File
 import java.time.LocalDate
@@ -589,28 +592,26 @@ private fun PlantDetailContent(
         }
         if (hasPhoto && editable) {
             if (state.mode == PlantDetailMode.Create) {
-                OutlinedButton(
+                LeafyDestructiveOutlinedButton(
+                    text = stringResource(R.string.remove_photo),
                     onClick = onRemoveStagedPhoto,
                     enabled = !photoMutating && !state.isSaving,
                     modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(stringResource(R.string.remove_photo))
-                }
+                )
             } else {
-                OutlinedButton(
+                LeafyDestructiveOutlinedButton(
+                    text = stringResource(R.string.remove_photo),
                     onClick = { showPhotoDeleteDialog = true },
                     enabled = !photoMutating,
                     modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(stringResource(R.string.remove_photo))
-                }
+                )
             }
         }
         photoMutationError?.let { error ->
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     stringResource(if (error == UiErrorCategory.PhotoDelete) R.string.photo_delete_error else R.string.photo_import_error),
-                    color = MaterialTheme.colorScheme.error,
+                    color = MaterialTheme.leafyColors.accent,
                     modifier = Modifier.weight(1f)
                 )
                 if (photoCleanupRetryEnabled) TextButton(onClick = onRetryPhotoCleanup) {
@@ -624,13 +625,13 @@ private fun PlantDetailContent(
         mutationError?.let { error ->
             Text(
                 stringResource(if (error == UiErrorCategory.Delete) R.string.delete_plant_error else R.string.favorite_update_error),
-                color = MaterialTheme.colorScheme.error
+                color = MaterialTheme.leafyColors.accent
             )
         }
         state.saveError?.let {
             Text(
                 stringResource(R.string.save_plant_error),
-                color = MaterialTheme.colorScheme.error
+                color = MaterialTheme.leafyColors.accent
             )
         }
 
@@ -694,11 +695,12 @@ private fun PlantDetailContent(
             )
         }
         if (state.mode == PlantDetailMode.View) {
-            OutlinedButton(
+            LeafyDestructiveOutlinedButton(
+                text = stringResource(R.string.delete_plant),
                 onClick = onDeleteRequest,
                 modifier = Modifier.fillMaxWidth(),
-                enabled = !isDeleting
-            ) { Text(stringResource(R.string.delete_plant)) }
+                enabled = !isDeleting,
+            )
         }
     }
 
@@ -721,13 +723,14 @@ private fun PlantDetailContent(
                 ) { Text(stringResource(R.string.cancel)) }
             },
             confirmButton = {
-                Button(
+                LeafyDestructiveButton(
+                    text = stringResource(R.string.delete_note),
                     onClick = {
                         onDeleteNote(noteId)
                         pendingNoteDeleteId = null
                     },
                     enabled = !notesMutating,
-                ) { Text(stringResource(R.string.delete_note)) }
+                )
             },
         )
     }
@@ -749,13 +752,14 @@ private fun PlantDetailContent(
                 }
             },
             confirmButton = {
-                Button(
+                LeafyDestructiveButton(
+                    text = stringResource(R.string.clear_history),
                     onClick = {
                         onClearCareHistory(careType)
                         pendingCareClearType = null
                     },
                     enabled = !careMutating,
-                ) { Text(stringResource(R.string.clear_history)) }
+                )
             },
         )
     }
@@ -869,7 +873,7 @@ private fun PlantIdentity(
             Icon(
                 painterResource(if (favorite) R.drawable.ic_favorite else R.drawable.ic_favorite_border),
                 contentDescription = null,
-                tint = if (favorite) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurfaceVariant,
+                tint = MaterialTheme.leafyColors.accent,
             )
         }
     }
@@ -1118,7 +1122,7 @@ private fun CareSection(
                     Text(
                         stringResource(R.string.load_care_schedule_error),
                         Modifier.weight(1f),
-                        color = MaterialTheme.colorScheme.error,
+                        color = MaterialTheme.leafyColors.accent,
                     )
                     TextButton(onClick = onRetryReminders) { Text(stringResource(R.string.retry)) }
                 }
@@ -1131,7 +1135,7 @@ private fun CareSection(
                     Text(
                         stringResource(R.string.load_care_error),
                         Modifier.weight(1f),
-                        color = MaterialTheme.colorScheme.error
+                        color = MaterialTheme.leafyColors.accent
                     )
                     TextButton(onClick = onRetry) { Text(stringResource(R.string.retry)) }
                 }
@@ -1148,7 +1152,7 @@ private fun CareSection(
                             R.string.save_care_error
                         },
                     ),
-                    color = MaterialTheme.colorScheme.error,
+                    color = MaterialTheme.leafyColors.accent,
                 )
             }
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
@@ -1230,7 +1234,7 @@ private fun CareSummaryRow(
                         formatEpochDay(reminder.nextDueEpochDay),
                     ),
                     color = if (reminder.status == CareDueStatus.OVERDUE) {
-                        MaterialTheme.colorScheme.error
+                        MaterialTheme.leafyColors.accent
                     } else {
                         MaterialTheme.colorScheme.onSurfaceVariant
                     },
@@ -1357,7 +1361,12 @@ private fun CareHistoryContent(
                     onDismissRequest = { menuExpanded = false },
                 ) {
                     DropdownMenuItem(
-                        text = { Text(stringResource(R.string.clear_history)) },
+                        text = {
+                            Text(
+                                stringResource(R.string.clear_history),
+                                color = MaterialTheme.leafyColors.accent,
+                            )
+                        },
                         onClick = {
                             menuExpanded = false
                             onClearRequest()
@@ -1438,7 +1447,7 @@ private fun NotesSection(
                 Text(
                     stringResource(R.string.load_notes_error),
                     Modifier.weight(1f),
-                    color = MaterialTheme.colorScheme.error
+                    color = MaterialTheme.leafyColors.accent
                 ); TextButton(onClick = onRetry) { Text(stringResource(R.string.retry)) }
             }
 
@@ -1459,7 +1468,7 @@ private fun NotesSection(
         mutationError?.let {
             Text(
                 stringResource(R.string.delete_note_error),
-                color = MaterialTheme.colorScheme.error
+                color = MaterialTheme.leafyColors.accent
             )
         }
     }
@@ -1514,7 +1523,12 @@ private fun PlantNoteCard(
                         },
                     )
                     DropdownMenuItem(
-                        text = { Text(stringResource(R.string.delete_note)) },
+                        text = {
+                            Text(
+                                stringResource(R.string.delete_note),
+                                color = MaterialTheme.leafyColors.accent,
+                            )
+                        },
                         onClick = {
                             menuExpanded = false
                             onDelete()
@@ -1575,10 +1589,11 @@ private fun RemovePhotoDialog(isBusy: Boolean, onDismiss: () -> Unit, onConfirm:
             ) { Text(stringResource(R.string.cancel)) }
         },
         confirmButton = {
-            Button(
+            LeafyDestructiveButton(
+                text = stringResource(R.string.remove_photo),
                 onClick = onConfirm,
-                enabled = !isBusy
-            ) { Text(stringResource(R.string.remove_photo)) }
+                enabled = !isBusy,
+            )
         },
     )
 }
@@ -1628,10 +1643,11 @@ private fun DeletePlantDialog(isDeleting: Boolean, onDismiss: () -> Unit, onConf
             }
         },
         confirmButton = {
-            Button(
+            LeafyDestructiveButton(
+                text = stringResource(R.string.delete_plant),
                 onClick = onConfirm,
-                enabled = !isDeleting
-            ) { Text(stringResource(R.string.delete_plant)) }
+                enabled = !isDeleting,
+            )
         })
 }
 

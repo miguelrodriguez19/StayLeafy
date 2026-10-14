@@ -136,6 +136,7 @@ The following Phase 5 requirements are implemented.
 - **FR-PREF-003** — The app follows the system light or dark theme.
 - **FR-PREF-004** — The app uses the fixed Botanical Calm palette in both themes. Device dynamic color does not replace the brand or semantic care-status colors.
 - **FR-PREF-005** — Important status differences remain understandable through localized text and semantics as well as color.
+- **FR-PREF-006** — LeafClay is the shared accent for favorites, selected filters with no results, notice and unread badges, destructive actions, and error feedback in both themes.
 
 ## Non-functional requirements
 

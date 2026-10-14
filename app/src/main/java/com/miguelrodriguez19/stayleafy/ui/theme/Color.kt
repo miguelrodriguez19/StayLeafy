@@ -49,6 +49,7 @@ data class LeafyExtendedColors(
     val onOverdue: Color,
     val overdueContainer: Color,
     val accent: Color,
+    val onAccent: Color,
 )
 
 internal val LightExtendedColors = LeafyExtendedColors(
@@ -62,6 +63,7 @@ internal val LightExtendedColors = LeafyExtendedColors(
     onOverdue = Color(0xFF4A1B0F),
     overdueContainer = Color(0xFFF5D7CD),
     accent = LeafClay,
+    onAccent = LeafDark,
 )
 
 internal val DarkExtendedColors = LeafyExtendedColors(
@@ -75,4 +77,5 @@ internal val DarkExtendedColors = LeafyExtendedColors(
     onOverdue = Color(0xFFFFDDD4),
     overdueContainer = Color(0xFF57251B),
     accent = Color(0xFFE2A08A),
+    onAccent = LeafDark,
 )

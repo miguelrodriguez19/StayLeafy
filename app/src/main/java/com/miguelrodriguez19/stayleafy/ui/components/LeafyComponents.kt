@@ -1,6 +1,7 @@
 package com.miguelrodriguez19.stayleafy.ui.components
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,6 +18,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.TopAppBarColors
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.foundation.Image
@@ -33,19 +35,11 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.miguelrodriguez19.stayleafy.R
 import com.miguelrodriguez19.stayleafy.model.CareType
+import com.miguelrodriguez19.stayleafy.ui.theme.leafyColors
 import kotlin.random.Random
 
 @Composable
 fun leafyTopAppBarColors(): TopAppBarColors = TopAppBarDefaults.topAppBarColors(
-    containerColor = MaterialTheme.colorScheme.primary,
-    scrolledContainerColor = MaterialTheme.colorScheme.primary,
-    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary,
-    titleContentColor = MaterialTheme.colorScheme.onPrimary,
-    actionIconContentColor = MaterialTheme.colorScheme.onPrimary,
-)
-
-@Composable
-fun leafyHomeTopAppBarColors(): TopAppBarColors = TopAppBarDefaults.topAppBarColors(
     containerColor = MaterialTheme.colorScheme.background,
     scrolledContainerColor = MaterialTheme.colorScheme.background,
     navigationIconContentColor = MaterialTheme.colorScheme.onBackground,
@@ -111,6 +105,48 @@ fun LeafyPrimaryButton(
         modifier = modifier.height(48.dp),
         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 0.dp),
         colors = ButtonDefaults.buttonColors(),
+    ) {
+        Text(text)
+    }
+}
+
+@Composable
+fun LeafyDestructiveButton(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+) {
+    Button(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = modifier.height(48.dp),
+        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 0.dp),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = MaterialTheme.leafyColors.accent,
+            contentColor = MaterialTheme.leafyColors.onAccent,
+        ),
+    ) {
+        Text(text)
+    }
+}
+
+@Composable
+fun LeafyDestructiveOutlinedButton(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+) {
+    OutlinedButton(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = modifier.height(48.dp),
+        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 0.dp),
+        border = BorderStroke(1.dp, MaterialTheme.leafyColors.accent),
+        colors = ButtonDefaults.outlinedButtonColors(
+            contentColor = MaterialTheme.leafyColors.accent,
+        ),
     ) {
         Text(text)
     }

@@ -262,6 +262,8 @@ Lora remains reserved for the distinctive Plants root display heading. Screen ap
 
 The V2 screen specification in `design/StayLeafy_mockups_v2.svg` supersedes the earlier reference for production composition. The app uses the Botanical Calm pine, sage, clay, cream, paper, ink, and dark-surface tokens in explicit light and dark Material 3 schemes. Shared Compose tokens cover semantic colors, spacing, radii, controls, thumbnails, and the compact 64dp root navigation bar. Empty Plants and Notices states use reusable vector illustrations selected once per state appearance and retained across recompositions.
 
+LeafClay is the shared accent for favorites, selected filters with no results, notice and unread badges, destructive actions, and error feedback. Its paired foreground is theme-aware so accent controls preserve WCAG AA contrast in light and dark modes.
+
 Plants keeps the existing two-root navigation and behavior while presenting creation through a FAB. The Settings icon is a visual affordance only; no Settings destination is introduced until its product behavior is defined. Notices derive the plant thumbnail from the existing Plants row through Room joins, without changing the persisted notice schema.
 
 The care configuration UI models interval origin explicitly as `LatestCare` or `CustomDate`. Newly initialized interval forms use latest care when available. Stored manual due dates remain custom until the user selects `Use latest care instead`, preserving the scheduling rule that editing does not silently reinterpret persisted due dates. Add note keeps only back navigation, content, and Save.

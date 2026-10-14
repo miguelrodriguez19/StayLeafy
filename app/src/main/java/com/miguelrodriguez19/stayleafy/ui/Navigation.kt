@@ -43,6 +43,7 @@ import com.miguelrodriguez19.stayleafy.ui.plant.PlantNoteEditorRoute
 import com.miguelrodriguez19.stayleafy.ui.reminder.CareConfigurationRoute
 import com.miguelrodriguez19.stayleafy.ui.reminder.NoticeDetailRoute
 import com.miguelrodriguez19.stayleafy.ui.reminder.NoticeListRoute
+import com.miguelrodriguez19.stayleafy.ui.theme.leafyColors
 import com.miguelrodriguez19.stayleafy.ui.reminder.RootNavigationViewModel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -246,8 +247,8 @@ private fun RootNavigationBar(
                     badge = {
                         if (unreadCount > 0) {
                             Badge(
-                                containerColor = MaterialTheme.colorScheme.tertiary,
-                                contentColor = MaterialTheme.colorScheme.onTertiary,
+                                containerColor = MaterialTheme.leafyColors.accent,
+                                contentColor = MaterialTheme.leafyColors.onAccent,
                             ) {
                                 Text(
                                     if (unreadCount > 99) stringResource(R.string.unread_count_overflow)
