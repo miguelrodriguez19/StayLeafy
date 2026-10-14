@@ -18,19 +18,35 @@ package com.miguelrodriguez19.stayleafy.ui
 
 import android.os.Bundle
 import android.content.Intent
-import androidx.activity.ComponentActivity
+import android.os.Build
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.app.AppCompatDelegate
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.miguelrodriguez19.stayleafy.data.settings.AppLocaleController
+import com.miguelrodriguez19.stayleafy.data.settings.SettingsPreferences
+import com.miguelrodriguez19.stayleafy.data.settings.SettingsRepository
+import com.miguelrodriguez19.stayleafy.data.settings.ThemePreference
 import com.miguelrodriguez19.stayleafy.ui.theme.StayLeafyTheme
 import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 
 @AndroidEntryPoint
-class MainActivity : ComponentActivity() {
+class MainActivity : AppCompatActivity() {
+
+    @Inject
+    lateinit var settingsRepository: SettingsRepository
+
+    @Inject
+    lateinit var localeController: AppLocaleController
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge(
@@ -41,6 +57,32 @@ class MainActivity : ComponentActivity() {
         )
         super.onCreate(savedInstanceState)
         setContent {
+            val preferences by settingsRepository.preferences.collectAsStateWithLifecycle(
+                initialValue = SettingsPreferences(),
+            )
+            LaunchedEffect(preferences.theme) {
+                val mode = when (preferences.theme) {
+                    ThemePreference.SYSTEM -> AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
+                    ThemePreference.LIGHT -> AppCompatDelegate.MODE_NIGHT_NO
+                    ThemePreference.DARK -> AppCompatDelegate.MODE_NIGHT_YES
+                }
+                if (AppCompatDelegate.getDefaultNightMode() != mode) {
+                    AppCompatDelegate.setDefaultNightMode(mode)
+                }
+            }
+            LaunchedEffect(preferences.language) {
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+                    localeController.apply(preferences.language)
+                }
+            }
+            LaunchedEffect(Unit) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    val platformLanguage = localeController.current()
+                    if (platformLanguage != preferences.language) {
+                        settingsRepository.setLanguage(platformLanguage)
+                    }
+                }
+            }
             StayLeafyTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),

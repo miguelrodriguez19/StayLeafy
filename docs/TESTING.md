@@ -2,7 +2,7 @@
 
 ## Goals
 
-Testing should catch regressions in Phase 1 persistence, Phase 2 notes and photo storage, the independent Room v4 and unified-screen correction, Phase 3 care history, Phase 4 interval reminders, and Phase 5 seasonal care without making a personal project expensive to change. Reminder verification covers persistent Notices, bottom navigation, and best-effort local notifications.
+Testing should catch regressions in Phase 1 persistence, Phase 2 notes and photo storage, the independent Room v4 and unified-screen correction, Phase 3 care history, Phase 4 interval reminders, Phase 5 seasonal care, the Phase 6 visual system, and Phase 7 photo framing and personalization without making a personal project expensive to change. Reminder verification covers persistent Notices, bottom navigation, and best-effort local notifications.
 
 The strategy favors deterministic unit tests and a small number of high-value Android and Compose tests.
 
@@ -18,7 +18,7 @@ Use plain JVM tests for Phase 1 logic without Android dependencies:
 - Search/filter state transformations, including loading, empty, filtered-empty, content, and error states.
 - ViewModels using fake repositories and test dispatchers.
 - Note draft trimming, blank-body validation, and fixed UUID/clock behavior.
-- Photo filename/MIME normalization, original-byte copying, replacement compensation, temporary-file cleanup, and orphan reconciliation.
+- Photo filename/MIME handling, local crop normalization, replacement compensation, temporary-file cleanup, and orphan reconciliation. Phase 2 originally asserted byte-preserving imports; Phase 7 replaces that expectation prospectively with square JPEG output for newly accepted photos.
 - Shared-screen staged photo and favorite state, absence of notes during creation, atomic save coordination, and file compensation after a failed Room write.
 - Care-event normalization, optional-note trimming, fixed UUID and timestamp behavior, correction timestamp stability, and rejection of future completion date-times.
 
@@ -116,15 +116,15 @@ Keep platform contracts thin and test storage/repository behavior with temporary
 - `PickVisualMedia(ImageOnly)` does not request broad media permission and falls back to the document picker when unavailable.
 - Cancellation, no compatible handler, unreadable URI, unwritable destination, and process recreation leave Room and stable files consistent.
 - Reconciliation waits for in-flight imports, failed camera completion removes its temporary file, a pending capture blocks reentrant launches, and failed temporary cleanup retains a retryable token.
-- Original bytes and the persisted relative path survive restart.
+- The accepted photo file and persisted relative path survive restart. Phase 7 additionally verifies square JPEG output for new/replaced photos and confirms existing files remain unchanged.
 
 ### Phase 4 WorkManager and notification tests
 
 Keep date evaluation and occurrence selection outside the Worker so they are unit-testable. Android integration tests cover:
 
-- Unique periodic work configured for approximately daily evaluation around 09:00 local time without asserting exact execution.
+- Unique periodic work configured for approximately daily evaluation at the preferred local reminder time (09:00 default), without asserting exact execution.
 - Enabled, disabled, due, upcoming, and overdue rules.
-- A rule saved after the current day's evaluation waiting until the next daily run.
+- A rule saved after the current day's evaluation waiting until the next configured daily run.
 - One persistent Notice and at most one stable Android notification per occurrence across repeated runs.
 - Recovery from a `PENDING` Notice by updating the same stable notification tag/ID.
 - Notification channel creation and localized English/Spanish content.
@@ -133,6 +133,16 @@ Keep date evaluation and occurrence selection outside the Worker so they are uni
 - Read-on-open, Mark all as read, care completion, rule disable/reschedule, and Plant deletion cancelling displayed notifications.
 
 Do not write tests that wait for real wall-clock background execution.
+
+### Phase 7 photo and settings coverage
+
+- Verify camera and picker results both launch the same fixed 1:1 uCrop flow; cover zoom/pan, EXIF orientation, JPEG/PNG inputs, output dimensions/encoding, and no upscaling beyond source dimensions.
+- Cover crop cancel, empty/corrupt output, URI read failure, process recreation, and cleanup of source/output temporaries. Confirm failures preserve an existing or staged photo.
+- Verify staged crop restoration through plant creation, database/file compensation on save or replacement failure, restart persistence, and no rewriting of legacy photo files.
+- Cover Preferences DataStore defaults, persistence, malformed or unavailable preference recovery, immediate theme/language application, and locale fallback.
+- Cover preferred-time calculation before, at, and after the selected local time, time-zone/DST changes, and WorkManager unique-work updates. Assert best-effort schedule parameters rather than wall-clock execution.
+- Cover notification capability status and settings action by API level; assert that camera and picker capability rows do not request broad permissions.
+- Cover About/privacy version and copy, Settings navigation/restoration, always-visible bottom navigation, English/Spanish text, both themes, and deterministic previews.
 
 Phase 5 reuses this harness for seasonal occurrence keys, schedule-specific localized content, active-window evaluation, matching-care satisfaction, and deduplication. Inventory care filters remain covered as interval-only behavior.
 
@@ -197,9 +207,9 @@ Later phases should maintain a small smoke suite for:
 11. Deny notification permission, verify the in-app Notice and guidance, then grant permission and verify that the suppressed occurrence is not delivered retroactively.
 12. Delete the Plant and verify reminder-rule and Notice cascades.
 
-Automated equivalents of steps 1–12 are covered by the local and connected-emulator suites completed on 2026-10-11. Physical-device notification timing and vendor battery behavior remain manual Phase 7 hardening checks.
+Automated equivalents of steps 1–12 are covered by the local and connected-emulator suites completed on 2026-10-11. Physical-device notification timing and vendor battery behavior remain manual Phase 8 hardening checks.
 
-Camera and photo-picker flows may require targeted manual verification because system UI behavior varies by device. The acceptance target is cancellation, handler unavailability, URI failure, and process recreation; a runtime permission-denial test is intentionally not required for the permissionless contracts.
+Camera and photo-picker flows may require targeted manual verification because system UI behavior varies by device. The existing acceptance target is cancellation, handler unavailability, URI failure, and process recreation; a runtime permission-denial test is intentionally not required for the permissionless contracts.
 
 ### Phase 6 visual verification matrix
 
@@ -257,7 +267,7 @@ Run the standard local verification set:
 - Use fixed clocks or explicitly supplied dates for reminder tests.
 - Do not read the real system clock from pure business logic.
 - Use temporary app files for image-storage tests and remove them afterward.
-- Use original-byte fixtures and assert cleanup/reconciliation by relative path.
+- Use local image fixtures and assert the Phase 7 square-JPEG policy for new imports, legacy-file preservation, and cleanup/reconciliation by relative path.
 - Do not depend on network access.
 
 ## Coverage priorities
@@ -268,7 +278,7 @@ Highest priority:
 - Plant CRUD and persistence across database reopen.
 - Search/filter query correctness and literal wildcard handling.
 - Plant deletion confirmation and row deletion.
-- Room v2-to-v3 and v3-to-v4 migrations, note cascade, original-byte photo persistence, replacement compensation, staged-create compensation, and orphan cleanup.
+- Room v2-to-v3 and v3-to-v4 migrations, note cascade, photo persistence, Phase 7 crop normalization for new imports, legacy-file preservation, replacement compensation, staged-create compensation, and orphan cleanup.
 - Room v4-to-v5 and complete v1-to-v5 migrations, care-event cascade, ordering, scoped history clearing, summaries, and localized UI.
 - Phase 4 schema v5-to-v6 migration, interval-rule and Notice cascades, transactional rescheduling, occurrence deduplication, and no-retroactive-delivery permission behavior.
 
@@ -282,7 +292,7 @@ Medium priority:
 
 Phase 4 completion priorities:
 
-- Approximately 09:00 unique WorkManager scheduling without exact-time assumptions.
+- Approximately daily unique WorkManager scheduling around a configurable preferred time with a 09:00 default, without exact-time assumptions.
 - Stable notification cancellation and deep links through Notice detail.
 - Connected-device permission and notification behavior.
 
@@ -315,3 +325,4 @@ A change is complete when:
 - Phase 5 Room v7 migration, seasonal calculations, editor, satisfaction, detail state, Notice delivery, localization, and deduplication pass the same local and connected-device gates before Phase 5 is marked complete.
 - Phase 5 passed `./gradlew test lint assembleDebug` and all 97 connected debug tests on the `Pixel_8a` API 36 emulator on 2026-10-13.
 - Phase 6 passed `./gradlew test lint assembleDebug`, deterministic theme-contrast tests, and manual light/dark visual review on 2026-10-14. Android Gradle Plugin classified the running local emulator as an external Gradle-managed device, so `connectedDebugAndroidTest` completed without selecting it; installing the same debug and test APKs and invoking `HiltTestRunner` directly passed all 97 instrumented tests.
+- Phase 7 passed `./gradlew test lint assembleDebug`, focused crop and Settings instrumentation, and the connected debug suite on the `Pixel_8a` Android 16 emulator on 2026-10-14. Coverage includes square crop validation/cleanup, preference persistence, configurable scheduling, navigation, English/Spanish resources, and light/dark previews. Physical-device reminder timing remains a Phase 8 check.

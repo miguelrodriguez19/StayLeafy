@@ -56,7 +56,7 @@ enum class ReminderNotificationResult {
 }
 
 interface ReminderScheduler {
-    fun ensureDailyEvaluationScheduled()
+    fun ensureDailyEvaluationScheduled(targetTime: LocalTime = DEFAULT_REMINDER_TIME)
 }
 
 interface ReminderClock {

@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_title">Settings</string>
+    <string name="settings_back">Back</string>
+    <string name="settings_loading">Loading settings…</string>
+    <string name="settings_load_error">Settings couldn’t be loaded.</string>
+    <string name="settings_retry">Try again</string>
+    <string name="settings_save_error">Your setting couldn’t be saved. Try again.</string>
+    <string name="settings_language_apply_error">The app language couldn’t be applied.</string>
+    <string name="settings_dismiss">Dismiss</string>
+    <string name="settings_appearance">Appearance</string>
+    <string name="settings_theme_system">System</string>
+    <string name="settings_theme_light">Light</string>
+    <string name="settings_theme_dark">Dark</string>
+    <string name="settings_language">Language</string>
+    <string name="settings_language_system">System language</string>
+    <string name="settings_language_english">English</string>
+    <string name="settings_language_spanish">Spanish</string>
+    <string name="settings_reminders">Reminders</string>
+    <string name="settings_reminder_time">Daily check time</string>
+    <string name="settings_reminder_time_description">Choose when Stay Leafy should check care reminders. Android may delay background work.</string>
+    <string name="settings_permissions">Permissions</string>
+    <string name="settings_notifications">Notifications</string>
+    <string name="settings_notification_status_unknown">Status not checked yet</string>
+    <string name="settings_notification_status_enabled">Allowed</string>
+    <string name="settings_notification_status_needs_permission">Permission needed</string>
+    <string name="settings_notification_status_blocked">Blocked in system settings</string>
+    <string name="settings_notification_action_none">No action</string>
+    <string name="settings_allow_notifications">Allow notifications</string>
+    <string name="settings_open_notification_settings">Notification settings</string>
+    <string name="settings_camera">Camera</string>
+    <string name="settings_photos">Photos</string>
+    <string name="settings_no_permission_required">No additional permission required</string>
+    <string name="settings_about">About</string>
+    <string name="settings_version">Version %1$s</string>
+    <string name="settings_version_unknown">Unknown</string>
+    <string name="settings_offline_privacy">Stay Leafy works offline and does not use an account, cloud sync, or analytics.</string>
+</resources>

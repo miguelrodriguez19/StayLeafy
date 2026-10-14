@@ -12,7 +12,7 @@
 
 ## Functional requirements
 
-Phase delivery note: Phase 1 implements the Plant inventory. Phase 2 implements notes plus one app-managed primary photo. The independent correction pass raises Room to schema v4, removes the redundant common-name field, and unifies plant creation, viewing, and editing. Phase 3 implements Room v5 care events. Phase 4 implements schema v6 interval rules, Notices, filtering, navigation, WorkManager, and local notifications. Phase 5 implements Room v7 annual seasonal rules and reuses that local delivery pipeline.
+Phase delivery note: Phases 1–7 and the independent plant-screen correction are implemented. Phase 2 introduced notes and one app-managed primary photo; Phase 3 implements Room v5 care events; Phase 4 implements schema v6 interval rules, Notices, filtering, navigation, WorkManager, and local notifications; Phase 5 implements Room v7 annual seasonal rules; Phase 6 establishes the visual identity; and Phase 7 adds square photo framing and personalization without changing Room schema.
 
 ### Plant inventory
 
@@ -40,7 +40,7 @@ Phase delivery note: Phase 1 implements the Plant inventory. Phase 2 implements 
 - **FR-PHOTO-001** — Each plant supports at most one primary photo in the initial product.
 - **FR-PHOTO-002** — The user can capture the photo with the camera through `ActivityResultContracts.TakePicture` and an app-owned `FileProvider` URI. The app does not request the `CAMERA` runtime permission for this external capture flow.
 - **FR-PHOTO-003** — The user can select an image with `PickVisualMedia(ImageOnly)`, falling back to the platform document picker when necessary. The app does not request broad media-library permissions.
-- **FR-PHOTO-004** — The selected image is copied byte-for-byte into app-managed local storage under a generated stable relative path; Room stores only that relative path.
+- **FR-PHOTO-004** — The accepted photo is stored in app-managed local storage under a generated stable relative path; Room stores only that relative path. Phase 2 originally copied source bytes unchanged; Phase 7 stores square JPEG output for new or replaced photos.
 - **FR-PHOTO-005** — The user can replace or remove the photo.
 - **FR-PHOTO-006** — The app does not request broad media-library access when the system photo picker is available.
 - **FR-PHOTO-007** — The primary photo is rendered in the plant list and detail screens, with a deterministic placeholder when absent or unavailable.
@@ -110,8 +110,8 @@ The following Phase 5 requirements are implemented.
 - **FR-NOTIFICATION-004** — Tapping a notification selects the Notices root and opens the matching Notice detail; the detail provides a separate action to open the plant.
 - **FR-NOTIFICATION-005** — The scheduler avoids duplicate notifications for the same rule occurrence.
 - **FR-NOTIFICATION-006** — Reminders survive normal application restarts and device reboots through WorkManager persistence.
-- **FR-NOTIFICATION-007** — Unique periodic WorkManager evaluation runs approximately once per day around 09:00 in the device's local time. Delivery is best effort and does not promise an exact clock time.
-- **FR-NOTIFICATION-008** — Saving a rule that is already due after the day's approximate 09:00 evaluation does not trigger an immediate system notification; it is eligible at the next daily evaluation.
+- **FR-NOTIFICATION-007** — Unique periodic WorkManager evaluation runs approximately once per day around the user's preferred local reminder time (default 09:00). Delivery is best effort and does not promise an exact clock time.
+- **FR-NOTIFICATION-008** — Saving a rule that is already due after the day's approximate evaluation does not trigger an immediate system notification; it is eligible at the next scheduled daily evaluation.
 - **FR-NOTIFICATION-009** — If permission is unavailable, the due occurrence still creates a Notice and records system delivery as suppressed. Granting permission later does not retroactively notify suppressed occurrences.
 - **FR-NOTIFICATION-010** — When at least one rule is enabled but Android notifications are blocked, the Notices screen shows a localized explanation and an action to open application notification settings.
 
@@ -133,10 +133,25 @@ The following Phase 5 requirements are implemented.
 
 - **FR-PREF-001** — The UI supports English and Spanish.
 - **FR-PREF-002** — The app initially follows the device language.
-- **FR-PREF-003** — The app follows the system light or dark theme.
+- **FR-PREF-003** — The app follows the system light or dark theme by default and offers optional app-level Light or Dark overrides.
 - **FR-PREF-004** — The app uses the fixed Botanical Calm palette in both themes. Device dynamic color does not replace the brand or semantic care-status colors.
 - **FR-PREF-005** — Important status differences remain understandable through localized text and semantics as well as color.
 - **FR-PREF-006** — LeafClay is the shared accent for favorites, selected filters with no results, notice and unread badges, destructive actions, and error feedback in both themes.
+
+### Phase 7 requirements — photo framing and personalization
+
+The following requirements are implemented.
+
+- **FR-PHOTO-010** — After camera capture or photo selection, the user must crop the image interactively to a fixed 1:1 square using local uCrop, with zoom and pan.
+- **FR-PHOTO-011** — A confirmed crop is stored as a square JPEG at quality 92 and up to 2048×2048 pixels without upscaling. The crop is the primary photo shown in detail; existing stored photos are not migrated or rewritten.
+- **FR-PHOTO-012** — Cancelling or failing the crop leaves the previous stable or staged photo unchanged. A new plant's crop remains staged until the plant is saved; temporary source/output files are cleaned up on cancel or failure.
+- **FR-PREF-007** — Settings offers System, Light, and Dark theme choices, defaulting to System and retaining the fixed Stay Leafy palette with dynamic color disabled.
+- **FR-PREF-008** — Settings offers System, English, and Spanish language choices across supported Android versions, defaulting to System.
+- **FR-PREF-009** — Settings offers a configurable local reminder time, defaulting to 09:00. WorkManager remains approximate; changing the time updates the next scheduled evaluation without introducing exact alarms or an immediate catch-up notification.
+- **FR-PREF-010** — Settings summarizes notification capability and links to its system controls when needed. It explains that camera capture and image selection use system UI and do not require broad camera or media permissions.
+- **FR-PREF-011** — Settings shows the installed app version and a concise privacy summary: local/offline use with no account, cloud synchronization, or analytics.
+- **FR-PREF-012** — Settings changes persist across process restarts and are applied without a global Save action. Preferences are stored outside Room; no Room schema migration is introduced.
+- **FR-PREF-013** — Settings is reachable from the Plants gear, participates in the Plants navigation stack, and preserves the existing always-visible Plants/Notices bottom navigation.
 
 ## Non-functional requirements
 
@@ -184,7 +199,7 @@ The following Phase 5 requirements are implemented.
 
 ## Phase 2 and correction acceptance scenarios
 
-1. The user creates a plant named `Ficus Living Room`, captures or selects one photo, and later sees the original image after restarting the application.
+1. The user creates a plant named `Ficus Living Room`, captures or selects one photo, and later sees the saved photo after restarting the application. Phase 7 additionally verifies that newly accepted photos are square JPEG crops.
 2. The user sees the primary photo or placeholder in both the plant list and detail screen.
 3. The user replaces and removes the photo; failed or cancelled imports do not change the stored reference.
 4. The user adds two dated notes, edits one, and sees both independently in newest-first order.
@@ -225,6 +240,17 @@ These verified scenarios define the implemented Phase 4 behavior.
 4. The daily worker creates one seasonal Notice per occurrence while the window is active, including a late first evaluation, and repeated runs do not duplicate it.
 5. Plant detail shows upcoming, active, and satisfied seasonal state; inventory Upcoming and Overdue filters remain based on interval rules.
 6. Seasonal configuration, Notice, and notification text work offline in English and Spanish and in light and dark themes.
+
+### Phase 7 acceptance scenarios
+
+1. Camera and picker flows both require the same 1:1 crop step; cancellation or invalid output preserves the previous photo and cleans temporary files.
+2. A confirmed crop is a decodable square JPEG within the documented size limit, and a new-plant crop survives staging, process recreation, save, and restart.
+3. Existing photos remain readable and unchanged; a failed replacement never removes the prior file or Room reference.
+4. System/Light/Dark and System/English/Spanish preferences apply immediately and persist across restart while the fixed brand palette remains intact.
+5. Changing the reminder time updates unique periodic WorkManager scheduling for the next preferred local occurrence. Tests assert approximate scheduling inputs, not exact execution time.
+6. Permission status/actions correctly represent notification access, while camera and photo-picker capabilities do not imply broad runtime permissions.
+7. About/privacy text reports the actual app version and local-only product behavior in English and Spanish.
+8. Settings navigation, bottom navigation, and state restoration work in both themes and supported languages.
 
 ## Open product questions
 

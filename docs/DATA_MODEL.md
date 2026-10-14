@@ -8,6 +8,8 @@ The complete registered migration chain is `1→2→3→4→5→6→7`. The non-
 
 `CareEvent`, interval and seasonal `ReminderRule`, and persistent `Notice` tables are implemented. Care-event cleanup belongs to Phase 3; reminder-rule and Notice cleanup belongs to Phase 4, with seasonal occurrence behavior added by Phase 5.
 
+Phase 7 does not change Room schema: app preferences use Preferences DataStore, while the existing `Plant.mainPhotoPath` continues to reference an app-managed file.
+
 ## Principles
 
 - Room is the source of truth for structured application data.
@@ -15,7 +17,7 @@ The complete registered migration chain is `1→2→3→4→5→6→7`. The non-
 - Timestamps are stored as UTC epoch milliseconds.
 - Care due dates are stored as local epoch days because the product promises a calendar day, not an exact instant.
 - Annual seasons are stored as explicit month and day values.
-- Images remain app-managed files and the database stores only a stable relative path. Phase 2 preserves original source bytes and does not store bitmaps or content URIs in Room.
+- Images remain app-managed files and the database stores only a stable relative path; bitmaps and content URIs are never persisted in Room. Phase 2 originally retained source bytes unchanged. Phase 7 imports instead store newly captured or selected crops as square JPEGs; existing files remain untouched.
 - Entity classes remain persistence details. Repositories expose immutable application models when database and UI needs diverge.
 
 ## Relationships
@@ -70,13 +72,15 @@ The foreign key references `Plant.id` with `ON DELETE CASCADE`. The table has an
 
 ## Photo storage
 
-The database does not own image bytes. Confirmed images live under the app's internal files directory in `plant_photos/`, with a generated filename and extension derived from the source MIME type. Room stores only the stable relative path in `Plant.mainPhotoPath`.
+The database does not own image bytes. Confirmed images live under the app's internal files directory in `plant_photos/`; Room stores only the stable relative path in `Plant.mainPhotoPath`. Phase 2 derived the extension from source MIME type. Phase 7 normalizes new and replacement images to square JPEG output while retaining the same stable-path contract.
 
 On the shared plant creation screen, a selected or captured image remains staged in temporary storage until the plant is saved. The save materializes the stable path and writes the plant and favorite state; notes are created only after the Plant row exists. If the Room write fails, the newly materialized file is deleted as compensation and the staged draft remains retryable; a successful write makes the temporary file eligible for immediate cleanup.
 
 Camera capture uses `TakePicture` with a temporary app-owned `FileProvider` URI. Image selection uses `PickVisualMedia(ImageOnly)` and its platform document fallback. Neither flow requires `CAMERA`, `READ_MEDIA_IMAGES`, or legacy broad storage permission.
 
-The repository writes the new original bytes before committing the new Room reference. It deletes the previous stable file only after the reference is committed, deletes the new file when the database update fails, removes the plant photo after plant deletion, and runs an IO-bound startup reconciliation that removes stable files not referenced by any Plant row. Photo mutations and reconciliation are serialized to protect the file-before-Room compensation window. Temporary capture files are removed on cancellation or failed import.
+The repository writes the new image file before committing the new Room reference. It deletes the previous stable file only after the reference is committed, deletes the new file when the database update fails, removes the plant photo after plant deletion, and runs an IO-bound startup reconciliation that removes stable files not referenced by any Plant row. Photo mutations and reconciliation are serialized to protect the file-before-Room compensation window. Temporary capture, crop-source, and crop-output files are removed on cancellation or failed import. Crop failure preserves the previous stable or staged image, and already stored files remain unchanged.
+
+Phase 7 output is JPEG, 1:1, quality 92, and at most 2048×2048 pixels without upscaling. Preferences such as theme, app language, and preferred reminder time use Preferences DataStore; they do not add Room entities, columns, or migrations.
 
 ## CareEvent — Phase 3 / schema v5
 

@@ -1,10 +1,16 @@
 package com.miguelrodriguez19.stayleafy.ui
 
 import android.Manifest
+import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
+import android.provider.Settings as AndroidSettings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.height
@@ -18,18 +24,24 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
@@ -45,6 +57,10 @@ import com.miguelrodriguez19.stayleafy.ui.reminder.NoticeDetailRoute
 import com.miguelrodriguez19.stayleafy.ui.reminder.NoticeListRoute
 import com.miguelrodriguez19.stayleafy.ui.theme.leafyColors
 import com.miguelrodriguez19.stayleafy.ui.reminder.RootNavigationViewModel
+import com.miguelrodriguez19.stayleafy.ui.settings.NotificationPermissionAction
+import com.miguelrodriguez19.stayleafy.ui.settings.NotificationPermissionStatus
+import com.miguelrodriguez19.stayleafy.ui.settings.NotificationPermissionSummary
+import com.miguelrodriguez19.stayleafy.ui.settings.SettingsRoute
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.receiveAsFlow
@@ -72,6 +88,8 @@ object AndroidNoticeNavigation {
 fun MainNavigation(
     noticeNavigationRequests: Flow<String> = AndroidNoticeNavigation.requests,
 ) {
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
     val plantsBackStack = rememberNavBackStack(PlantList)
     val noticesBackStack = rememberNavBackStack(NoticeList)
     val plantsSaveableStateDecorator = rememberSaveableStateHolderNavEntryDecorator<NavKey>()
@@ -81,9 +99,26 @@ fun MainNavigation(
     var selectedTab by rememberSaveable { mutableStateOf(RootTab.Plants) }
     val rootViewModel: RootNavigationViewModel = hiltViewModel()
     val unreadCount by rootViewModel.unreadCount.collectAsStateWithLifecycle()
+    var permissionRefresh by rememberSaveable { mutableIntStateOf(0) }
+    var notificationPermissionRequested by rememberSaveable { mutableStateOf(false) }
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
-    ) {}
+    ) {
+        notificationPermissionRequested = true
+        permissionRefresh++
+    }
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) permissionRefresh++
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+    val notificationPermission = notificationPermissionSummary(
+        context = context,
+        permissionRequested = notificationPermissionRequested,
+        refresh = permissionRefresh,
+    )
     fun openPlant(plantId: String) {
         while (plantsBackStack.size > 1) plantsBackStack.removeLastOrNull()
         plantsBackStack.add(PlantDetail(plantId))
@@ -138,9 +173,40 @@ fun MainNavigation(
                         entry<PlantList> {
                             PlantListRoute(
                                 onAddPlant = { plantsBackStack.add(PlantDetail()) },
-                                // Settings is intentionally not navigable until its product behavior is defined.
-                                onSettingsClick = { },
+                                onSettingsClick = { plantsBackStack.add(Settings) },
                                 onPlantClick = { plantId -> plantsBackStack.add(PlantDetail(plantId)) },
+                            )
+                        }
+                        entry<Settings> {
+                            SettingsRoute(
+                                onNavigateBack = { plantsBackStack.removeLastOrNull() },
+                                notificationPermission = notificationPermission,
+                                onNotificationPermissionAction = { action ->
+                                    when (action) {
+                                        NotificationPermissionAction.NONE -> Unit
+                                        NotificationPermissionAction.REQUEST_PERMISSION -> {
+                                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                                notificationPermissionLauncher.launch(
+                                                    Manifest.permission.POST_NOTIFICATIONS,
+                                                )
+                                            }
+                                        }
+                                        NotificationPermissionAction.OPEN_SYSTEM_SETTINGS -> {
+                                            val notificationSettings = Intent(
+                                                AndroidSettings.ACTION_APP_NOTIFICATION_SETTINGS,
+                                            ).putExtra(AndroidSettings.EXTRA_APP_PACKAGE, context.packageName)
+                                            runCatching { context.startActivity(notificationSettings) }
+                                                .onFailure {
+                                                    context.startActivity(
+                                                        Intent(
+                                                            AndroidSettings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                                                            Uri.parse("package:${context.packageName}"),
+                                                        ),
+                                                    )
+                                                }
+                                        }
+                                    }
+                                },
                             )
                         }
                         entry<PlantDetail> { key ->
@@ -206,6 +272,34 @@ fun MainNavigation(
                 )
             }
         }
+    }
+}
+
+@Suppress("UNUSED_PARAMETER")
+private fun notificationPermissionSummary(
+    context: Context,
+    permissionRequested: Boolean,
+    refresh: Int,
+): NotificationPermissionSummary {
+    val runtimeGranted = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+        ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) ==
+        PackageManager.PERMISSION_GRANTED
+    val enabled = runtimeGranted && NotificationManagerCompat.from(context).areNotificationsEnabled()
+    return when {
+        enabled -> NotificationPermissionSummary(
+            status = NotificationPermissionStatus.ENABLED,
+            action = NotificationPermissionAction.OPEN_SYSTEM_SETTINGS,
+        )
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            !runtimeGranted &&
+            !permissionRequested -> NotificationPermissionSummary(
+                status = NotificationPermissionStatus.NEEDS_PERMISSION,
+                action = NotificationPermissionAction.REQUEST_PERMISSION,
+            )
+        else -> NotificationPermissionSummary(
+            status = NotificationPermissionStatus.BLOCKED,
+            action = NotificationPermissionAction.OPEN_SYSTEM_SETTINGS,
+        )
     }
 }
 

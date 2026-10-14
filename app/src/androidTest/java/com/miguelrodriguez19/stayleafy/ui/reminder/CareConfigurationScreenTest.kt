@@ -2,7 +2,6 @@ package com.miguelrodriguez19.stayleafy.ui.reminder
 
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
@@ -67,7 +66,7 @@ class CareConfigurationScreenTest {
 
         composeTestRule.onNodeWithText(string(R.string.interval_days_error)).assertIsDisplayed()
         composeTestRule.onNodeWithText(string(R.string.select_due_source)).assertIsDisplayed()
-        composeTestRule.onNodeWithText(string(R.string.latest_care)).assertIsNotEnabled()
+        composeTestRule.onNodeWithText(string(R.string.choose_start_date)).assertIsDisplayed()
     }
 
     @Test
@@ -92,7 +91,7 @@ class CareConfigurationScreenTest {
         )
 
         composeTestRule.onNodeWithText(string(R.string.choose_start_date)).performClick()
-        composeTestRule.onNodeWithText(string(R.string.select_date)).assertIsDisplayed()
+        composeTestRule.onAllNodesWithText(string(R.string.select_date)).onFirst().assertIsDisplayed()
         assertEquals(ReminderDueSourceChoice.CustomDate, selectedSource)
     }
 

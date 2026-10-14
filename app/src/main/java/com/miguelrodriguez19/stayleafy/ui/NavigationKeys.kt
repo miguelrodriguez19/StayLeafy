@@ -23,6 +23,9 @@ import kotlinx.serialization.Serializable
 data object PlantList : NavKey
 
 @Serializable
+data object Settings : NavKey
+
+@Serializable
 data class PlantDetail(val plantId: String? = null) : NavKey
 
 @Serializable

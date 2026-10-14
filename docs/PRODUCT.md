@@ -31,7 +31,7 @@ The user opens Stay Leafy and sees their plants, including each plant's primary 
 
 - Material 3 provides the interaction and accessibility foundation, while the visual identity remains recognizably Stay Leafy.
 - The canonical Botanical Calm anchors are pine `#184A36`, sage `#7FA58A`, clay `#C97052`, cream `#F7F3E9`, paper `#FFFCF7`, ink `#1F2923`, dark background `#0E1A15`, and dark surface `#17271F`.
-- Light and dark schemes are explicit and follow the system theme. Dynamic system color is deliberately disabled so the identity and care-status meanings remain stable.
+- Light and dark schemes are explicit; the default follows the system theme, with app-level Light/Dark overrides available in Settings. Dynamic system color remains disabled so the identity and care-status meanings stay stable.
 - Lora is bundled locally and reserved for display headings; platform sans-serif typography keeps body copy, forms, and controls compact and readable.
 - Cards use warm tonal surfaces, rounded 12/16/24 dp shapes, low elevation, and a 4/8/12/16/24/32 dp spacing rhythm.
 - The reference compositions are structural guidance, not just a palette: inventory and Notice lists stay compact and image-led, Plant detail starts with a wide hero image, related information is grouped in flat sections, and editor/configuration primary actions remain pinned near the bottom edge.
@@ -40,10 +40,19 @@ The user opens Stay Leafy and sees their plants, including each plant's primary 
 - Navigation and actions use deterministic local vector icons. The cactus-and-pot master artwork is preserved under `design/brand/`; production launcher assets are derived from it without packaging the source SVG.
 - The product name remains `Stay Leafy` in both supported languages.
 
+## Photo framing and personalization
+
+- New or replaced plant photos pass through a local interactive 1:1 crop and are stored as square JPEGs. Photos already stored before this change remain as they are.
+- Settings lets the user choose System/Light/Dark appearance and System/English/Spanish language, with system-following defaults and immediate application.
+- The user can choose the approximate local time for daily WorkManager reminder evaluation, initially 09:00. The operating system may defer execution; the setting does not promise an exact notification time.
+- Settings summarizes notification capability, explains that camera/photo selection use system UI without broad permissions, and shows app version and local-only privacy facts.
+
 ## Supported languages
 
 - English
 - Spanish
+
+The app offers an in-app System/English/Spanish choice without adding another supported language.
 
 Documentation, source identifiers, and code comments are written in English. User-facing text is localized through Android resources.
 

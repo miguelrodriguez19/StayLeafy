@@ -88,14 +88,14 @@ Completing matching care, disabling a rule, or replacing its current occurrence 
 
 ## Background evaluation
 
-Unique periodic WorkManager work evaluates interval and seasonal reminders approximately once per day around 09:00 in the device's current local time.
+Phase 4 introduced unique periodic WorkManager evaluation approximately once per day around 09:00 local time. Phase 7 makes that preferred local time configurable, with 09:00 retained as the default.
 
 - Room remains the source of truth.
 - Work is unique so parallel evaluators are not scheduled.
 - The worker reads enabled interval rules due on or before the current local date and enabled seasonal rules whose current annual window contains that date.
 - WorkManager persists work across normal process death and device reboot.
 - Delivery is best effort. The application does not promise an exact clock time or use exact alarms.
-- A rule saved after the day's approximate 09:00 run is evaluated the following morning, even when its selected date is already due or overdue.
+- A rule saved after the configured approximate daily run is evaluated at the next configured window, even when its selected date is already due or overdue.
 - New interval configuration starts from the latest matching care when one exists. The editor exposes an explicit custom start-date state and lets the user switch back to latest care; existing stored manual due dates remain unchanged unless the user chooses that switch.
 - Date evaluation is isolated from the Worker and accepts an injected clock and local zone for deterministic tests.
 
@@ -119,6 +119,8 @@ On Android versions requiring runtime notification permission:
 - The application and in-app Notices remain fully usable without permission.
 
 A due occurrence evaluated without permission is `SUPPRESSED`. Granting permission later applies only to future occurrences; the app never delivers suppressed notifications retroactively.
+
+Settings includes a notification-capability summary with a route to Android notification settings when access is blocked. Camera capture and photo selection use system-owned UI and do not require broad app permissions; the summary states this explicitly. The existing contextual notification prompt and Notices guidance remain in place.
 
 ## Notification content and navigation
 
@@ -174,10 +176,10 @@ Reminder verification must cover at least:
 - Permission granted, denied, and later granted without retroactive delivery.
 - Read-on-open, Mark all as read, badge updates, notification cancellation, and Plant deletion cascades.
 - Notification-to-Notice and Notice-to-Plant navigation.
-- Approximately 09:00 scheduling without tests that wait for real wall-clock execution.
+- Configurable-time next-window and rescheduling behavior without tests that wait for real wall-clock execution, while retaining best-effort expectations.
 - English and Spanish text plus light and dark rendering.
 - Same-year, one-day, cross-year, inclusive-boundary, and February 29 seasonal calculations.
 - Seasonal satisfaction by matching care, late in-window evaluation, occurrence deduplication, and no delivery outside the window.
 - Atomic and mutually exclusive Off/Interval/Season configuration with retained inactive settings.
 
-These checks are covered by the Phase 4 and Phase 5 JVM, Room, Compose, navigation, and connected-emulator suites. Reliability on the owner's physical device remains a Phase 7 hardening item.
+These checks are covered by the Phase 4 and Phase 5 JVM, Room, Compose, navigation, and connected-emulator suites. Reliability on the owner's physical device remains a Phase 8 hardening item.

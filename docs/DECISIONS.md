@@ -142,13 +142,13 @@ This keeps the offline flow least-privilege while still allowing system-owned ca
 ## D-017 — Original-byte app-managed photo storage
 
 - **Date:** 2026-10-10
-- **Status:** Accepted
+- **Status:** Superseded prospectively by D-028
 
-Selected or captured image bytes are copied unchanged into the app's internal `plant_photos/` directory under a generated filename. Room stores only the stable relative path in `Plant.mainPhotoPath`; content URIs and bitmap data are not persisted.
+This was the Phase 2 policy: selected or captured image bytes were copied unchanged into the app's internal `plant_photos/` directory under a generated filename. Room stored only the stable relative path in `Plant.mainPhotoPath`; content URIs and bitmap data were not persisted. Phase 7 replaces this policy for newly added or replaced photos. Files already stored under this decision remain unchanged.
 
 Replacement writes the new file before updating Room, removes the previous file after a successful reference update, and removes the new file if the update fails. Plant deletion removes the Room row and notes in a transaction, then deletes the associated file. Photo mutations and the IO-bound startup reconciliation are serialized so reconciliation cannot delete a new file before Room references it. Reconciliation removes stable files that are no longer referenced. Temporary capture files are removed after cancellation or failed import.
 
-Multiple photos, transformations, compression, cropping, captions, and note attachments remain out of scope.
+At the Phase 2 boundary, multiple photos, transformations, compression, cropping, captions, and note attachments were out of scope. Phase 7 introduces cropping and JPEG normalization only for the existing single primary-photo flow; the other exclusions remain.
 
 ## D-018 — Phase 2 completion gate
 
@@ -207,7 +207,7 @@ Each due occurrence creates one persistent in-app Notice, keyed uniquely as `int
 
 Plants and Notices are peer bottom-navigation roots with independent state, and the bottom bar remains visible on nested destinations. Switching tabs preserves the destination stack of the tab being left, while selecting the already active tab clears only that tab's nested destinations and returns to its root list. Notification taps open the matching Notice detail under the Notices root, superseding D-009's earlier unspecified destination and the earlier plan to open Plant detail directly. Notice detail marks the item read and offers an explicit action to navigate to the Plant. That cross-root action clears the source Notice detail, so selecting Notices after returning to the Plants root opens the inbox instead of restoring the previous detail.
 
-WorkManager runs unique periodic evaluation approximately once per day around 09:00 local time. This is a best-effort morning cadence, not an exact-time promise. A rule saved after that day's evaluation waits until the next daily run. Stable occurrence-specific notification identifiers and the unique Notice key make retries idempotent.
+Phase 4 implemented unique periodic WorkManager evaluation approximately once per day around 09:00 local time. This was a best-effort morning cadence, not an exact-time promise. A rule saved after that day's evaluation waited until the next daily run. Phase 7 supersedes the fixed target with a configurable preferred local time, initially 09:00, while retaining approximate delivery and idempotent occurrence-specific identifiers.
 
 On Android versions requiring notification permission, the app explains and requests it contextually after the first active rule is saved. The rule and in-app Notice behavior do not depend on permission. An occurrence evaluated without permission becomes `SUPPRESSED`; granting permission later does not deliver it retroactively. When rules are active but notifications are blocked, guidance and an application-settings action appear only in the Notices root.
 
@@ -240,7 +240,7 @@ This is a presentation refinement to D-023, not a data-model change. Room remain
 - **Date:** 2026-10-14
 - **Status:** Accepted
 
-Phase 6 replaces the Android template palette with explicit light and dark Stay Leafy Material 3 schemes. The system light/dark setting remains authoritative, but Material You dynamic color is disabled: botanical green `#115129`, terracotta `#DF6645`, cream `#FBF8F1`, and dark botanical `#0D1712` must remain stable identity anchors. Upcoming, due-today, overdue, unread, error, and container roles use named semantic colors with non-color labels and WCAG AA text contrast.
+Phase 6 replaces the Android template palette with explicit light and dark Stay Leafy Material 3 schemes. At the Phase 6 boundary, the system light/dark setting was authoritative; Phase 7 Settings add System/Light/Dark choices while retaining System as the default. Material You dynamic color remains disabled: botanical green `#115129`, terracotta `#DF6645`, cream `#FBF8F1`, and dark botanical `#0D1712` must remain stable identity anchors. Upcoming, due-today, overdue, unread, error, and container roles use named semantic colors with non-color labels and WCAG AA text contrast.
 
 Lora is bundled under the SIL Open Font License and used only for display headings; body text and controls retain the platform sans-serif. Shared Compose primitives provide care icons and state presentation, while Material 3 owns standard interaction behavior, dialogs, menus, sheets, calendar pickers, and motion. Screen state and callbacks remain outside these visual components.
 
@@ -266,4 +266,24 @@ LeafClay is the shared accent for favorites, selected filters with no results, n
 
 Plants keeps the existing two-root navigation and behavior while presenting creation through a FAB. The Settings icon is a visual affordance only; no Settings destination is introduced until its product behavior is defined. Notices derive the plant thumbnail from the existing Plants row through Room joins, without changing the persisted notice schema.
 
+At the time of this decision, the Settings icon was only a visual affordance. Phase 7 now defines a Settings destination and its preference scope; this does not change the historical Phase 6 boundary.
+
 The care configuration UI models interval origin explicitly as `LatestCare` or `CustomDate`. Newly initialized interval forms use latest care when available. Stored manual due dates remain custom until the user selects `Use latest care instead`, preserving the scheduling rule that editing does not silently reinterpret persisted due dates. Add note keeps only back navigation, content, and Save.
+
+## D-028 — Square JPEG crops for newly added plant photos
+
+- **Date:** 2026-10-14
+- **Status:** Accepted
+
+Phase 7 requires an interactive 1:1 crop after camera capture or picker selection, using local uCrop with zoom and pan. Confirmed crops are encoded as square JPEGs at quality 92, with a maximum dimension of 2048 pixels and no upscaling. The stable app-managed file and Room relative-path contract remain unchanged. New-plant photos stay staged until save, and failed or cancelled work must preserve the prior stable/staged photo and clean temporary files. The policy applies prospectively only; existing image files are not migrated or rewritten.
+
+This decision supersedes D-017 for future photo imports. It introduces no Room schema change, network dependency, or broad camera/media permission. `UCropActivity` is not exported, crop inputs are app-owned `FileProvider` URIs, and the application has no Internet permission.
+
+## D-029 — Personalization settings and configurable reminder window
+
+- **Date:** 2026-10-14
+- **Status:** Accepted
+
+Phase 7 adds a Settings destination from the Plants gear, retaining the existing `Plants | Notices` roots and always-visible bottom navigation. Preferences are stored outside Room with Preferences DataStore and apply immediately: theme is System/Light/Dark, app language is System/English/Spanish, and the approximate local reminder time defaults to 09:00. The fixed Stay Leafy palette remains in force and dynamic color remains disabled.
+
+The preferred time updates unique periodic WorkManager scheduling for the next configured local window. Delivery remains approximate and deferrable; exact alarms are excluded. Settings summarizes actionable notification capability and explains that system camera/photo-picker flows need no broad app permission. Its About/privacy section shows the installed version and the offline, no-account, no-cloud-sync, no-analytics product facts.

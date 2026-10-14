@@ -116,6 +116,20 @@ class NavigationTest {
     }
 
     @Test
+    fun settingsGear_opensSettingsAndPlantTabReturnsToPlantList() {
+        composeTestRule.onNodeWithContentDescription(string(R.string.settings)).performClick()
+
+        composeTestRule.onNodeWithText(string(R.string.settings_appearance)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(string(R.string.navigation_plants)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(string(R.string.navigation_notices)).assertIsDisplayed()
+
+        composeTestRule.onNodeWithText(string(R.string.navigation_plants)).performClick()
+
+        composeTestRule.onNodeWithText(string(R.string.plants_title)).assertIsDisplayed()
+        composeTestRule.onNodeWithText("Monstera").assertIsDisplayed()
+    }
+
+    @Test
     fun rootTabs_switchBetweenIndependentPlantAndNoticeRoots() {
         composeTestRule.onNodeWithText(string(R.string.navigation_notices)).performClick()
         composeTestRule.onAllNodesWithText(string(R.string.notices_title)).onFirst().assertIsDisplayed()
@@ -222,7 +236,7 @@ class NavigationTest {
         composeTestRule.onNode(hasSetTextAction()).performTextReplacement("Watered today")
         composeTestRule.onAllNodesWithText(string(R.string.save)).onLast().performClick()
         composeTestRule.waitUntil(timeoutMillis = 5_000) {
-            composeTestRule.onAllNodesWithText("Monstera").fetchSemanticsNodes().isNotEmpty()
+            composeTestRule.onAllNodesWithText("Watered today").fetchSemanticsNodes().isNotEmpty()
         }
 
         composeTestRule.onNodeWithText("Watered today").performScrollTo().assertIsDisplayed()

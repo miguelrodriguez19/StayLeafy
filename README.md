@@ -6,13 +6,13 @@ The application is intended for a single user. It stores plant inventory records
 
 ## Project status
 
-Phases 1 through 6 and the independent plant-screen correction are implemented. The app provides the complete offline plant inventory, Room schema v7 with dated notes, care events, interval and annual seasonal reminder rules, persistent Notices, one app-managed primary photo per plant, and the Stay Leafy light/dark visual identity. The current plant model has one `name` field, and search covers `name` and scientific name.
+Phases 1 through 7 and the independent plant-screen correction are implemented. The app provides the complete offline plant inventory, Room schema v7 with dated notes, care events, interval and annual seasonal reminder rules, persistent Notices, one app-managed primary photo per plant, square photo framing, personalization settings, and the Stay Leafy light/dark visual identity. The current plant model has one `name` field, and search covers `name` and scientific name.
 
 Plant creation, viewing, and editing use one shared screen. A new plant can stage its photo and favorite state before saving; notes are added only after the plant exists. The final Room write is atomic, with file compensation when persistence fails.
 
 Phase 3 adds `CareEvent` rows for watering, pruning, and fertilizing, UTC epoch-millisecond timestamps, optional trimmed legacy notes, stable newest-first ordering, and a cascade from Plant deletion. Plant detail keeps three always-visible care cells: a short press records today, a long press selects another date, and pressing the cell opens a read-only, newest-first history for that type and plant. The history menu can clear that scoped history after confirmation.
 
-Phase 4 adds interval care configuration, transactional next-due updates, Upcoming/Overdue inventory filters, `Plants | Notices` bottom navigation, and approximately daily WorkManager evaluation around 09:00 local time. Notices remain available when Android notification permission is unavailable, and suppressed occurrences are not delivered retroactively.
+Phase 4 adds interval care configuration, transactional next-due updates, Upcoming/Overdue inventory filters, `Plants | Notices` bottom navigation, and approximately daily WorkManager evaluation. Phase 7 makes the preferred local time configurable, defaulting to 09:00, while keeping delivery approximate. Notices remain available when Android notification permission is unavailable, and suppressed occurrences are not delivered retroactively.
 
 Phase 5 adds mutually exclusive once-a-year schedules selected through one day-or-period calendar, with optional inclusive end dates, cross-year windows, matching-care satisfaction, and one deduplicated Notice/notification per occurrence. Annual state appears in Plant detail while inventory due filters remain interval-only.
 
@@ -21,7 +21,7 @@ The project was created from the official Android `architecture-templates` singl
 ## Implemented capabilities
 
 - Manage one primary photo per plant from permissionless camera capture or the system photo picker.
-- Store original selected bytes in app-managed local storage and render the photo in plant list and detail surfaces.
+- Crop every newly added or replaced primary photo interactively to 1:1, store a bounded square JPEG in app-managed local storage, and leave previously stored files untouched.
 - Replace or remove the primary photo, clean old files, and reconcile unreferenced files after restarts.
 - Add, edit, list, and delete independent dated notes in Room schema v4, with a cascade when their plant is deleted.
 - Create, view, and edit plants through the shared plant screen, including staged photo and favorite changes with atomic Room persistence and compensating cleanup.
@@ -36,9 +36,12 @@ The project was created from the official Android `architecture-templates` singl
 
 Phase 6 adds the fixed botanical palette, local Lora display typography, deterministic vector iconography, accessible care-status colors, cactus launcher artwork, and reference-led compact screen compositions while preserving every existing flow and its offline behavior.
 
-## Planned capabilities
+## Personalization
 
-- Personal-use hardening, final accessibility review, export/restore design, and signed release work in Phase 7.
+- Settings offers System/Light/Dark theme, System/English/Spanish app language, a configurable approximate reminder time (09:00 default), permission capabilities, and About/privacy information.
+- Preferences apply immediately, persist locally through Preferences DataStore, and do not change the Room schema.
+
+Personal-use hardening, final accessibility review, export/restore design, device reminder reliability, and signed release work remain in Phase 8.
 
 ## Technology
 

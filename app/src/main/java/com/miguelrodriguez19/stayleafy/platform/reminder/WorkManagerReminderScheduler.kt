@@ -5,6 +5,7 @@ import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import dagger.hilt.android.qualifiers.ApplicationContext
+import java.time.LocalTime
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -15,8 +16,8 @@ class WorkManagerReminderScheduler @Inject constructor(
     private val clock: ReminderClock,
 ) : ReminderScheduler {
 
-    override fun ensureDailyEvaluationScheduled() {
-        val initialDelay = delayUntilNextReminderWindow(clock.instant(), clock.zoneId())
+    override fun ensureDailyEvaluationScheduled(targetTime: LocalTime) {
+        val initialDelay = delayUntilNextReminderWindow(clock.instant(), clock.zoneId(), targetTime)
         val request = PeriodicWorkRequestBuilder<ReminderWorker>(1, TimeUnit.DAYS)
             .setInitialDelay(initialDelay.toMillis(), TimeUnit.MILLISECONDS)
             .build()

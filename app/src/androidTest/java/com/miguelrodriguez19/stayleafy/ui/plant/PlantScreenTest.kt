@@ -225,7 +225,7 @@ class PlantScreenTest {
         }
 
         composeTestRule.onNodeWithText("Mis plantas").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Aún no hay plantas").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Tu rincón verde empieza aquí").assertIsDisplayed()
     }
 
     private fun setScreen(

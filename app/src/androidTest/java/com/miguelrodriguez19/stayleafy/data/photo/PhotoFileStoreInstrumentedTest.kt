@@ -49,8 +49,10 @@ class PhotoFileStoreInstrumentedTest {
         val store = store(context, "bad-source-1", "bad-output-1")
         val source = store.stageImage(input(byteArrayOf(1, 2, 3)))
         val session = store.prepareCrop(source.token)
+        context.contentResolver.openOutputStream(session.destinationUri).use { output ->
+            requireNotNull(output).write(squareJpeg(width = 640, height = 480))
+        }
         val output = requireNotNull(store.resolveStagedPhoto(session.outputToken))
-        output.writeBytes(squareJpeg(width = 640, height = 480))
 
         val error = runCatching {
             store.completeCrop(session.sourceToken, session.outputToken)
@@ -67,8 +69,10 @@ class PhotoFileStoreInstrumentedTest {
         val store = store(context, "large-source-1", "large-output-1")
         val source = store.stageImage(input(byteArrayOf(1, 2, 3)))
         val session = store.prepareCrop(source.token)
+        context.contentResolver.openOutputStream(session.destinationUri).use { output ->
+            requireNotNull(output).write(squareJpeg(PLANT_PHOTO_CROP_MAX_SIZE + 1))
+        }
         val output = requireNotNull(store.resolveStagedPhoto(session.outputToken))
-        output.writeBytes(squareJpeg(PLANT_PHOTO_CROP_MAX_SIZE + 1))
 
         val error = runCatching {
             store.completeCrop(session.sourceToken, session.outputToken)

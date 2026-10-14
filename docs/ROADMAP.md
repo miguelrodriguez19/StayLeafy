@@ -12,9 +12,10 @@ The roadmap orders work by dependency and user value. It is not a commitment to 
 - [x] Phase 4 — Interval reminders
 - [x] Phase 5 — Seasonal care
 - [x] Phase 6 — Visual identity and UI redesign
-- [ ] Phase 7 — Personal-use hardening
+- [x] Phase 7 — Photo framing and personalization
+- [ ] Phase 8 — Personal-use hardening
 
-Current milestone: Phase 6 is complete. Phase 7 personal-use hardening is next.
+Current milestone: Phase 7 is complete. Phase 8 personal-use hardening is next.
 
 ## Phase 0 — Foundation
 
@@ -48,7 +49,7 @@ Exit condition: Plant records persist across restarts, the main CRUD flow is cov
 - [x] Add Room schema v3 with `PlantNote`, the `2→3` migration, and an indexed Plant foreign key with delete cascade.
 - [x] Add camera capture through permissionless `TakePicture` and an app-owned `FileProvider` URI.
 - [x] Add `PickVisualMedia(ImageOnly)` with the platform document fallback and no broad media permission.
-- [x] Store original image bytes under app-managed `files/plant_photos/` paths and persist only the relative path in Room.
+- [x] Store primary images as app-managed files under `files/plant_photos/` and persist only the relative path in Room.
 - [x] Display the primary photo or a deterministic placeholder in the plant list and detail screens.
 - [x] Support replacing and removing the primary photo with compensation for failed Room updates.
 - [x] Clean up the old photo on replacement and the plant photo on deletion; reconcile unreferenced stable files at startup.
@@ -58,7 +59,9 @@ Exit condition: Plant records persist across restarts, the main CRUD flow is cov
 
 Exit condition met: one stable primary image and multiple independent notes can be managed fully offline, with local, instrumented, and migration tests covering the Phase 2 boundaries.
 
-Phase 2 boundary: it intentionally excludes multiple photos, image editing or compression, note attachments, care history, reminder rules, WorkManager, network, and authentication. Phase 3 owns care events and their cascade; Phase 4 owns reminder rules, WorkManager, notifications, and the care-status filter.
+At delivery, the Phase 2 boundary excluded multiple photos, image editing or compression, note attachments, care history, reminder rules, WorkManager, network, and authentication. Phase 7 later introduces only mandatory square cropping and JPEG encoding for the existing single-photo flow. Phase 3 owns care events and their cascade; Phase 4 owns reminder rules, WorkManager, notifications, and the care-status filter.
+
+Historical photo policy: Phase 2 initially stored selected image bytes unchanged. Phase 7 supersedes that intake policy for photos added or replaced after its implementation; already stored photo files are not migrated or rewritten.
 
 ## Independent correction — Plant identity and unified plant screen
 
@@ -104,7 +107,7 @@ Phase 4 is complete. It owns interval rules, next-due calculations, care-status 
 - [x] Add the reminder-rule and notice cascades when a Plant is deleted.
 - [x] Add `Plants | Notices` bottom navigation, preserving independent root state and showing the unread count on Notices.
 - [x] Add the Notices list, Notice detail, read-on-open behavior, Mark all as read, and navigation from a notice to its plant.
-- [x] Add unique periodic WorkManager evaluation approximately daily around 09:00 local time, with one persistent Notice and at most one system notification per occurrence.
+- [x] Add unique periodic WorkManager evaluation approximately daily, initially around 09:00 local time, with one persistent Notice and at most one system notification per occurrence.
 - [x] Add contextual Android notification-permission education after the first active rule is saved. Denial keeps rules and Notices active, and granting permission later does not deliver previously suppressed occurrences.
 - [x] Route notification taps through the Notices root to the matching Notice detail.
 - [x] Add migration, date calculation, transactional rescheduling, deduplication, permission, inbox, scheduler, navigation, localization, and connected-device checks.
@@ -217,7 +220,33 @@ Reference-fidelity correction: complete. The production compositions now follow 
 
 Exit condition met: every currently implemented Stay Leafy flow uses the approved visual identity consistently in English and Spanish and in light and dark themes; the launcher icon renders correctly across supported Android icon modes; existing behavior remains covered; and the full local verification suite passes.
 
-## Phase 7 — Personal-use hardening
+## Phase 7 — Photo framing and personalization
+
+Status: complete. No Room schema change was required.
+
+### Photo framing
+
+- [x] Require an interactive 1:1 crop after every new camera capture or photo-picker selection, using local uCrop with zoom and pan.
+- [x] Store each newly accepted crop as a square JPEG (quality 92, up to 2048×2048 without upscaling) in the existing app-managed photo directory; Room continues to store only its stable relative path.
+- [x] Keep create-flow crops staged until plant save. Cancellation, invalid crop output, and storage/database failures leave the prior stable or staged photo intact and clean up temporary files.
+- [x] Apply this policy only to photos added or replaced after the feature ships. Leave existing files and Room references untouched.
+
+### Settings and preferences
+
+- [x] Replace the Plants gear placeholder with a Settings destination while retaining the existing Plants/Notices roots and bottom navigation.
+- [x] Offer theme choices System, Light, and Dark, defaulting to System while preserving the fixed Stay Leafy palette and disabled dynamic color.
+- [x] Offer app language choices System, English, and Spanish; System is the default.
+- [x] Offer a configurable local reminder time, defaulting to 09:00. WorkManager continues to evaluate approximately daily; changing the preferred time reschedules the next occurrence without promising exact delivery or introducing exact alarms.
+- [x] Show a capability-permissions summary: notification capability and its system settings action, plus clear information that camera capture and photo selection use system UI and need no broad app permission.
+- [x] Show the installed app version and the product's local-only privacy facts (offline use, no account, cloud sync, or analytics).
+- [x] Persist small app preferences outside Room with Preferences DataStore; do not add settings columns or tables to Room.
+- [x] Localize the destination, preference labels, states, and capability summary in English and Spanish; cover light/dark themes and navigation restoration.
+
+Phase 7 verification completed on 2026-10-14: the JVM suite, lint, debug assembly, focused photo and Settings tests, and the connected-emulator suite cover crop validation and cleanup, preference persistence, theme/language choices, configurable reminder scheduling, Settings navigation, localization, and both theme previews. Physical-device reminder timing remains a Phase 8 reliability check because WorkManager delivery is deliberately best effort.
+
+Exit condition met: newly accepted photos use the square crop contract without rewriting legacy files, personalization persists and applies locally, reminder work is rescheduled around the preferred time, and the feature remains offline and single-module.
+
+## Phase 8 — Personal-use hardening
 
 - [ ] Complete Spanish localization.
 - [ ] Review accessibility basics despite the personal-use scope.
@@ -226,14 +255,14 @@ Exit condition met: every currently implemented Stay Leafy flow uses the approve
 - [ ] Review battery behavior and notification reliability on the owner's device.
 - [ ] Produce a signed personal release build.
 
+Phase 8 begins after Phase 7 is verified complete. Physical-device reminder reliability remains a Phase 8 check; the configurable Phase 7 time remains best effort.
+
 ## Later possibilities
 
 - Multiple photos per plant
 - User-defined care types
 - Plant groups or rooms
-- Local export and restore including images
 - Calendar overview
 - Home-screen widget
-- Optional per-app language selector
 
 These items require explicit prioritization before implementation.

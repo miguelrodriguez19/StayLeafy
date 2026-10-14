@@ -21,6 +21,7 @@ import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import com.miguelrodriguez19.stayleafy.data.NoticeRepository
 import com.miguelrodriguez19.stayleafy.data.photo.PlantPhotoRepository
+import com.miguelrodriguez19.stayleafy.data.settings.SettingsRepository
 import com.miguelrodriguez19.stayleafy.model.NoticeDeliveryState
 import com.miguelrodriguez19.stayleafy.platform.reminder.ReminderNotificationGateway
 import com.miguelrodriguez19.stayleafy.platform.reminder.ReminderScheduler
@@ -31,6 +32,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 
 @HiltAndroidApp
 class StayLeafy : Application(), Configuration.Provider {
@@ -42,6 +45,9 @@ class StayLeafy : Application(), Configuration.Provider {
 
     @Inject
     lateinit var reminderScheduler: ReminderScheduler
+
+    @Inject
+    lateinit var settingsRepository: SettingsRepository
 
     @Inject
     lateinit var noticeRepository: NoticeRepository
@@ -59,7 +65,12 @@ class StayLeafy : Application(), Configuration.Provider {
     override fun onCreate() {
         super.onCreate()
         reminderNotificationGateway.ensureChannel()
-        reminderScheduler.ensureDailyEvaluationScheduled()
+        applicationScope.launch {
+            settingsRepository.preferences
+                .map { it.reminderTime }
+                .distinctUntilChanged()
+                .collect(reminderScheduler::ensureDailyEvaluationScheduled)
+        }
         applicationScope.launch {
             var displayedNoticeIds = emptySet<String>()
             noticeRepository.observeNotices().collect { notices ->
