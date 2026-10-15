@@ -2,7 +2,7 @@
 
 ## Goals
 
-Testing should catch regressions in Phase 1 persistence, Phase 2 notes and photo storage, the independent Room v4 and unified-screen correction, Phase 3 care history, Phase 4 interval reminders, Phase 5 seasonal care, the Phase 6 visual system, and Phase 7 photo framing and personalization without making a personal project expensive to change. Reminder verification covers persistent Notices, bottom navigation, and best-effort local notifications.
+Testing should catch regressions in Phase 1 persistence, Phase 2 notes and photo storage, the independent Room v4 and unified-screen correction, Phase 3 care history, Phase 4 interval reminders, Phase 5 seasonal care, the Phase 6 visual system, Phase 7 photo framing and personalization, and Phase 8A version/release quality without making a personal project expensive to change. Reminder verification covers persistent Notices, bottom navigation, and best-effort local notifications.
 
 The strategy favors deterministic unit tests and a small number of high-value Android and Compose tests.
 
@@ -230,6 +230,27 @@ The V2 visual direction was manually reviewed on an emulator in light and dark t
 
 ## Commands
 
+### Phase 8A version and release-quality checks
+
+`version.properties` is the sole version source for the release-quality contract. The first publishable merge uses `VERSION_NAME=0.10.0` and `VERSION_CODE=26`; the bootstrap base is the legacy Gradle version `0.9.3`/`25`. The validator accepts only simple `major.minor.patch` SemVer with no prerelease or build metadata and checks that the PR title and version change agree:
+
+- `feat` increments `minor`.
+- A Conventional Commit type followed by `!` increments `major`.
+- `fix`, `refactor`, `perf`, `docs`, `test`, `build`, `ci`, `chore`, `style`, and `revert` increment `patch`.
+- `versionCode` increases exactly by one.
+- Scopes are allowed, for example `feat(settings): ...` and `fix!: ...`; malformed or duplicate version fields fail.
+
+The Bash test suite covers valid major/minor/patch increments, scoped titles, invalid titles, missing or duplicate versions, incorrect jumps, incorrect `versionCode` values, and release recovery states. It uses Bash, Git, and jq without an additional language runtime or test framework:
+
+```bash
+bash scripts/tests/run.sh
+bash scripts/validate_version.sh --base-ref SHA --title 'feat: ...'
+```
+
+The PR workflow contract has exactly one job named `quality / verify` and runs `git diff --check`, the validator tests, the base-SHA SemVer/versionCode comparison, and the standard Gradle verification. It must use JDK 17, Gradle caching, `contents: read`, PR concurrency cancellation, SHA-pinned external actions, and no secrets or emulator tests. Test and lint reports are uploaded only when this job fails.
+
+The release workflow runs after pushes to `main` and through `workflow_dispatch`, with one protected `release` environment job, global non-cancelling concurrency, `contents: write`, no Gradle cache restore/save, and `--no-configuration-cache` for the signed build. Its preflight must fail before tag or release mutation when the selected ref is not `main`, `version.properties` is invalid, or any signing secret is missing. The workflow has no emulator step. The strict repository ruleset already requires `quality / verify`; remote workflow execution, environment/secret configuration, and first-merge verification remain pending. Completed local checks are recorded below.
+
 Run local unit tests:
 
 ```bash
@@ -326,3 +347,7 @@ A change is complete when:
 - Phase 5 passed `./gradlew test lint assembleDebug` and all 97 connected debug tests on the `Pixel_8a` API 36 emulator on 2026-10-13.
 - Phase 6 passed `./gradlew test lint assembleDebug`, deterministic theme-contrast tests, and manual light/dark visual review on 2026-10-14. Android Gradle Plugin classified the running local emulator as an external Gradle-managed device, so `connectedDebugAndroidTest` completed without selecting it; installing the same debug and test APKs and invoking `HiltTestRunner` directly passed all 97 instrumented tests.
 - Phase 7 passed `./gradlew test lint assembleDebug`, focused crop and Settings instrumentation, and the connected debug suite on the `Pixel_8a` Android 16 emulator on 2026-10-14. Coverage includes square crop validation/cleanup, preference persistence, configurable scheduling, navigation, English/Spanish resources, and light/dark previews. Physical-device reminder timing remains a Phase 8 check.
+- Phase 8A local checks on 2026-10-15 passed all 25 validator/release-state tests, `git diff --check`, workflow validation with actionlint 1.7.12, and `./gradlew --no-daemon test lint assembleDebug connectedDebugAndroidTest`: 152 JVM cases (two skipped, no failures) and all 115 instrumented tests on the Pixel 8a API 36 emulator passed.
+- Phase 8A signing verification on 2026-10-15 passed `assembleRelease` with an ephemeral JKS keystore and distinct store/key passwords. `apksigner` verified the APK and its certificate against that test key; `aapt2` confirmed version `0.10.0` and versionCode `26`. The key and test APK were removed. Missing and partial signing configurations failed clearly without producing an unsigned release APK. Preflight smoke checks also rejected a missing secret, invalid alias, incorrect key password, and corrupt Base64. Real signing-key setup and remote publication/recovery remain pending manual acceptance.
+- Phase 8A helpers and tests now run in Bash, with jq for release-state JSON. The replacement suites passed under macOS Bash 3.2 and Bash 5; syntax checks and actionlint passed. The local Gradle gate and all 115 connected tests were rechecked successfully after the migration. The workflows and repository scripts have no dependency on an additional language runtime or test framework.
+- Phase 8A remote acceptance is blocked at PR creation: the GitHub connector returned HTTP 403, `Resource not accessible by integration`. The implementation branch is pushed, but neither the actual required-check run nor a deliberately invalid version-jump run has been verified remotely. The `release` environment is absent and its four secrets must be configured manually before the first merge. No real release tag or GitHub Release was created during local validation.

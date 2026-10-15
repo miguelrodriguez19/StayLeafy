@@ -41,7 +41,7 @@ Phase 6 adds the fixed botanical palette, local Lora display typography, determi
 - Settings offers System/Light/Dark theme, System/English/Spanish app language, a configurable approximate reminder time (09:00 default), permission capabilities, and About/privacy information.
 - Preferences apply immediately, persist locally through Preferences DataStore, and do not change the Room schema.
 
-Personal-use hardening, final accessibility review, export/restore design, device reminder reliability, and signed release work remain in Phase 8.
+Phase 8A implementation is complete, while remote release acceptance remains unchecked. Phase 8 remains open for personal-use hardening, final accessibility review, export/restore design, device reminder reliability, and signed release work.
 
 ## Technology
 
@@ -68,10 +68,11 @@ The application uses the package `com.miguelrodriguez19.stayleafy` and remains a
 ## Build and test
 
 ```bash
-./gradlew assembleDebug
-./gradlew test
-./gradlew lint
+bash scripts/tests/run.sh
+./gradlew test lint assembleDebug
 ```
+
+The release runbook covers the one-time signing-key ceremony, GitHub `release` environment setup, recovery dispatch, and local APK signature/checksum verification: [release runbook](docs/RELEASING.md).
 
 Instrumented tests require a connected device or emulator:
 
@@ -89,6 +90,7 @@ Instrumented tests require a connected device or emulator:
 - [Roadmap](docs/ROADMAP.md)
 - [Testing strategy](docs/TESTING.md)
 - [Decision log](docs/DECISIONS.md)
+- [Release runbook](docs/RELEASING.md)
 
 ## License
 

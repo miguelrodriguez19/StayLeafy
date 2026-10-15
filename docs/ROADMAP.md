@@ -15,7 +15,7 @@ The roadmap orders work by dependency and user value. It is not a commitment to 
 - [x] Phase 7 — Photo framing and personalization
 - [ ] Phase 8 — Personal-use hardening
 
-Current milestone: Phase 7 is complete. Phase 8 personal-use hardening is next.
+Current milestone: Phase 7 is complete. Phase 8A implementation is complete and its remote acceptance remains unchecked; the strict `quality / verify` ruleset context is confirmed, while the `release` environment is not yet created. Phase 8 remains open.
 
 ## Phase 0 — Foundation
 
@@ -248,6 +248,10 @@ Exit condition met: newly accepted photos use the square crop contract without r
 
 ## Phase 8 — Personal-use hardening
 
+- [x] Phase 8A — Implement exactly two GitHub Actions workflows named `Pull Request Quality` and `Release`, with the required `quality / verify` job, version policy, signed-build preflight, idempotent release recovery, and local verification contract. See [`docs/RELEASING.md`](RELEASING.md).
+- [ ] Phase 8A acceptance — Open a test PR and confirm the exact `quality / verify` check, including a failing SemVer/versionCode jump.
+- [ ] Phase 8A — Configure the `release` environment and its four secrets before the first publishable merge.
+- [ ] Phase 8A — Confirm the first publishable merge creates `v0.10.0` with a signed APK, SHA-256 sidecar, and published GitHub Release; confirm `workflow_dispatch` recovers the same main SHA without overwriting a published release.
 - [ ] Complete Spanish localization.
 - [ ] Review accessibility basics despite the personal-use scope.
 - [ ] Add export and restore design.
@@ -255,7 +259,7 @@ Exit condition met: newly accepted photos use the square crop contract without r
 - [ ] Review battery behavior and notification reliability on the owner's device.
 - [ ] Produce a signed personal release build.
 
-Phase 8 begins after Phase 7 is verified complete. Physical-device reminder reliability remains a Phase 8 check; the configurable Phase 7 time remains best effort.
+Phase 8 begins after Phase 7 is verified complete. Phase 8A implementation is complete, but its remote acceptance, environment configuration, and first publishable merge remain unchecked user-operated validation; this does not complete Phase 8. Physical-device reminder reliability remains a Phase 8 check; the configurable Phase 7 time remains best effort.
 
 ## Later possibilities
 
