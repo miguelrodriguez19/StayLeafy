@@ -47,13 +47,13 @@ jobs:
         run: git diff --check "${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}"
 
       - name: Run helper and version validator tests
-        run: python3 -m unittest discover -s scripts/tests -p 'test*.py'
+        run: bash scripts/tests/run.sh
 
       - name: Validate the version change
         env:
           PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
           PR_TITLE: ${{ github.event.pull_request.title }}
-        run: python3 scripts/validate_version.py --base-ref "$PR_BASE_SHA" --title "$PR_TITLE"
+        run: bash scripts/validate_version.sh --base-ref "$PR_BASE_SHA" --title "$PR_TITLE"
 
       - name: Run JVM tests, lint, and debug assembly
         run: ./gradlew --no-daemon test lint assembleDebug

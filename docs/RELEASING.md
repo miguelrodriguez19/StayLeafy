@@ -9,6 +9,8 @@ The Phase 8A implementation has exactly two workflows for this contract:
 - `Pull Request Quality` runs for every PR targeting `main` and exposes the required check `quality / verify`. It runs `git diff --check`, version-validator tests, the SemVer/versionCode comparison against the PR base SHA, and `./gradlew --no-daemon test lint assembleDebug`. It uses JDK 17, Gradle caching, `contents: read`, PR concurrency cancellation, SHA-pinned actions, and no secrets or emulator tests. Test and lint reports are uploaded when the job fails.
 - `Release` runs after each push to `main` and through `workflow_dispatch`. It has one protected environment `release` job, global concurrency without cancellation, and `contents: write`. It performs all preflight checks before changing tags or releases.
 
+Version validation, release-state decisions, and their tests use Bash. Release-state JSON is read with `jq`, which the release workflow already uses. The scripts require no additional language runtime or test framework; Bash, Git, and jq are available on the selected GitHub-hosted Ubuntu runner.
+
 ## One-time signing-key ceremony
 
 Perform this on a trusted local machine outside the repository. Choose a long unique password and keep it in a password manager. The commands below prompt without putting the password in the command line, shell history, process listings, or logs. Do not paste a real password into this document, a commit, or a CI log.
@@ -84,8 +86,8 @@ The title must be valid, the new version must be exactly the expected SemVer inc
 Local validator checks are:
 
 ```bash
-python3 -m unittest discover -s scripts/tests -v
-python3 scripts/validate_version.py --base-ref SHA --title 'feat: ...'
+bash scripts/tests/run.sh
+bash scripts/validate_version.sh --base-ref SHA --title 'feat: ...'
 ```
 
 Use the actual PR base SHA in place of `SHA`. The normal local application gate remains:

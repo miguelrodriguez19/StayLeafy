@@ -14,9 +14,6 @@ captures/
 .externalNativeBuild/
 .cxx/
 
-# Python test caches
-__pycache__/
-
 # Signing secrets
 *.jks
 *.keystore

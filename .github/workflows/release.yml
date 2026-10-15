@@ -55,7 +55,7 @@ jobs:
             echo "::error::The checkout is not the selected immutable event commit." >&2
             exit 1
           fi
-          python3 scripts/validate_version.py --github-output "$GITHUB_OUTPUT"
+          bash scripts/validate_version.sh --github-output "$GITHUB_OUTPUT"
 
       - name: Preflight release signing
         env:
@@ -171,7 +171,7 @@ jobs:
           fi
           api_get "$REPOSITORY_API/releases/tags/$TAG_NAME" "$RELEASE_FILE"
 
-          python3 scripts/release_state.py \
+          bash scripts/release_state.sh \
             --tag-name "$TAG_NAME" \
             --main-sha "$MAIN_SHA" \
             --tag-file "$TAG_FILE" \

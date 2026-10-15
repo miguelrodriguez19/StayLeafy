@@ -240,11 +240,11 @@ The V2 visual direction was manually reviewed on an emulator in light and dark t
 - `versionCode` increases exactly by one.
 - Scopes are allowed, for example `feat(settings): ...` and `fix!: ...`; malformed or duplicate version fields fail.
 
-The validator test suite must cover valid major/minor/patch increments, scoped titles, invalid titles, missing or duplicate versions, incorrect jumps, and incorrect `versionCode` values:
+The Bash test suite covers valid major/minor/patch increments, scoped titles, invalid titles, missing or duplicate versions, incorrect jumps, incorrect `versionCode` values, and release recovery states. It uses Bash, Git, and jq without an additional language runtime or test framework:
 
 ```bash
-python3 -m unittest discover -s scripts/tests -v
-python3 scripts/validate_version.py --base-ref SHA --title 'feat: ...'
+bash scripts/tests/run.sh
+bash scripts/validate_version.sh --base-ref SHA --title 'feat: ...'
 ```
 
 The PR workflow contract has exactly one job named `quality / verify` and runs `git diff --check`, the validator tests, the base-SHA SemVer/versionCode comparison, and the standard Gradle verification. It must use JDK 17, Gradle caching, `contents: read`, PR concurrency cancellation, SHA-pinned external actions, and no secrets or emulator tests. Test and lint reports are uploaded only when this job fails.
@@ -349,4 +349,5 @@ A change is complete when:
 - Phase 7 passed `./gradlew test lint assembleDebug`, focused crop and Settings instrumentation, and the connected debug suite on the `Pixel_8a` Android 16 emulator on 2026-10-14. Coverage includes square crop validation/cleanup, preference persistence, configurable scheduling, navigation, English/Spanish resources, and light/dark previews. Physical-device reminder timing remains a Phase 8 check.
 - Phase 8A local checks on 2026-10-15 passed all 25 validator/release-state tests, `git diff --check`, workflow validation with actionlint 1.7.12, and `./gradlew --no-daemon test lint assembleDebug connectedDebugAndroidTest`: 152 JVM cases (two skipped, no failures) and all 115 instrumented tests on the Pixel 8a API 36 emulator passed.
 - Phase 8A signing verification on 2026-10-15 passed `assembleRelease` with an ephemeral JKS keystore and distinct store/key passwords. `apksigner` verified the APK and its certificate against that test key; `aapt2` confirmed version `0.10.0` and versionCode `26`. The key and test APK were removed. Missing and partial signing configurations failed clearly without producing an unsigned release APK. Preflight smoke checks also rejected a missing secret, invalid alias, incorrect key password, and corrupt Base64. Real signing-key setup and remote publication/recovery remain pending manual acceptance.
+- Phase 8A helpers and tests now run in Bash, with jq for release-state JSON. The replacement suites passed under macOS Bash 3.2 and Bash 5; syntax checks and actionlint passed. The local Gradle gate and all 115 connected tests were rechecked successfully after the migration. The workflows and repository scripts have no dependency on an additional language runtime or test framework.
 - Phase 8A remote acceptance is blocked at PR creation: the GitHub connector returned HTTP 403, `Resource not accessible by integration`. The implementation branch is pushed, but neither the actual required-check run nor a deliberately invalid version-jump run has been verified remotely. The `release` environment is absent and its four secrets must be configured manually before the first merge. No real release tag or GitHub Release was created during local validation.

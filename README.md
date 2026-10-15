@@ -68,6 +68,7 @@ The application uses the package `com.miguelrodriguez19.stayleafy` and remains a
 ## Build and test
 
 ```bash
+bash scripts/tests/run.sh
 ./gradlew test lint assembleDebug
 ```
 
