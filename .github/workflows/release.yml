@@ -1,0 +1,339 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: stayleafy-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: release
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment: release
+    permissions:
+      contents: write
+    steps:
+      - name: Check out the selected main commit
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle cache
+        uses: gradle/actions/setup-gradle@06832c7b30a0129d7fb559bcc6e43d26f6374244 # v4.3.1
+        with:
+          cache-disabled: true
+
+      - name: Preflight main, version, and selected SHA
+        id: version
+        env:
+          SELECTED_SHA: ${{ github.sha }}
+        run: |
+          set -Eeuo pipefail
+          if [[ "${GITHUB_REF:-}" != "refs/heads/main" || "${GITHUB_REF_NAME:-}" != "main" ]]; then
+            echo "::error::Release runs must target the main branch." >&2
+            exit 1
+          fi
+          checked_out_sha="$(git rev-parse --verify HEAD)"
+          if [[ "$checked_out_sha" != "$SELECTED_SHA" ]]; then
+            echo "::error::The checkout is not the selected immutable event commit." >&2
+            exit 1
+          fi
+          python3 scripts/validate_version.py --github-output "$GITHUB_OUTPUT"
+
+      - name: Preflight release signing
+        env:
+          KEYSTORE_BASE64: ${{ secrets.STAYLEAFY_RELEASE_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.STAYLEAFY_RELEASE_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.STAYLEAFY_RELEASE_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.STAYLEAFY_RELEASE_KEY_PASSWORD }}
+          KEYSTORE_PATH: ${{ runner.temp }}/stayleafy-release.keystore
+          KEY_VERIFY_PATH: ${{ runner.temp }}/stayleafy-release-key-verify.p12
+        run: |
+          set -Eeuo pipefail
+          for required_secret in KEYSTORE_BASE64 STORE_PASSWORD KEY_ALIAS KEY_PASSWORD; do
+            if [[ -z "${!required_secret}" ]]; then
+              echo "::error::The release environment is missing $required_secret." >&2
+              exit 1
+            fi
+          done
+
+          umask 077
+          if ! printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE_PATH"; then
+            echo "::error::The release keystore secret is not valid Base64." >&2
+            exit 1
+          fi
+          chmod 600 "$KEYSTORE_PATH"
+          if [[ ! -s "$KEYSTORE_PATH" ]]; then
+            echo "::error::The decoded release keystore is empty." >&2
+            exit 1
+          fi
+
+          keytool_output="$RUNNER_TEMP/stayleafy-keytool-list.txt"
+          if ! keytool -list -v \
+            -keystore "$KEYSTORE_PATH" \
+            -storepass "$STORE_PASSWORD" \
+            -alias "$KEY_ALIAS" > "$keytool_output" 2> "$RUNNER_TEMP/stayleafy-keytool-list.err"; then
+            echo "::error::The release keystore, store password, or alias could not be verified." >&2
+            exit 1
+          fi
+          if ! grep -Fq 'Entry type: PrivateKeyEntry' "$keytool_output"; then
+            echo "::error::The configured release alias is not a private-key entry." >&2
+            exit 1
+          fi
+
+          if ! keytool -importkeystore -noprompt \
+            -srckeystore "$KEYSTORE_PATH" \
+            -srcstorepass "$STORE_PASSWORD" \
+            -srcalias "$KEY_ALIAS" \
+            -srckeypass "$KEY_PASSWORD" \
+            -destkeystore "$KEY_VERIFY_PATH" \
+            -deststoretype PKCS12 \
+            -deststorepass 'stayleafy-verify' \
+            -destkeypass 'stayleafy-verify' > /dev/null 2> "$RUNNER_TEMP/stayleafy-keytool-verify.err"; then
+            echo "::error::The release key password or private key could not be verified." >&2
+            exit 1
+          fi
+          chmod 600 "$KEY_VERIFY_PATH"
+
+      - name: Inspect tag and release recovery state
+        id: state
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MAIN_SHA: ${{ github.sha }}
+          VERSION_NAME: ${{ steps.version.outputs.version_name }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -Eeuo pipefail
+          TAG_NAME="v${VERSION_NAME}"
+          APK_NAME="StayLeafy-${VERSION_NAME}.apk"
+          CHECKSUM_NAME="${APK_NAME}.sha256"
+          REPOSITORY_API="repos/${REPOSITORY}"
+          TAG_FILE="$RUNNER_TEMP/stayleafy-tag.json"
+          TAG_OBJECT_FILE="$RUNNER_TEMP/stayleafy-tag-object.json"
+          RELEASE_FILE="$RUNNER_TEMP/stayleafy-release.json"
+          GH_RESPONSE="$RUNNER_TEMP/stayleafy-gh-response"
+          tag_object_args=()
+
+          api_get() {
+            local endpoint="$1"
+            local output="$2"
+            local response="${GH_RESPONSE}-$$"
+            local error="${response}.err"
+            local request_status
+            set +e
+            gh api --include "$endpoint" > "$response" 2> "$error"
+            request_status=$?
+            set -e
+
+            if [[ ! -s "$response" ]]; then
+              cat "$error" >&2
+              echo "::error::GitHub API returned no HTTP response for $endpoint." >&2
+              return 1
+            fi
+            local http_status
+            http_status="$(awk '$1 ~ /^HTTP\// { code = $2 } END { print code }' "$response")"
+            awk 'BEGIN { body = 0 } /^\r?$/ { body = 1; next } body { sub(/\r$/, ""); print }' "$response" > "$output"
+
+            if [[ "$http_status" == "404" && "$request_status" -ne 0 ]]; then
+              printf '%s\n' '{"missing":true}' > "$output"
+              return 0
+            fi
+            if [[ "$request_status" -ne 0 || "$http_status" != 2* ]]; then
+              cat "$error" >&2
+              echo "::error::GitHub API request failed for $endpoint (HTTP ${http_status:-unknown})." >&2
+              return 1
+            fi
+            jq -e . "$output" > /dev/null
+          }
+
+          api_get "$REPOSITORY_API/git/ref/tags/$TAG_NAME" "$TAG_FILE"
+          if [[ "$(jq -r '.object.type // empty' "$TAG_FILE")" == "tag" ]]; then
+            tag_object_sha="$(jq -er '.object.sha' "$TAG_FILE")"
+            api_get "$REPOSITORY_API/git/tags/$tag_object_sha" "$TAG_OBJECT_FILE"
+            tag_object_args=(--tag-object-file "$TAG_OBJECT_FILE")
+          fi
+          api_get "$REPOSITORY_API/releases/tags/$TAG_NAME" "$RELEASE_FILE"
+
+          python3 scripts/release_state.py \
+            --tag-name "$TAG_NAME" \
+            --main-sha "$MAIN_SHA" \
+            --tag-file "$TAG_FILE" \
+            "${tag_object_args[@]}" \
+            --release-file "$RELEASE_FILE" \
+            --expected-asset "$APK_NAME" \
+            --expected-asset "$CHECKSUM_NAME" \
+            --github-output "$GITHUB_OUTPUT"
+
+      - name: Create the lightweight release tag
+        if: ${{ steps.state.outputs.tag_action == 'create-tag' && steps.state.outputs.release_action != 'already-published' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MAIN_SHA: ${{ github.sha }}
+          VERSION_NAME: ${{ steps.version.outputs.version_name }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -Eeuo pipefail
+          TAG_NAME="v${VERSION_NAME}"
+          if ! gh api --method POST "repos/${REPOSITORY}/git/refs" \
+            -f "ref=refs/tags/${TAG_NAME}" \
+            -f "sha=${MAIN_SHA}" > "$RUNNER_TEMP/stayleafy-created-tag.json"; then
+            echo "::error::Tag creation failed; no existing tag was overwritten." >&2
+            if ! existing_tag="$(gh api "repos/${REPOSITORY}/git/ref/tags/${TAG_NAME}")"; then
+              exit 1
+            fi
+            existing_sha="$(jq -r '.object.sha // empty' <<< "$existing_tag")"
+            if [[ "$existing_sha" != "$MAIN_SHA" ]]; then
+              echo "::error::A concurrently created tag does not point to the selected main SHA." >&2
+              exit 1
+            fi
+          fi
+
+      - name: Create or reuse the draft release
+        id: draft
+        if: ${{ steps.state.outputs.release_action != 'already-published' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MAIN_SHA: ${{ github.sha }}
+          VERSION_NAME: ${{ steps.version.outputs.version_name }}
+          REPOSITORY: ${{ github.repository }}
+          RELEASE_ACTION: ${{ steps.state.outputs.release_action }}
+          EXISTING_RELEASE_ID: ${{ steps.state.outputs.release_id }}
+        run: |
+          set -Eeuo pipefail
+          TAG_NAME="v${VERSION_NAME}"
+          REPOSITORY_API="repos/${REPOSITORY}"
+          if [[ "$RELEASE_ACTION" == "create-draft" ]]; then
+            gh api --method POST "$REPOSITORY_API/releases" \
+              -f "tag_name=${TAG_NAME}" \
+              -f "target_commitish=${MAIN_SHA}" \
+              -f "name=Stay Leafy ${TAG_NAME}" \
+              -F draft=true \
+              -F prerelease=false \
+              -F generate_release_notes=true > "$RUNNER_TEMP/stayleafy-created-release.json"
+            RELEASE_ID="$(jq -er '.id' "$RUNNER_TEMP/stayleafy-created-release.json")"
+          elif [[ "$RELEASE_ACTION" == "reuse-draft" && -n "$EXISTING_RELEASE_ID" ]]; then
+            RELEASE_ID="$EXISTING_RELEASE_ID"
+          else
+            echo "::error::Unexpected release state: $RELEASE_ACTION" >&2
+            exit 1
+          fi
+          echo "release_id=$RELEASE_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Build and verify the signed release APK
+        if: ${{ steps.state.outputs.release_action != 'already-published' }}
+        env:
+          STAYLEAFY_RELEASE_KEYSTORE_PATH: ${{ runner.temp }}/stayleafy-release.keystore
+          STAYLEAFY_RELEASE_STORE_PASSWORD: ${{ secrets.STAYLEAFY_RELEASE_STORE_PASSWORD }}
+          STAYLEAFY_RELEASE_KEY_ALIAS: ${{ secrets.STAYLEAFY_RELEASE_KEY_ALIAS }}
+          STAYLEAFY_RELEASE_KEY_PASSWORD: ${{ secrets.STAYLEAFY_RELEASE_KEY_PASSWORD }}
+          VERSION_NAME: ${{ steps.version.outputs.version_name }}
+        run: |
+          set -Eeuo pipefail
+          ./gradlew --no-daemon --no-configuration-cache --no-build-cache assembleRelease
+
+          mapfile -t apk_files < <(find app/build/outputs/apk/release -type f -name '*.apk' -print)
+          if (( ${#apk_files[@]} != 1 )); then
+            echo "::error::Expected exactly one release APK, found ${#apk_files[@]}." >&2
+            exit 1
+          fi
+          apk_source="${apk_files[0]}"
+
+          mapfile -t apksigners < <(find "$ANDROID_HOME/build-tools" -type f -name apksigner -print | sort -V)
+          if (( ${#apksigners[@]} == 0 )); then
+            echo "::error::The Android SDK has no apksigner executable." >&2
+            exit 1
+          fi
+          apksigner="${apksigners[${#apksigners[@]} - 1]}"
+          "$apksigner" verify --verbose --print-certs "$apk_source"
+
+          expected_certificate="$(keytool -exportcert -rfc \
+            -keystore "$STAYLEAFY_RELEASE_KEYSTORE_PATH" \
+            -storepass "$STAYLEAFY_RELEASE_STORE_PASSWORD" \
+            -alias "$STAYLEAFY_RELEASE_KEY_ALIAS" |
+            openssl x509 -noout -fingerprint -sha256 |
+            sed 's/.*=//' | tr -d ':[:space:]' | tr '[:lower:]' '[:upper:]')"
+          actual_certificate="$("$apksigner" verify --print-certs "$apk_source" 2>&1 |
+            sed -n 's/.*certificate SHA-256 digest: //p' | head -1 |
+            tr -d ':[:space:]' | tr '[:lower:]' '[:upper:]')"
+          if [[ -z "$actual_certificate" || "$actual_certificate" != "$expected_certificate" ]]; then
+            echo "::error::The APK certificate does not match the configured release alias." >&2
+            exit 1
+          fi
+
+          release_dir="$RUNNER_TEMP/stayleafy-release-assets"
+          mkdir -p "$release_dir"
+          apk_name="StayLeafy-${VERSION_NAME}.apk"
+          checksum_name="${apk_name}.sha256"
+          cp "$apk_source" "$release_dir/$apk_name"
+          (
+            cd "$release_dir"
+            sha256sum "$apk_name" > "$checksum_name"
+            sha256sum --check "$checksum_name"
+          )
+          chmod 600 "$release_dir/$apk_name" "$release_dir/$checksum_name"
+
+      - name: Upload verified release artifacts to the draft
+        if: ${{ steps.state.outputs.release_action != 'already-published' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          RELEASE_ID: ${{ steps.draft.outputs.release_id }}
+          TAG_NAME: v${{ steps.version.outputs.version_name }}
+          RELEASE_DIR: ${{ runner.temp }}/stayleafy-release-assets
+          APK_NAME: StayLeafy-${{ steps.version.outputs.version_name }}.apk
+          CHECKSUM_NAME: StayLeafy-${{ steps.version.outputs.version_name }}.apk.sha256
+        run: |
+          set -Eeuo pipefail
+          draft="$(gh api "repos/${REPOSITORY}/releases/${RELEASE_ID}" --jq '.draft')"
+          if [[ "$draft" != "true" ]]; then
+            echo "::error::The release is already published; refusing to replace its artifacts." >&2
+            exit 1
+          fi
+          gh release upload "$TAG_NAME" \
+            "$RELEASE_DIR/$APK_NAME" \
+            "$RELEASE_DIR/$CHECKSUM_NAME" \
+            --clobber
+
+      - name: Publish the complete release
+        if: ${{ steps.state.outputs.release_action != 'already-published' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          RELEASE_ID: ${{ steps.draft.outputs.release_id }}
+          APK_NAME: StayLeafy-${{ steps.version.outputs.version_name }}.apk
+          CHECKSUM_NAME: StayLeafy-${{ steps.version.outputs.version_name }}.apk.sha256
+        run: |
+          set -Eeuo pipefail
+          release_json="$RUNNER_TEMP/stayleafy-release-before-publish.json"
+          gh api "repos/${REPOSITORY}/releases/${RELEASE_ID}" > "$release_json"
+          jq -e '.draft == true' "$release_json" > /dev/null
+          jq -e --arg apk "$APK_NAME" --arg checksum "$CHECKSUM_NAME" \
+            '([.assets[]?.name] | index($apk)) != null and ([.assets[]?.name] | index($checksum)) != null' \
+            "$release_json" > /dev/null
+          gh api --method PATCH "repos/${REPOSITORY}/releases/${RELEASE_ID}" -F draft=false > /dev/null
+
+      - name: Remove temporary signing material
+        if: ${{ always() }}
+        env:
+          KEYSTORE_PATH: ${{ runner.temp }}/stayleafy-release.keystore
+          KEY_VERIFY_PATH: ${{ runner.temp }}/stayleafy-release-key-verify.p12
+        run: |
+          set -Eeuo pipefail
+          rm -f -- "$KEYSTORE_PATH" "$KEY_VERIFY_PATH"

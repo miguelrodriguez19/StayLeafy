@@ -14,6 +14,102 @@
  * limitations under the License.
  */
 
+import java.io.File
+import org.gradle.api.GradleException
+
+private val MAX_VERSION_CODE = 2_100_000_000L
+private val versionPropertyKey = Regex("^[A-Z][A-Z0-9_]*$")
+private val simpleSemVer = Regex("^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$")
+private val positiveVersionCode = Regex("^[1-9][0-9]*$")
+
+private data class StayLeafyVersion(
+    val name: String,
+    val code: Int,
+)
+
+private fun readStayLeafyVersion(file: File): StayLeafyVersion {
+    require(file.isFile) {
+        "Missing ${file.path}; VERSION_NAME and VERSION_CODE must be defined there."
+    }
+
+    val values = linkedMapOf<String, String>()
+    file.readLines(Charsets.UTF_8).forEachIndexed { index, line ->
+        val lineNumber = index + 1
+        if (line.isBlank() || line.trimStart().startsWith("#")) return@forEachIndexed
+
+        val separator = line.indexOf('=')
+        require(separator > 0) {
+            "${file.path}:$lineNumber: malformed property; expected KEY=value."
+        }
+        val key = line.substring(0, separator)
+        val value = line.substring(separator + 1)
+        require(versionPropertyKey.matches(key)) {
+            "${file.path}:$lineNumber: malformed property key '$key'."
+        }
+        require(key == "VERSION_NAME" || key == "VERSION_CODE") {
+            "${file.path}:$lineNumber: unknown version field '$key'."
+        }
+        require(!values.containsKey(key)) {
+            "${file.path}:$lineNumber: duplicate version field '$key'."
+        }
+        require(value == value.trim()) {
+            "${file.path}:$lineNumber: $key must not have surrounding whitespace."
+        }
+        values[key] = value
+    }
+
+    require(values.keys == setOf("VERSION_NAME", "VERSION_CODE")) {
+        val missing = setOf("VERSION_NAME", "VERSION_CODE") - values.keys
+        "${file.path}: missing version field(s): ${missing.joinToString(", ")}."
+    }
+
+    val versionName = values.getValue("VERSION_NAME")
+    require(simpleSemVer.matches(versionName)) {
+        "${file.path}: invalid VERSION_NAME '$versionName'; expected simple SemVer major.minor.patch."
+    }
+    val versionCodeText = values.getValue("VERSION_CODE")
+    require(positiveVersionCode.matches(versionCodeText)) {
+        "${file.path}: invalid VERSION_CODE '$versionCodeText'; expected a positive decimal integer."
+    }
+    val versionCode = versionCodeText.toLongOrNull()
+    require(versionCode != null && versionCode <= MAX_VERSION_CODE) {
+        "${file.path}: VERSION_CODE '$versionCodeText' must be between 1 and $MAX_VERSION_CODE."
+    }
+
+    return StayLeafyVersion(versionName, versionCode.toInt())
+}
+
+private val stayLeafyVersion = readStayLeafyVersion(rootProject.file("version.properties"))
+private val releaseSigningEnvironment = listOf(
+    "STAYLEAFY_RELEASE_KEYSTORE_PATH",
+    "STAYLEAFY_RELEASE_STORE_PASSWORD",
+    "STAYLEAFY_RELEASE_KEY_ALIAS",
+    "STAYLEAFY_RELEASE_KEY_PASSWORD",
+)
+private val releaseSigningProviders = releaseSigningEnvironment.associateWith {
+    project.providers.environmentVariable(it)
+}
+private val releaseSigningPresence = releaseSigningProviders.mapValues { (_, provider) ->
+    provider.map { value -> value.isNotBlank() }.orElse(false).get()
+}
+private val releasePackagingPrefixes = listOf("assemble", "bundle", "package", "sign", "install")
+
+private fun isReleasePackagingTask(taskName: String): Boolean {
+    if (taskName == "assemble" || taskName == "build") return true
+    return releasePackagingPrefixes.any { prefix ->
+        taskName.startsWith(prefix) && taskName.removePrefix(prefix).startsWith("Release")
+    }
+}
+
+private val releaseSigningIsConfigured = releaseSigningPresence.values.all { it }
+private val releaseProjectDirectory = project.projectDir.absoluteFile
+
+if (releaseSigningIsConfigured && gradle.startParameter.isConfigurationCacheRequested) {
+    throw GradleException(
+        "Release signing reads secret environment variables; rerun release packaging with --no-configuration-cache."
+    )
+}
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.hilt.gradle)
@@ -30,8 +126,8 @@ android {
         applicationId = "com.miguelrodriguez19.stayleafy"
         minSdk = 24
         targetSdk = 37
-        versionCode = 25
-        versionName = "0.9.3"
+        versionCode = stayLeafyVersion.code
+        versionName = stayLeafyVersion.name
 
         testInstrumentationRunner = "com.miguelrodriguez19.stayleafy.HiltTestRunner"
         vectorDrawables {
@@ -43,6 +139,20 @@ android {
         getByName("release") {
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+        }
+    }
+
+    if (releaseSigningIsConfigured) {
+        signingConfigs {
+            create("stayLeafyRelease") {
+                storeFile = project.file(releaseSigningProviders.getValue("STAYLEAFY_RELEASE_KEYSTORE_PATH").get())
+                storePassword = releaseSigningProviders.getValue("STAYLEAFY_RELEASE_STORE_PASSWORD").get()
+                keyAlias = releaseSigningProviders.getValue("STAYLEAFY_RELEASE_KEY_ALIAS").get()
+                keyPassword = releaseSigningProviders.getValue("STAYLEAFY_RELEASE_KEY_PASSWORD").get()
+            }
+        }
+        buildTypes.getByName("release") {
+            signingConfig = signingConfigs.getByName("stayLeafyRelease")
         }
     }
 
@@ -74,6 +184,33 @@ android {
             "$projectDir/schemas",
         )
     }
+}
+
+val validateReleaseSigning = tasks.register("validateReleaseSigning") {
+    group = "verification"
+    description = "Checks the local release signing configuration before release packaging."
+    val missingSigningEnvironment = releaseSigningEnvironment.filter { !releaseSigningPresence.getValue(it) }
+    val keystorePathProvider = releaseSigningProviders.getValue("STAYLEAFY_RELEASE_KEYSTORE_PATH").orElse("")
+    val keystorePath = keystorePathProvider.get()
+    val keystore = File(keystorePath).let { candidate ->
+        if (candidate.isAbsolute) candidate else File(releaseProjectDirectory, keystorePath)
+    }
+    inputs.property("keystorePath", keystorePathProvider)
+    inputs.property("missingSigningEnvironment", missingSigningEnvironment.joinToString(","))
+    inputs.property("signingEnvironmentConfigured", missingSigningEnvironment.isEmpty())
+    doLast {
+        require(missingSigningEnvironment.isEmpty()) {
+            "Release signing is required for release packaging. Configure these environment variables: ${missingSigningEnvironment.joinToString(", ")}."
+        }
+
+        require(keystore.isFile && keystore.canRead()) {
+            "Release signing keystore '$keystorePath' does not exist or is not readable."
+        }
+    }
+}
+
+tasks.configureEach {
+    if (isReleasePackagingTask(name)) dependsOn(validateReleaseSigning)
 }
 
 ksp {
