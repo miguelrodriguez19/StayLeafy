@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="data_maintenance_progress">Preparing your local data…</string>
+    <string name="data_recovery_error">Your data could not be recovered safely. Free some storage if necessary, then retry. No further edits are allowed until recovery finishes.</string>
+    <string name="data_recovery_retry">Retry recovery</string>
+</resources>

@@ -117,6 +117,7 @@
     <string name="increase_interval">Increase interval</string>
     <plurals name="interval_every_days">
         <item quantity="one">Every %1$d day</item>
+        <item quantity="many">Every %1$d days</item>
         <item quantity="other">Every %1$d days</item>
     </plurals>
     <string name="interval_days_error">Enter a number greater than zero.</string>

@@ -48,6 +48,9 @@ interface ReminderNotificationGateway {
     fun publish(delivery: PendingReminderDelivery): ReminderNotificationResult
 
     fun cancel(noticeId: String)
+
+    /** Cancel notifications owned by this installation after a full data replacement. */
+    fun cancelAll() = Unit
 }
 
 enum class ReminderNotificationResult {

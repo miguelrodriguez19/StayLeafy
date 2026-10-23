@@ -113,6 +113,50 @@ class SeasonalReminderDeliveryStoreTest {
         )
     }
 
+    @Test
+    fun futurePendingSeasonalNotice_waitsForItsYearWithoutBeingSuppressed() = runBlocking {
+        database.plantDao().insertPlant(testPlant("plant-1", "Hydrangea"))
+        database.reminderRuleDao().upsertRule(seasonalRule("rule-1").copy(careType = "FERTILIZING"))
+        val start = LocalDate.of(2027, 3, 1).toEpochDay()
+        database.noticeDao().insertNotice(
+            NoticeEntity(
+                id = "future-notice", ruleId = "rule-1", occurrenceKey = "seasonal:rule-1:$start",
+                careType = "FERTILIZING", dueEpochDay = start, createdAt = now,
+                readAt = null, deliveryState = NoticeDeliveryState.PENDING.name,
+            ),
+        )
+
+        assertEquals(emptyList<Any>(), store().preparePendingDeliveries(LocalDate.of(2026, 10, 16).toEpochDay()))
+        assertEquals(NoticeDeliveryState.PENDING.name, database.noticeDao().observeNotices().first().single().deliveryState)
+        val due = store().preparePendingDeliveries(start)
+        assertEquals("future-notice", due.single().noticeId)
+        assertEquals(1, database.noticeDao().observeNotices().first().size)
+    }
+
+    @Test
+    fun futurePendingIntervalNotice_isNotDeliveredBeforeDueDate() = runBlocking {
+        database.plantDao().insertPlant(testPlant("plant-1", "Hydrangea"))
+        val due = LocalDate.of(2027, 10, 16).toEpochDay()
+        database.reminderRuleDao().upsertRule(
+            ReminderRuleEntity(
+                id = "annual-interval", plantId = "plant-1", careType = "FERTILIZING",
+                scheduleType = "INTERVAL", enabled = true, intervalDays = 365,
+                nextDueEpochDay = due, createdAt = now, updatedAt = now,
+            ),
+        )
+        database.noticeDao().insertNotice(
+            NoticeEntity(
+                id = "future-interval", ruleId = "annual-interval", occurrenceKey = "interval:annual-interval:$due",
+                careType = "FERTILIZING", dueEpochDay = due, createdAt = now,
+                readAt = null, deliveryState = NoticeDeliveryState.PENDING.name,
+            ),
+        )
+        val store = store()
+        assertEquals(emptyList<Any>(), store.preparePendingDeliveries(due - 1))
+        assertEquals(NoticeDeliveryState.PENDING.name, database.noticeDao().observeNotices().first().single().deliveryState)
+        assertEquals("future-interval", store.preparePendingDeliveries(due).single().noticeId)
+    }
+
     private fun store() = RoomReminderDeliveryStore(
         database = database,
         reminderRuleDao = database.reminderRuleDao(),

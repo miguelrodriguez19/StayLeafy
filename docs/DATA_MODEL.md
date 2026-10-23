@@ -175,6 +175,12 @@ Clearing a plant-and-type-scoped care history intentionally does not recalculate
 
 For Phase 2, deleting a plant cascades `PlantNote` rows inside Room; deleting the associated primary-photo file is a compensating file operation after the Room transaction. Reconciliation is the recovery path for a failed or interrupted file cleanup.
 
+## Phase 8 logical backup boundary
+
+Manual archive format 1 exports all five schema-v7 collections and Preferences DataStore values, not a raw database file. No Room entity/column/schema migration is introduced. A dedicated DAO captures a transactionally consistent snapshot and replaces rows in foreign-key order in a single transaction. IDs and historical semantic values remain stable; search projections are regenerated and photo references are remapped to newly allocated files containing the original bytes.
+
+The restore journal is private operational state in `noBackupFilesDir`, not an entity or part of the export. It spans the Room/DataStore/file boundary with rollback before commit and cleanup after commit. Existing files are retained until the durable commit marker. Imported current/past pending Notices become suppressed without changing `readAt`; future rules and future pending Notices remain intact. See [BACKUP.md](BACKUP.md).
+
 ## Future schema candidates
 
 These are deliberately excluded from the initial schema:

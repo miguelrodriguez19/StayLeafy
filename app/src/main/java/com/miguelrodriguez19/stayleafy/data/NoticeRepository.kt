@@ -9,6 +9,7 @@ import com.miguelrodriguez19.stayleafy.model.ReminderScheduleType
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
+import com.miguelrodriguez19.stayleafy.data.backup.DataOperationCoordinator
 
 interface NoticeRepository {
     fun observeNotices(): Flow<List<AppNotice>>
@@ -30,6 +31,7 @@ class DefaultNoticeRepository @Inject constructor(
     private val noticeDao: NoticeDao,
     private val epochMillisProvider: EpochMillisProvider,
     private val uuidProvider: UuidProvider,
+    private val operations: DataOperationCoordinator = DataOperationCoordinator(),
 ) : NoticeRepository {
     override fun observeNotices(): Flow<List<AppNotice>> =
         noticeDao.observeNotices().map { notices -> notices.map(NoticeRecord::toModel) }
@@ -39,7 +41,7 @@ class DefaultNoticeRepository @Inject constructor(
 
     override fun observeUnreadCount(): Flow<Int> = noticeDao.observeUnreadCount()
 
-    override suspend fun createPendingNotice(ruleId: String): String? {
+    override suspend fun createPendingNotice(ruleId: String): String? = operations.withOperation {
         val id = uuidProvider.newUuid()
         val inserted = noticeDao.insertPendingNotice(
             id = id,
@@ -47,18 +49,18 @@ class DefaultNoticeRepository @Inject constructor(
             createdAt = epochMillisProvider.now(),
             deliveryState = NoticeDeliveryState.PENDING.name,
         )
-        return id.takeIf { inserted }
+        id.takeIf { inserted }
     }
 
-    override suspend fun setDeliveryState(id: String, state: NoticeDeliveryState) {
+    override suspend fun setDeliveryState(id: String, state: NoticeDeliveryState): Unit = operations.withOperation {
         check(noticeDao.updateDeliveryState(id, state.name) == 1) { "Notice no longer exists" }
     }
 
-    override suspend fun markRead(id: String) {
+    override suspend fun markRead(id: String): Unit = operations.withOperation {
         noticeDao.markRead(id, epochMillisProvider.now())
     }
 
-    override suspend fun markAllRead() {
+    override suspend fun markAllRead(): Unit = operations.withOperation {
         noticeDao.markAllRead(epochMillisProvider.now())
     }
 }

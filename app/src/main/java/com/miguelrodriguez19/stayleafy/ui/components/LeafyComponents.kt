@@ -6,7 +6,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.FloatingActionButton
@@ -102,8 +102,8 @@ fun LeafyPrimaryButton(
     Button(
         onClick = onClick,
         enabled = enabled,
-        modifier = modifier.height(48.dp),
-        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 0.dp),
+        modifier = modifier.heightIn(min = 48.dp),
+        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
         colors = ButtonDefaults.buttonColors(),
     ) {
         Text(text)
@@ -120,8 +120,8 @@ fun LeafyDestructiveButton(
     Button(
         onClick = onClick,
         enabled = enabled,
-        modifier = modifier.height(48.dp),
-        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 0.dp),
+        modifier = modifier.heightIn(min = 48.dp),
+        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
         colors = ButtonDefaults.buttonColors(
             containerColor = MaterialTheme.leafyColors.accent,
             contentColor = MaterialTheme.leafyColors.onAccent,
@@ -141,8 +141,8 @@ fun LeafyDestructiveOutlinedButton(
     OutlinedButton(
         onClick = onClick,
         enabled = enabled,
-        modifier = modifier.height(48.dp),
-        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 0.dp),
+        modifier = modifier.heightIn(min = 48.dp),
+        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
         border = BorderStroke(1.dp, MaterialTheme.leafyColors.accent),
         colors = ButtonDefaults.outlinedButtonColors(
             contentColor = MaterialTheme.leafyColors.accent,

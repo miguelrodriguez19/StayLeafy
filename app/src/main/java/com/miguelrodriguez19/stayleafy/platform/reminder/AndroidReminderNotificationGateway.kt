@@ -99,6 +99,10 @@ class AndroidReminderNotificationGateway @Inject constructor(
         notificationManager.cancel(reminderNotificationTag(noticeId), REMINDER_NOTIFICATION_ID)
     }
 
+    override fun cancelAll() {
+        notificationManager.cancelAll()
+    }
+
     private fun PendingReminderDelivery.contentIntent(): PendingIntent {
         val intent = Intent(context, MainActivity::class.java)
             .setAction(Intent.ACTION_VIEW)

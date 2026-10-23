@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="backup_title">Copia de seguridad</string>
+    <string name="backup_back">Atrás</string>
+    <string name="backup_settings_title">Copia de seguridad</string>
+    <string name="backup_settings_summary">Exporta o restaura tu colección de plantas sin conexión.</string>
+    <string name="backup_settings_action">Abrir copia de seguridad</string>
+    <string name="backup_privacy_warning">Las copias son archivos ZIP sin cifrar. Guárdalas en un lugar privado. Stay Leafy no sube copias ni solicita permisos de almacenamiento.</string>
+    <string name="backup_export_title">Exportar copia</string>
+    <string name="backup_export_message">Guarda todas las plantas, fotos, notas, historial de cuidados, recordatorios, avisos y preferencias en un archivo.</string>
+    <string name="backup_export_action">Exportar copia</string>
+    <string name="backup_restore_title">Restaurar copia</string>
+    <string name="backup_restore_message">Elige una copia de Stay Leafy para revisarla antes de reemplazar la colección local.</string>
+    <string name="backup_restore_action">Elegir copia</string>
+    <string name="backup_preview_title">Vista previa de la copia</string>
+    <string name="backup_preview_source">Stay Leafy %1$s · exportada el %2$s</string>
+    <string name="backup_replace_warning">La restauración reemplaza todas las plantas, fotos, notas, historial de cuidados, reglas de recordatorio, avisos de entrada y preferencias locales. Los datos existentes no se combinan.</string>
+    <string name="backup_review_restore">Restaurar esta copia</string>
+    <string name="backup_confirm_title">¿Reemplazar todos los datos locales?</string>
+    <string name="backup_confirm_message">Stay Leafy no puede deshacer esta acción. Confirma solo si esta es la copia que quieres restaurar.</string>
+    <string name="backup_confirm_restore">Reemplazar y restaurar</string>
+    <string name="backup_cancel">Cancelar</string>
+    <string name="backup_dismiss">Cerrar</string>
+    <string name="backup_exporting">Exportando copia…</string>
+    <string name="backup_preparing">Comprobando copia…</string>
+    <string name="backup_restoring">Restaurando copia…</string>
+    <string name="backup_working">Trabajando…</string>
+    <string name="backup_export_complete">La copia se ha exportado correctamente.</string>
+    <string name="backup_export_error">No se ha podido exportar la copia. Comprueba el destino e inténtalo de nuevo.</string>
+    <string name="backup_invalid_error">El archivo no es una copia válida de Stay Leafy o está dañado.</string>
+    <string name="backup_restore_error">No se ha podido restaurar la copia. Se ha conservado tu colección existente.</string>
+    <string name="backup_count_plants">Plantas: %1$d</string>
+    <string name="backup_count_notes">Notas: %1$d</string>
+    <string name="backup_count_care_events">Eventos de cuidado: %1$d</string>
+    <string name="backup_count_rules">Reglas de recordatorio: %1$d</string>
+    <string name="backup_count_notices">Avisos de entrada: %1$d</string>
+    <string name="backup_count_photos">Fotos: %1$d</string>
+</resources>

@@ -3,6 +3,7 @@ package com.miguelrodriguez19.stayleafy.platform.reminder
 import java.time.LocalDate
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
+import com.miguelrodriguez19.stayleafy.data.backup.DataOperationCoordinator
 
 enum class ReminderRunResult {
     SUCCESS,
@@ -13,8 +14,17 @@ class ReminderWorkProcessor @Inject constructor(
     private val deliveryStore: ReminderDeliveryStore,
     private val notificationGateway: ReminderNotificationGateway,
     private val clock: ReminderClock,
+    private val operations: DataOperationCoordinator = DataOperationCoordinator(),
 ) {
-    suspend fun run(): ReminderRunResult {
+    suspend fun run(): ReminderRunResult = try {
+        operations.withOperation { runProtected() }
+    } catch (cancellation: CancellationException) {
+        throw cancellation
+    } catch (_: Exception) {
+        ReminderRunResult.RETRY
+    }
+
+    private suspend fun runProtected(): ReminderRunResult {
         val now = clock.instant()
         val todayEpochDay = LocalDate.ofInstant(now, clock.zoneId()).toEpochDay()
         val pending = try {

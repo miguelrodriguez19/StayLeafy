@@ -9,6 +9,7 @@ import com.miguelrodriguez19.stayleafy.platform.reminder.ReminderNotificationGat
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
+import com.miguelrodriguez19.stayleafy.data.backup.DataOperationCoordinator
 
 interface CareEventRepository {
     fun observeEvents(plantId: String): Flow<List<CareEvent>>
@@ -30,6 +31,7 @@ class DefaultCareEventRepository @Inject constructor(
     private val uuidProvider: UuidProvider,
     private val zoneIdProvider: ZoneIdProvider,
     private val notificationGateway: ReminderNotificationGateway,
+    private val operations: DataOperationCoordinator = DataOperationCoordinator(),
 ) : CareEventRepository {
 
     override fun observeEvents(plantId: String): Flow<List<CareEvent>> =
@@ -38,7 +40,7 @@ class DefaultCareEventRepository @Inject constructor(
     override fun observeEvent(plantId: String, eventId: String): Flow<CareEvent?> =
         careEventDao.observeEvent(plantId, eventId).map { event -> event?.toModel() }
 
-    override suspend fun createEvent(plantId: String, draft: CareEventDraft): String {
+    override suspend fun createEvent(plantId: String, draft: CareEventDraft): String = operations.withOperation {
         val now = epochMillisProvider.now()
         require(draft.performedAt <= now) { "performedAt must not be in the future" }
 
@@ -57,10 +59,10 @@ class DefaultCareEventRepository @Inject constructor(
             performedEpochDay = epochDayAt(draft.performedAt, zoneIdProvider.currentZoneId()),
         )
         resolvedNoticeIds.forEach { noticeId -> runCatching { notificationGateway.cancel(noticeId) } }
-        return id
+        id
     }
 
-    override suspend fun updateEvent(plantId: String, eventId: String, draft: CareEventDraft) {
+    override suspend fun updateEvent(plantId: String, eventId: String, draft: CareEventDraft): Unit = operations.withOperation {
         val now = epochMillisProvider.now()
         require(draft.performedAt <= now) { "performedAt must not be in the future" }
 
@@ -75,12 +77,12 @@ class DefaultCareEventRepository @Inject constructor(
         check(updatedRows == 1) { "Care event no longer exists" }
     }
 
-    override suspend fun deleteEvent(plantId: String, eventId: String) {
+    override suspend fun deleteEvent(plantId: String, eventId: String): Unit = operations.withOperation {
         val deletedRows = careEventDao.deleteEvent(plantId, eventId)
         check(deletedRows == 1) { "Care event no longer exists" }
     }
 
-    override suspend fun deleteEventsByType(plantId: String, careType: CareType) {
+    override suspend fun deleteEventsByType(plantId: String, careType: CareType): Unit = operations.withOperation {
         careEventDao.deleteEventsByType(plantId, careType.name)
     }
 }

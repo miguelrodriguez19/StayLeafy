@@ -20,6 +20,8 @@ import android.app.Application
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import com.miguelrodriguez19.stayleafy.data.NoticeRepository
+import com.miguelrodriguez19.stayleafy.data.backup.DataOperationCoordinator
+import com.miguelrodriguez19.stayleafy.data.backup.DefaultBackupRepository
 import com.miguelrodriguez19.stayleafy.data.photo.PlantPhotoRepository
 import com.miguelrodriguez19.stayleafy.data.settings.SettingsRepository
 import com.miguelrodriguez19.stayleafy.model.NoticeDeliveryState
@@ -34,9 +36,20 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import java.util.concurrent.atomic.AtomicBoolean
 
 @HiltAndroidApp
 class StayLeafy : Application(), Configuration.Provider {
+    @Inject
+    lateinit var dataOperations: DataOperationCoordinator
+
+    @Inject
+    lateinit var backupRepository: DefaultBackupRepository
+
     @Inject
     lateinit var plantPhotoRepository: PlantPhotoRepository
 
@@ -56,24 +69,40 @@ class StayLeafy : Application(), Configuration.Provider {
     lateinit var workerFactory: HiltWorkerFactory
 
     private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val recoveryRunning = AtomicBoolean(false)
 
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder()
             .setWorkerFactory(workerFactory)
             .build()
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     override fun onCreate() {
         super.onCreate()
+        dataOperations.beginStartup()
+        retryDataRecovery()
         reminderNotificationGateway.ensureChannel()
         applicationScope.launch {
-            settingsRepository.preferences
+            dataOperations.state.flatMapLatest { state ->
+                if (state.isBusy || state.error) emptyFlow() else settingsRepository.preferences
+            }
                 .map { it.reminderTime }
                 .distinctUntilChanged()
-                .collect(reminderScheduler::ensureDailyEvaluationScheduled)
+                .collect {
+                    runCatching {
+                        dataOperations.withOperation {
+                            reminderScheduler.ensureDailyEvaluationScheduled(
+                                settingsRepository.preferences.first().reminderTime,
+                            )
+                        }
+                    }
+                }
         }
         applicationScope.launch {
             var displayedNoticeIds = emptySet<String>()
-            noticeRepository.observeNotices().collect { notices ->
+            dataOperations.state.flatMapLatest { state ->
+                if (state.isBusy || state.error) emptyFlow() else noticeRepository.observeNotices()
+            }.collect { notices ->
                 val currentlyDisplayed = notices
                     .filter { it.deliveryState == NoticeDeliveryState.DELIVERED && it.readAt == null }
                     .mapTo(mutableSetOf()) { it.id }
@@ -87,6 +116,18 @@ class StayLeafy : Application(), Configuration.Provider {
         }
         applicationScope.launch {
             runCatching { plantPhotoRepository.reconcileOrphans() }
+        }
+    }
+
+    fun retryDataRecovery() {
+        if (!recoveryRunning.compareAndSet(false, true)) return
+        applicationScope.launch {
+            // The coordinator exposes a fail-closed retry screen if recovery cannot complete.
+            try {
+                runCatching { backupRepository.recoverBeforeUse() }
+            } finally {
+                recoveryRunning.set(false)
+            }
         }
     }
 }

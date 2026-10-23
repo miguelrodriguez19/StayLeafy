@@ -88,6 +88,117 @@ class ReminderDatabaseMigrationTest {
             database.close()
         }
     }
+
+    @Test
+    fun migrate5To6Then6To7_preservesSeededRuleAndNotice() = runBlocking {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        helper.createDatabase(databaseName, 5).use { database ->
+            database.execSQL(
+                """
+                INSERT INTO plants(
+                    id, name, nameSearch, scientificName, scientificNameSearch, location,
+                    acquiredEpochDay, description, mainPhotoPath, isFavorite, createdAt, updatedAt
+                ) VALUES (
+                    'seeded-plant', 'Seeded plant', 'seeded plant', 'Ficus elastica',
+                    'ficus elastica', 'Office', 19000, 'Seeded description',
+                    'plant_photos/seeded.jpg', 1, 100, 200
+                )
+                """.trimIndent(),
+            )
+            database.execSQL(
+                """
+                INSERT INTO plant_notes(id, plantId, body, createdAt, updatedAt)
+                VALUES ('seeded-note', 'seeded-plant', 'Seeded note', 300, 400)
+                """.trimIndent(),
+            )
+            database.execSQL(
+                """
+                INSERT INTO care_events(id, plantId, careType, performedAt, note, createdAt, updatedAt)
+                VALUES ('seeded-care', 'seeded-plant', 'WATERING', 500, 'Seeded care', 600, 700)
+                """.trimIndent(),
+            )
+        }
+
+        helper.runMigrationsAndValidate(databaseName, 6, true, MIGRATION_5_6).use { database ->
+            database.execSQL(
+                """
+                INSERT INTO reminder_rules(
+                    id, plantId, careType, scheduleType, enabled, intervalDays,
+                    nextDueEpochDay, createdAt, updatedAt
+                ) VALUES ('seeded-rule', 'seeded-plant', 'WATERING', 'INTERVAL', 1, 7, 42000, 800, 900)
+                """.trimIndent(),
+            )
+            database.execSQL(
+                """
+                INSERT INTO notices(
+                    id, ruleId, occurrenceKey, careType, dueEpochDay, createdAt, readAt, deliveryState
+                ) VALUES (
+                    'seeded-notice', 'seeded-rule', 'interval:seeded-rule:42000',
+                    'WATERING', 42000, 1000, NULL, 'PENDING'
+                )
+                """.trimIndent(),
+            )
+        }
+
+        helper.runMigrationsAndValidate(databaseName, 7, true, MIGRATION_6_7).close()
+        val version7 = Room.databaseBuilder(context, AppDatabase::class.java, databaseName)
+            .allowMainThreadQueries()
+            .build()
+        try {
+            val plant = version7.plantDao().getPlant("seeded-plant")
+            requireNotNull(plant)
+            assertEquals("Seeded plant", plant.name)
+            assertEquals("seeded plant", plant.nameSearch)
+            assertEquals("Ficus elastica", plant.scientificName)
+            assertEquals("ficus elastica", plant.scientificNameSearch)
+            assertEquals("Office", plant.location)
+            assertEquals(19_000L, plant.acquiredEpochDay)
+            assertEquals("Seeded description", plant.description)
+            assertEquals("plant_photos/seeded.jpg", plant.mainPhotoPath)
+            assertEquals(true, plant.isFavorite)
+            assertEquals(100L, plant.createdAt)
+            assertEquals(200L, plant.updatedAt)
+
+            val notes = version7.plantNoteDao().observeNotes("seeded-plant").first()
+            assertEquals(1, notes.size)
+            assertEquals("seeded-note", notes.single().id)
+            assertEquals("Seeded note", notes.single().body)
+            assertEquals(300L, notes.single().createdAt)
+            assertEquals(400L, notes.single().updatedAt)
+
+            val careEvents = version7.careEventDao().observeEvents("seeded-plant").first()
+            assertEquals(1, careEvents.size)
+            assertEquals("seeded-care", careEvents.single().id)
+            assertEquals("WATERING", careEvents.single().careType)
+            assertEquals(500L, careEvents.single().performedAt)
+            assertEquals("Seeded care", careEvents.single().note)
+            assertEquals(600L, careEvents.single().createdAt)
+            assertEquals(700L, careEvents.single().updatedAt)
+
+            val rule = version7.reminderRuleDao().getRule("seeded-rule")
+            requireNotNull(rule)
+            assertEquals("seeded-plant", rule.plantId)
+            assertEquals("WATERING", rule.careType)
+            assertEquals("INTERVAL", rule.scheduleType)
+            assertEquals(true, rule.enabled)
+            assertEquals(7, rule.intervalDays)
+            assertEquals(42_000L, rule.nextDueEpochDay)
+            assertEquals(800L, rule.createdAt)
+            assertEquals(900L, rule.updatedAt)
+
+            val migratedNotice = version7.noticeDao().getPendingNotices().single()
+            assertEquals("seeded-notice", migratedNotice.id)
+            assertEquals("seeded-rule", migratedNotice.ruleId)
+            assertEquals("interval:seeded-rule:42000", migratedNotice.occurrenceKey)
+            assertEquals("WATERING", migratedNotice.careType)
+            assertEquals(42_000L, migratedNotice.dueEpochDay)
+            assertEquals(1_000L, migratedNotice.createdAt)
+            assertEquals(null, migratedNotice.readAt)
+            assertEquals("PENDING", migratedNotice.deliveryState)
+        } finally {
+            version7.close()
+        }
+    }
 }
 
 private fun seasonalRule(id: String, plantId: String) = ReminderRuleEntity(

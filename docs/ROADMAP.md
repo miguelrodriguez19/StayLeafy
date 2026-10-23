@@ -14,8 +14,9 @@ The roadmap orders work by dependency and user value. It is not a commitment to 
 - [x] Phase 6 — Visual identity and UI redesign
 - [x] Phase 7 — Photo framing and personalization
 - [ ] Phase 8 — Personal-use hardening
+- [ ] MVP production release — `v1.0.0`, after Phase 8
 
-Current milestone: Phase 7 is complete. Phase 8A implementation is complete and its remote acceptance remains unchecked; the strict `quality / verify` ruleset context is confirmed, while the `release` environment is not yet created. Phase 8 remains open.
+Current milestone: Phase 8 personal-use hardening. Phase 8A workflows and remote acceptance are complete, as confirmed by the owner on 2026-10-16. Completing Phase 8 leads to the `v1.0.0` MVP production release. Subsequent work is organized as initiatives and tasks rather than additional numbered phases.
 
 ## Phase 0 — Foundation
 
@@ -249,17 +250,54 @@ Exit condition met: newly accepted photos use the square crop contract without r
 ## Phase 8 — Personal-use hardening
 
 - [x] Phase 8A — Implement exactly two GitHub Actions workflows named `Pull Request Quality` and `Release`, with the required `quality / verify` job, version policy, signed-build preflight, idempotent release recovery, and local verification contract. See [`docs/RELEASING.md`](RELEASING.md).
-- [ ] Phase 8A acceptance — Open a test PR and confirm the exact `quality / verify` check, including a failing SemVer/versionCode jump.
-- [ ] Phase 8A — Configure the `release` environment and its four secrets before the first publishable merge.
-- [ ] Phase 8A — Confirm the first publishable merge creates `v0.10.0` with a signed APK, SHA-256 sidecar, and published GitHub Release; confirm `workflow_dispatch` recovers the same main SHA without overwriting a published release.
-- [ ] Complete Spanish localization.
-- [ ] Review accessibility basics despite the personal-use scope.
-- [ ] Add export and restore design.
-- [ ] Add database migration tests before schema version changes.
+- [x] Phase 8A acceptance — Open a test PR and confirm the exact `quality / verify` check, including a failing SemVer/versionCode jump.
+- [x] Phase 8A — Configure the `release` environment and its four secrets before the first publishable merge.
+- [x] Phase 8A — Confirm the first publishable merge creates `v0.10.0` with a signed APK, SHA-256 sidecar, and published GitHub Release; confirm `workflow_dispatch` recovers the same main SHA without overwriting a published release.
+- [x] Add English/Spanish resource-key, plural, and format-parity regression checks, including local backup strings.
+- [x] Implement basic accessibility hardening for common buttons, Settings controls, and care-history actions; owner TalkBack/large-font acceptance remains below.
+- [x] Implement full manual local ZIP export and recoverable replace-all restore; see [BACKUP.md](BACKUP.md). Preserve future/inactive annual and interval reminders and do not replay old system notifications.
+- [x] Expand migration data-preservation regression tests without changing Room schema v7.
+- [ ] Accept backup export/restore, English/Spanish light/dark layouts at 1.0/1.5/2.0 font scale, and TalkBack on the owner's device.
 - [ ] Review battery behavior and notification reliability on the owner's device.
-- [ ] Produce a signed personal release build.
+- [x] Produce a signed personal release build through Phase 8A.
+- [ ] After all Phase 8 checks are complete, set the app version to `1.0.0`, increment `versionCode`, and publish the signed MVP production release as `v1.0.0` through the release workflow.
 
-Phase 8 begins after Phase 7 is verified complete. Phase 8A implementation is complete, but its remote acceptance, environment configuration, and first publishable merge remain unchecked user-operated validation; this does not complete Phase 8. Physical-device reminder reliability remains a Phase 8 check; the configurable Phase 7 time remains best effort.
+Phase 8A remote acceptance and signing setup were confirmed complete by the owner on 2026-10-16. The Phase 8 implementation candidate is `0.11.0`/`27`, not `1.0.0`. The remaining acceptance checks include a 24–48 hour owner-device reminder/battery run; the configured time remains best effort. Only after those checks pass, use a separate Conventional Commit PR title with `!` for the `v1.0.0` major transition and increment `versionCode` exactly once from the then-current main version. No entire-phase completion or real signing-key operation is inferred from emulator tests.
+
+## After the MVP — Initiatives and tasks
+
+These items are recorded for planning after the `v1.0.0` production release. They are not implemented or scheduled, and the order below does not establish priority. Define acceptance criteria and any unresolved UX or persistence decisions before implementation. There will be no Phase 9.
+
+### I-001 — Preserve the Plants list position
+
+- Reported bug: opening a plant, modifying it, and returning with the back arrow resets the Plants list to its beginning.
+- Preserve the user's list position on return so browsing a large inventory does not require scrolling back after each edit.
+- Plan how position restoration should behave when an edit changes the plant's ordering or filter membership.
+
+### I-002 — Configurable quick filters and advanced filtering
+
+- Allow the user to configure two or three quick-filter chips from Settings; decide the final count during planning.
+- Add a Filters button for additional sort orders and more specific filters.
+- Define the available filters and sort orders, their combination rules, and preference persistence during planning.
+
+### I-003 — Keep notification status readable in Settings
+
+- Reported visual bug: after notification permission is granted and later revoked in Android Settings, the long red status chip squeezes the information column.
+- Bound the status chip's width and allow its text to wrap.
+- Use the proposed two-thirds information / one-third status-and-settings-action split as the planning direction; verify compact widths, large fonts, and both languages.
+
+### I-004 — Small care, Notice, and inventory improvements
+
+- Record at most one care event per plant, care type, and day. Repeating the action should show a localized toast explaining that the care is already recorded, without adding another row. Plan local-day interpretation, retroactive entries, and existing duplicates.
+- Allow an individual care-history entry to be deleted without clearing the entire history. Decide the per-row interaction and its effect on reminder state during planning.
+- Allow a read Notice to be marked unread as an inbox-only visual change. It must not relaunch system notifications or restart delivery.
+- Show a plant count; decide its location and whether filtered results need a separate count during planning.
+
+### I-005 — AI writing-assistance spike
+
+- Research assistance with common names, scientific names, and interesting plant descriptions.
+- Explore feasible on-device and optional external approaches, with attention to factual reliability, user control, privacy, offline availability, and cost.
+- Deliver findings and a proposed scope for a separate implementation decision. No provider, dependency, network integration, or paid service is approved by recording this spike; any proposal that changes current product constraints must first update the relevant product documentation.
 
 ## Later possibilities
 

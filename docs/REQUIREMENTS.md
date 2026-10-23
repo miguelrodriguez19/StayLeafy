@@ -252,6 +252,15 @@ These verified scenarios define the implemented Phase 4 behavior.
 7. About/privacy text reports the actual app version and local-only product behavior in English and Spanish.
 8. Settings navigation, bottom navigation, and state restoration work in both themes and supported languages.
 
-## Open product questions
+## Phase 8 — Local backup and recovery
 
-- Whether export and restore should be included before the first personally used release.
+- **FR-BACKUP-001** — Settings provides manual ZIP export and restore through the Android document picker, with no broad storage permission or app-managed network service.
+- **FR-BACKUP-002** — An unencrypted logical archive includes all plants, original primary-photo bytes, notes, care events, interval/annual rules (including disabled and future rules), Notices/read state, and theme/language/reminder-time preferences.
+- **FR-BACKUP-003** — Restore validates the complete archive and previews source version, date, and counts before an explicit replace-all confirmation. Cancelling or invalid input leaves the current collection unchanged.
+- **FR-BACKUP-004** — Confirmed restore replaces all collections and preferences, preserving IDs and relationships, regenerating search projections, and assigning new stable relative photo paths. It never merges collections or overwrites current photo files.
+- **FR-BACKUP-005** — A durable journal recovers interrupted replacement before normal UI, workers, or photo cleanup. Failed recovery blocks normal use and offers retry.
+- **FR-BACKUP-006** — Restore preserves the inbox but does not replay old Android notifications. Past/current pending deliveries are suppressed; future occurrences remain eligible under normal scheduling. System permissions are not backed up.
+- **FR-BACKUP-007** — Android Auto Backup and device-to-device system transfer are disabled. Users must retain manual backups outside app storage.
+- **FR-BACKUP-008** — The archive format, limits, privacy warning, and recovery contract are documented in [BACKUP.md](BACKUP.md).
+
+Phase 8 keeps Room schema v7. Its physical-device and TalkBack acceptance, followed by a separate `v1.0.0` release PR, remain user-operated gates.

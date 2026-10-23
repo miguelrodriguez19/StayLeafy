@@ -3,6 +3,7 @@ package com.miguelrodriguez19.stayleafy.data.local.database
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import kotlinx.serialization.Serializable
 
 @Entity(
     tableName = "plants",
@@ -11,6 +12,7 @@ import androidx.room.PrimaryKey
         Index(value = ["isFavorite"]),
     ],
 )
+@Serializable
 data class PlantEntity(
     @PrimaryKey
     val id: String,

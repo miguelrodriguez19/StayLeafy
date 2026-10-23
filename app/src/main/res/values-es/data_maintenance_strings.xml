@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="data_maintenance_progress">Preparando tus datos locales…</string>
+    <string name="data_recovery_error">No se han podido recuperar tus datos de forma segura. Libera espacio si es necesario y vuelve a intentarlo. No se permiten cambios hasta que termine la recuperación.</string>
+    <string name="data_recovery_retry">Reintentar recuperación</string>
+</resources>

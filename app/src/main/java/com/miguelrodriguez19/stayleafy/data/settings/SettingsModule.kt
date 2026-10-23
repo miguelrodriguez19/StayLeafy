@@ -17,12 +17,23 @@ import javax.inject.Singleton
 
 interface AppVersionProvider {
     val versionName: String
+    val versionCode: Long get() = 0L
 }
 
 @Singleton
 class PackageAppVersionProvider @Inject constructor(
     @ApplicationContext private val context: Context,
 ) : AppVersionProvider {
+    override val versionCode: Long
+        get() {
+            @Suppress("DEPRECATION")
+            val info = context.packageManager.getPackageInfo(context.packageName, 0)
+            return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) info.longVersionCode else {
+                @Suppress("DEPRECATION")
+                info.versionCode.toLong()
+            }
+        }
+
     override val versionName: String
         get() = runCatching {
             val packageInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {

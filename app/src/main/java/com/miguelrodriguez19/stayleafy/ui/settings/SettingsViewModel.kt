@@ -8,6 +8,7 @@ import com.miguelrodriguez19.stayleafy.data.settings.AppVersionProvider
 import com.miguelrodriguez19.stayleafy.data.settings.SettingsRepository
 import com.miguelrodriguez19.stayleafy.data.settings.ThemePreference
 import com.miguelrodriguez19.stayleafy.data.settings.toMinuteOfDay
+import com.miguelrodriguez19.stayleafy.data.backup.DataOperationCoordinator
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -25,6 +26,7 @@ class SettingsViewModel @Inject constructor(
     private val repository: SettingsRepository,
     private val localeController: AppLocaleController,
     appVersionProvider: AppVersionProvider,
+    private val operations: DataOperationCoordinator = DataOperationCoordinator(),
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(
@@ -89,7 +91,7 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isSaving = true, error = null) }
             try {
-                change()
+                operations.withOperation { change() }
             } catch (error: CancellationException) {
                 throw error
             } catch (_: Exception) {

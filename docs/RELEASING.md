@@ -1,8 +1,8 @@
 # Stay Leafy release runbook
 
-This runbook covers the Phase 8A signed-release contract. It is documentation for the user-operated signing ceremony and GitHub setup. It does not create a real key, configure secrets, publish a release, or mark remote acceptance as complete.
+This runbook covers the Phase 8A signed-release contract and the user-operated signing ceremony. The owner confirmed environment setup, signing, and remote release/recovery acceptance complete on 2026-10-16. The agent does not handle the real key or passwords. The instructions below remain useful for recovery and future releases.
 
-The first publishable merge is intended to produce `v0.10.0` from `VERSION_NAME=0.10.0` and `VERSION_CODE=26` in `version.properties`. The legacy `0.9.3`/`25` Gradle pair is the bootstrap base used for the first version comparison. `version.properties` remains the sole version source after that transition. Only simple `major.minor.patch` SemVer is accepted; prereleases and build metadata are rejected.
+The first publishable merge produced `v0.10.0` from `VERSION_NAME=0.10.0` and `VERSION_CODE=26`. The legacy `0.9.3`/`25` Gradle pair was the bootstrap base. `version.properties` remains the sole version source. Only simple `major.minor.patch` SemVer is accepted; prereleases and build metadata are rejected. Phase 8 local backup/hardening prepares `0.11.0`/`27` with a `feat` PR; `v1.0.0` belongs to a separate major-version PR after manual acceptance, not this implementation.
 
 The Phase 8A implementation has exactly two workflows for this contract:
 
@@ -148,6 +148,6 @@ For a real APK downloaded from a GitHub Release, compare the `Signer #1 certific
 
 ## Recovery and acceptance
 
-If preflight fails because the environment is incomplete, configure the four `release` environment secrets manually and rerun `workflow_dispatch` on `main`. Before the first merge, create the environment and configure its secrets. The first publishable merge must confirm `v0.10.0`, the signed APK, checksum, and published release. A test PR must confirm the exact `quality / verify` check and that an invalid SemVer jump blocks merging. See [the testing record](TESTING.md) for completed checks; real-key publication and recovery remain pending manual acceptance.
+If preflight fails because the environment is incomplete, configure the four `release` environment secrets manually and rerun `workflow_dispatch` on `main`. The owner confirmed the initial `v0.10.0` signed APK/checksum/publication and same-SHA recovery acceptance. The required check remains exactly `quality / verify`; incorrect version jumps must continue blocking PRs. See [the testing record](TESTING.md).
 
-For the initial test PR, use `ci: add PR quality and signed release workflows` temporarily: the validator must reject `0.10.0` because that title requires `0.9.4` from the bootstrap base. Then change the title to `feat(ci): add PR quality and signed release workflows`; the `edited` event must rerun `quality / verify` and accept `0.10.0`/`26`. Keep the PR in draft until the environment is configured. The GitHub connector currently cannot create the test PR (HTTP 403), so these remote checks remain unverified.
+The initial acceptance used a temporary `ci: add PR quality and signed release workflows` title to reject `0.10.0` (patch expected `0.9.4`), followed by `feat(ci): add PR quality and signed release workflows` to accept `0.10.0`/`26`. For future PRs compare against the current main version, not that bootstrap example. PR-title edits rerun the gate. The connector's historical PR-creation restriction did not prevent owner-operated acceptance.

@@ -23,6 +23,7 @@ import com.miguelrodriguez19.stayleafy.model.SeasonalReminderRule
 import com.miguelrodriguez19.stayleafy.model.currentOrNextSeasonalOccurrence
 import com.miguelrodriguez19.stayleafy.platform.reminder.ReminderNotificationGateway
 import javax.inject.Inject
+import com.miguelrodriguez19.stayleafy.data.backup.DataOperationCoordinator
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
@@ -51,6 +52,7 @@ class DefaultReminderRepository @Inject constructor(
     private val zoneIdProvider: ZoneIdProvider,
     private val uuidProvider: UuidProvider,
     private val notificationGateway: ReminderNotificationGateway,
+    private val operations: DataOperationCoordinator = DataOperationCoordinator(),
 ) : ReminderRepository {
     override fun observeRules(plantId: String): Flow<List<IntervalReminderRule>> =
         reminderRuleDao.observeRules(plantId).map { rules -> rules.map(ReminderRuleEntity::toIntervalModel) }
@@ -128,7 +130,7 @@ class DefaultReminderRepository @Inject constructor(
         )
     }
 
-    override suspend fun saveSchedules(plantId: String, drafts: List<CareScheduleDraft>) {
+    override suspend fun saveSchedules(plantId: String, drafts: List<CareScheduleDraft>): Unit = operations.withOperation {
         require(plantDao.getPlant(plantId) != null) { "Plant does not exist" }
         require(drafts.size == CareType.entries.size && drafts.map { it.careType }.toSet() == CareType.entries.toSet()) {
             "Exactly one schedule draft per care type is required"

@@ -1229,7 +1229,11 @@ private fun CareSummaryRow(
     Row(
         Modifier
             .fillMaxWidth()
-            .clickable(enabled = enabled, onClick = onOpenHistory)
+            .clickable(
+                enabled = enabled,
+                role = Role.Button,
+                onClick = onOpenHistory,
+            )
             .padding(vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
