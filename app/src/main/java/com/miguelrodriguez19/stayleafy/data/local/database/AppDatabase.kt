@@ -40,4 +40,6 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun reminderRuleDao(): ReminderRuleDao
 
     abstract fun noticeDao(): NoticeDao
+
+    abstract fun backupDao(): BackupDao
 }

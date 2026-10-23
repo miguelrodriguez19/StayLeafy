@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="backup_title">Backup</string>
+    <string name="backup_back">Back</string>
+    <string name="backup_settings_title">Backup</string>
+    <string name="backup_settings_summary">Export or restore your offline plant collection.</string>
+    <string name="backup_settings_action">Open backup</string>
+    <string name="backup_privacy_warning">Backups are unencrypted ZIP files. Store them somewhere private. Stay Leafy does not upload backups or request storage permission.</string>
+    <string name="backup_export_title">Export backup</string>
+    <string name="backup_export_message">Save all plants, photos, notes, care history, reminders, notices and preferences to a file.</string>
+    <string name="backup_export_action">Export backup</string>
+    <string name="backup_restore_title">Restore backup</string>
+    <string name="backup_restore_message">Choose a Stay Leafy backup to inspect it before replacing the local collection.</string>
+    <string name="backup_restore_action">Choose backup</string>
+    <string name="backup_preview_title">Backup preview</string>
+    <string name="backup_preview_source">Stay Leafy %1$s · exported %2$s</string>
+    <string name="backup_replace_warning">Restoring replaces all local plants, photos, notes, care history, reminder rules, inbox notices and preferences. Existing data will not be merged.</string>
+    <string name="backup_review_restore">Restore this backup</string>
+    <string name="backup_confirm_title">Replace all local data?</string>
+    <string name="backup_confirm_message">This cannot be undone from inside Stay Leafy. Confirm only if this is the backup you want to restore.</string>
+    <string name="backup_confirm_restore">Replace and restore</string>
+    <string name="backup_cancel">Cancel</string>
+    <string name="backup_dismiss">Dismiss</string>
+    <string name="backup_exporting">Exporting backup…</string>
+    <string name="backup_preparing">Checking backup…</string>
+    <string name="backup_restoring">Restoring backup…</string>
+    <string name="backup_working">Working…</string>
+    <string name="backup_export_complete">Backup exported successfully.</string>
+    <string name="backup_export_error">The backup could not be exported. Check the destination and try again.</string>
+    <string name="backup_invalid_error">This file is not a valid Stay Leafy backup, or it is damaged.</string>
+    <string name="backup_restore_error">The backup could not be restored. Your existing collection was kept.</string>
+    <string name="backup_count_plants">Plants: %1$d</string>
+    <string name="backup_count_notes">Notes: %1$d</string>
+    <string name="backup_count_care_events">Care events: %1$d</string>
+    <string name="backup_count_rules">Reminder rules: %1$d</string>
+    <string name="backup_count_notices">Inbox notices: %1$d</string>
+    <string name="backup_count_photos">Photos: %1$d</string>
+</resources>

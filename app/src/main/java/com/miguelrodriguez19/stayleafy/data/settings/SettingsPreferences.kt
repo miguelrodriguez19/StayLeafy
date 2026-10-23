@@ -1,19 +1,23 @@
 package com.miguelrodriguez19.stayleafy.data.settings
 
 import java.time.LocalTime
+import kotlinx.serialization.Serializable
 
+@Serializable
 enum class ThemePreference {
     SYSTEM,
     LIGHT,
     DARK,
 }
 
+@Serializable
 enum class AppLanguage(val localeTag: String) {
     SYSTEM(""),
     ENGLISH("en"),
     SPANISH("es"),
 }
 
+@Serializable
 data class SettingsPreferences(
     val theme: ThemePreference = ThemePreference.SYSTEM,
     val language: AppLanguage = AppLanguage.SYSTEM,

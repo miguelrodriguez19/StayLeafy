@@ -183,3 +183,9 @@ Reminder verification must cover at least:
 - Atomic and mutually exclusive Off/Interval/Season configuration with retained inactive settings.
 
 These checks are covered by the Phase 4 and Phase 5 JVM, Room, Compose, navigation, and connected-emulator suites. Reliability on the owner's physical device remains a Phase 8 hardening item.
+
+## Phase 8 backup/restore interaction
+
+Manual backup retains every interval/annual rule, including disabled configuration and occurrences outside the current evaluation window, plus care history and the complete Notices inbox. Restore preserves `DELIVERED`/`SUPPRESSED` states and `readAt`; imported `PENDING` Notices due on or before the restore-local date become `SUPPRESSED` to avoid old system pushes. Future pending Notices wait until their due date; a future seasonal Notice is not suppressed merely because today's date is outside its future window.
+
+The worker's prepare/post/mark operation and backup replacement use the same collection gate. After durable restore commit, old installation notifications are cancelled and unique daily WorkManager evaluation is reconciled to the restored approximate local reminder time. Android permissions, exact execution times, and WorkManager internals are not restored. Matching future care and occurrence deduplication continue normally, including once-a-year fertilizing. See [BACKUP.md](BACKUP.md).

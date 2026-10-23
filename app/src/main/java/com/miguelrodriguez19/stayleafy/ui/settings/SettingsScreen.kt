@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -71,6 +73,7 @@ fun SettingsRoute(
     onNotificationPermissionAction: (NotificationPermissionAction) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: SettingsViewModel = hiltViewModel(),
+    onBackupClick: () -> Unit = {},
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     LaunchedEffect(notificationPermission) {
@@ -83,6 +86,7 @@ fun SettingsRoute(
         onLanguageSelected = viewModel::selectLanguage,
         onReminderTimeSelected = viewModel::selectReminderTime,
         onNotificationPermissionAction = onNotificationPermissionAction,
+        onBackupClick = onBackupClick,
         onRetry = viewModel::retryLoad,
         onDismissError = viewModel::clearError,
         modifier = modifier,
@@ -100,6 +104,7 @@ fun SettingsScreen(
     onRetry: () -> Unit,
     onDismissError: () -> Unit,
     modifier: Modifier = Modifier,
+    onBackupClick: () -> Unit = {},
 ) {
     val backDescription = stringResource(R.string.settings_back)
     Scaffold(
@@ -265,6 +270,9 @@ fun SettingsScreen(
                         )
                     }
                     item {
+                        BackupSection(onClick = onBackupClick)
+                    }
+                    item {
                         AboutSection(appVersionName = state.appVersionName)
                     }
                 }
@@ -333,7 +341,7 @@ private fun SettingsSegmentedControl(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(36.dp)
+                .height(IntrinsicSize.Min)
                 .padding(2.dp),
             horizontalArrangement = Arrangement.spacedBy(2.dp),
         ) {
@@ -342,6 +350,7 @@ private fun SettingsSegmentedControl(
                 Surface(
                     modifier = Modifier
                         .weight(1f)
+                        .heightIn(min = 48.dp)
                         .fillMaxHeight()
                         .clip(MaterialTheme.shapes.small)
                         .selectable(
@@ -358,7 +367,9 @@ private fun SettingsSegmentedControl(
                     },
                 ) {
                     Box(
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 4.dp, vertical = 8.dp),
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(
@@ -369,7 +380,7 @@ private fun SettingsSegmentedControl(
                             } else {
                                 MaterialTheme.colorScheme.onSurfaceVariant
                             },
-                            maxLines = 1,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                         )
                     }
                 }
@@ -402,7 +413,7 @@ private fun ReminderTimeSection(
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable(enabled = enabled) {
+                .clickable(enabled = enabled, role = Role.Button) {
                     TimePickerDialog(
                         context,
                         { _, hour, minute -> onTimeSelected(LocalTime.of(hour, minute)) },
@@ -439,6 +450,26 @@ private fun ReminderTimeSection(
                     style = MaterialTheme.typography.titleMedium,
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun BackupSection(onClick: () -> Unit) {
+    SettingsSectionCard(
+        title = stringResource(R.string.backup_settings_title),
+        icon = R.drawable.ic_note,
+    ) {
+        Text(
+            text = stringResource(R.string.backup_settings_summary),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        TextButton(
+            onClick = onClick,
+            modifier = Modifier.heightIn(min = 48.dp),
+        ) {
+            Text(stringResource(R.string.backup_settings_action))
         }
     }
 }
@@ -695,6 +726,7 @@ private fun SettingsPreview() {
             onLanguageSelected = {},
             onReminderTimeSelected = {},
             onNotificationPermissionAction = {},
+            onBackupClick = {},
             onRetry = {},
             onDismissError = {},
         )

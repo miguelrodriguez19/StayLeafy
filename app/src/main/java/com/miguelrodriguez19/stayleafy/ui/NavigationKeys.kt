@@ -26,6 +26,9 @@ data object PlantList : NavKey
 data object Settings : NavKey
 
 @Serializable
+data object Backup : NavKey
+
+@Serializable
 data class PlantDetail(val plantId: String? = null) : NavKey
 
 @Serializable

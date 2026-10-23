@@ -52,6 +52,7 @@ import com.miguelrodriguez19.stayleafy.R
 import com.miguelrodriguez19.stayleafy.ui.plant.PlantDetailRoute
 import com.miguelrodriguez19.stayleafy.ui.plant.PlantListRoute
 import com.miguelrodriguez19.stayleafy.ui.plant.PlantNoteEditorRoute
+import com.miguelrodriguez19.stayleafy.ui.backup.BackupRoute
 import com.miguelrodriguez19.stayleafy.ui.reminder.CareConfigurationRoute
 import com.miguelrodriguez19.stayleafy.ui.reminder.NoticeDetailRoute
 import com.miguelrodriguez19.stayleafy.ui.reminder.NoticeListRoute
@@ -206,6 +207,15 @@ fun MainNavigation(
                                                 }
                                         }
                                     }
+                                },
+                                onBackupClick = { plantsBackStack.add(Backup) },
+                            )
+                        }
+                        entry<Backup> {
+                            BackupRoute(
+                                onNavigateBack = { plantsBackStack.removeLastOrNull() },
+                                onRestoreCompleted = {
+                                    while (plantsBackStack.size > 1) plantsBackStack.removeLastOrNull()
                                 },
                             )
                         }

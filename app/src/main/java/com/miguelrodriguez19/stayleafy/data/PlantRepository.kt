@@ -17,6 +17,7 @@
 package com.miguelrodriguez19.stayleafy.data
 
 import kotlinx.coroutines.flow.Flow
+import com.miguelrodriguez19.stayleafy.data.backup.DataOperationCoordinator
 import kotlinx.coroutines.flow.map
 import com.miguelrodriguez19.stayleafy.data.local.database.PlantDao
 import com.miguelrodriguez19.stayleafy.data.local.database.PlantEntity
@@ -64,6 +65,7 @@ class DefaultPlantRepository @Inject constructor(
     private val uuidProvider: UuidProvider,
     private val photoFileStore: PhotoFileStore,
     private val zoneIdProvider: ZoneIdProvider,
+    private val operations: DataOperationCoordinator = DataOperationCoordinator(),
 ) : PlantRepository {
 
     override fun observePlants(filter: PlantListFilter): Flow<List<Plant>> {
@@ -92,7 +94,7 @@ class DefaultPlantRepository @Inject constructor(
         favorite: Boolean,
         stagedPhotoToken: String?,
         notes: List<PlantNoteDraft>,
-    ): String {
+    ): String = operations.withOperation {
         val normalizedDraft = draft.normalized()
         require(normalizedDraft.name.isNotBlank()) { "name must not be blank" }
         val normalizedNotes = notes.map { note ->
@@ -127,7 +129,7 @@ class DefaultPlantRepository @Inject constructor(
                     runCatching { photoFileStore.discardStagedPhoto(stagedPhotoToken) }
                 }
             }
-            return id
+            id
         } catch (error: CancellationException) {
             storedPhotoPath?.let { path ->
                 withContext(NonCancellable) { runCatching { photoFileStore.remove(path) } }
@@ -141,7 +143,7 @@ class DefaultPlantRepository @Inject constructor(
         }
     }
 
-    override suspend fun updatePlant(id: String, draft: PlantDraft) {
+    override suspend fun updatePlant(id: String, draft: PlantDraft): Unit = operations.withOperation {
         val normalizedDraft = draft.normalized()
         require(normalizedDraft.name.isNotBlank()) { "name must not be blank" }
 
@@ -158,11 +160,11 @@ class DefaultPlantRepository @Inject constructor(
         )
     }
 
-    override suspend fun setFavorite(id: String, favorite: Boolean) {
+    override suspend fun setFavorite(id: String, favorite: Boolean): Unit = operations.withOperation {
         plantDao.setFavorite(id, favorite, epochMillisProvider.now())
     }
 
-    override suspend fun deletePlant(id: String) {
+    override suspend fun deletePlant(id: String): Unit = operations.withOperation {
         val photoPath = plantDao.deletePlantAndReturnPhotoPath(id)
         if (photoPath != null) {
             runCatching { photoFileStore.remove(photoPath) }

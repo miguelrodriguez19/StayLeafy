@@ -21,19 +21,35 @@ import android.content.Intent
 import android.os.Build
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
+import androidx.activity.compose.BackHandler
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Text
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.key
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.miguelrodriguez19.stayleafy.data.settings.AppLocaleController
+import com.miguelrodriguez19.stayleafy.data.backup.DataOperationCoordinator
+import com.miguelrodriguez19.stayleafy.data.backup.DatasetReplacedException
+import com.miguelrodriguez19.stayleafy.data.backup.RecoveryRequiredException
+import com.miguelrodriguez19.stayleafy.StayLeafy
+import com.miguelrodriguez19.stayleafy.R
+import com.miguelrodriguez19.stayleafy.ui.components.LeafyPrimaryButton
 import com.miguelrodriguez19.stayleafy.data.settings.SettingsPreferences
 import com.miguelrodriguez19.stayleafy.data.settings.SettingsRepository
 import com.miguelrodriguez19.stayleafy.data.settings.ThemePreference
@@ -41,9 +57,15 @@ import com.miguelrodriguez19.stayleafy.ui.theme.StayLeafyTheme
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
+    @Inject
+    lateinit var dataOperations: DataOperationCoordinator
 
     @Inject
     lateinit var settingsRepository: SettingsRepository
@@ -51,6 +73,7 @@ class MainActivity : AppCompatActivity() {
     @Inject
     lateinit var localeController: AppLocaleController
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.auto(
@@ -60,20 +83,35 @@ class MainActivity : AppCompatActivity() {
         )
         super.onCreate(savedInstanceState)
         setContent {
-            val nullablePreferences = remember(settingsRepository) {
-                settingsRepository.preferences.map<SettingsPreferences, SettingsPreferences?> { it }
+            val maintenance by dataOperations.state.collectAsStateWithLifecycle()
+            BackHandler(enabled = maintenance.isBusy) { /* Finish durable replacement first. */ }
+            val versionedPreferences = remember(settingsRepository, dataOperations) {
+                dataOperations.state.flatMapLatest { state ->
+                    if (state.isBusy || state.error) flowOf<Pair<Long, SettingsPreferences>?>(null)
+                    else settingsRepository.preferences.map { state.generation to it }
+                }
             }
-            val preferences by nullablePreferences.collectAsStateWithLifecycle(initialValue = null)
-            ApplyThemePreference(preferences?.theme)
-            preferences?.let { loadedPreferences ->
-                LaunchedEffect(loadedPreferences.language) {
-                    val platformLanguage = localeController.current()
-                    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
-                        if (platformLanguage != loadedPreferences.language) {
-                            localeController.apply(loadedPreferences.language)
+            val observedPreferences by versionedPreferences.collectAsStateWithLifecycle(initialValue = null)
+            val preferences = observedPreferences?.takeIf { it.first == maintenance.generation }?.second
+            if (!maintenance.isBusy && !maintenance.error) {
+                ApplyThemePreference(preferences?.theme)
+                preferences?.let { loadedPreferences ->
+                    LaunchedEffect(maintenance.generation, loadedPreferences.language) {
+                        try {
+                            dataOperations.withOperation {
+                                val latest = settingsRepository.preferences.first()
+                                val platformLanguage = localeController.current()
+                                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+                                    if (platformLanguage != latest.language) localeController.apply(latest.language)
+                                } else if (platformLanguage != latest.language) {
+                                    settingsRepository.setLanguage(platformLanguage)
+                                }
+                            }
+                        } catch (_: DatasetReplacedException) {
+                            // A new generation will synchronize its own preferences.
+                        } catch (_: RecoveryRequiredException) {
+                            // Recovery owns the platform locale until it safely completes.
                         }
-                    } else if (platformLanguage != loadedPreferences.language) {
-                        settingsRepository.setLanguage(platformLanguage)
                     }
                 }
             }
@@ -82,7 +120,26 @@ class MainActivity : AppCompatActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    MainNavigation()
+                    if (maintenance.isBusy || maintenance.error || preferences == null) {
+                        Column(
+                            modifier = Modifier.fillMaxSize().padding(24.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(24.dp, Alignment.CenterVertically),
+                        ) {
+                            if (maintenance.error) {
+                                Text(stringResource(R.string.data_recovery_error))
+                                LeafyPrimaryButton(
+                                    text = stringResource(R.string.data_recovery_retry),
+                                    onClick = { (application as StayLeafy).retryDataRecovery() },
+                                )
+                            } else {
+                                CircularProgressIndicator()
+                                Text(stringResource(R.string.data_maintenance_progress))
+                            }
+                        }
+                    } else {
+                        key(maintenance.generation) { MainNavigation() }
+                    }
                 }
             }
         }

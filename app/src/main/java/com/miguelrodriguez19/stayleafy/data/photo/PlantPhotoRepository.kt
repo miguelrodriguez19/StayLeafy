@@ -1,13 +1,12 @@
 package com.miguelrodriguez19.stayleafy.data.photo
 
 import android.net.Uri
+import com.miguelrodriguez19.stayleafy.data.backup.DataOperationCoordinator
 import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 data class PlantPhotoOwner(
@@ -84,8 +83,8 @@ class DefaultPlantPhotoRepository @Inject constructor(
     private val ownerPort: PlantPhotoOwnerPort,
     private val photoFileStore: PhotoFileStore,
     private val inputResolver: PhotoInputResolver,
+    private val operations: DataOperationCoordinator = DataOperationCoordinator(),
 ) : PlantPhotoRepository {
-    private val operationMutex = Mutex()
 
     override fun prepareCameraCapture(): PendingPhotoCapture =
         photoFileStore.prepareCameraCapture()
@@ -93,7 +92,7 @@ class DefaultPlantPhotoRepository @Inject constructor(
     override suspend fun completeCameraCapture(
         plantId: String,
         token: String,
-    ): StoredPhoto = operationMutex.withLock {
+    ): StoredPhoto = operations.withOperation {
         val stored = photoFileStore.completeCameraCapture(token)
         attachNewPhoto(plantId, stored)
     }
@@ -102,13 +101,13 @@ class DefaultPlantPhotoRepository @Inject constructor(
         photoFileStore.discardCameraCapture(token)
 
     override suspend fun importImage(plantId: String, sourceUri: Uri): StoredPhoto =
-        operationMutex.withLock { replaceWithSource(plantId, sourceUri) }
+        operations.withOperation { replaceWithSource(plantId, sourceUri) }
 
     override suspend fun replacePhoto(plantId: String, sourceUri: Uri): StoredPhoto =
-        operationMutex.withLock { replaceWithSource(plantId, sourceUri) }
+        operations.withOperation { replaceWithSource(plantId, sourceUri) }
 
     override suspend fun prepareCameraCrop(token: String): PendingPhotoCrop =
-        operationMutex.withLock {
+        operations.withOperation {
             try {
                 photoFileStore.stageCameraCapture(token)
                 photoFileStore.prepareCrop(token)
@@ -121,7 +120,7 @@ class DefaultPlantPhotoRepository @Inject constructor(
         }
 
     override suspend fun prepareImageCrop(sourceUri: Uri): PendingPhotoCrop =
-        operationMutex.withLock {
+        operations.withOperation {
             val source = photoFileStore.stageImage(inputResolver.resolve(sourceUri))
             try {
                 photoFileStore.prepareCrop(source.token)
@@ -140,9 +139,9 @@ class DefaultPlantPhotoRepository @Inject constructor(
         plantId: String?,
         sourceToken: String,
         outputToken: String,
-    ): StagedPhoto? = operationMutex.withLock {
+    ): StagedPhoto? = operations.withOperation {
         val staged = photoFileStore.completeCrop(sourceToken, outputToken)
-        if (plantId == null) return@withLock staged
+        if (plantId == null) return@withOperation staged
 
         try {
             val stored = photoFileStore.commitStagedPhoto(staged.token)
@@ -162,23 +161,23 @@ class DefaultPlantPhotoRepository @Inject constructor(
     override suspend fun discardPhotoCrop(
         sourceToken: String?,
         outputToken: String?,
-    ): Boolean = operationMutex.withLock {
+    ): Boolean = operations.withOperation {
         photoFileStore.discardCrop(sourceToken, outputToken)
     }
 
-    override suspend fun stageCameraCapture(token: String): StagedPhoto = operationMutex.withLock {
+    override suspend fun stageCameraCapture(token: String): StagedPhoto = operations.withOperation {
         photoFileStore.stageCameraCapture(token)
     }
 
-    override suspend fun stageImage(sourceUri: Uri): StagedPhoto = operationMutex.withLock {
+    override suspend fun stageImage(sourceUri: Uri): StagedPhoto = operations.withOperation {
         photoFileStore.stageImage(inputResolver.resolve(sourceUri))
     }
 
-    override suspend fun commitStagedPhoto(token: String): StoredPhoto = operationMutex.withLock {
+    override suspend fun commitStagedPhoto(token: String): StoredPhoto = operations.withOperation {
         photoFileStore.commitStagedPhoto(token)
     }
 
-    override suspend fun discardStagedPhoto(token: String): Boolean = operationMutex.withLock {
+    override suspend fun discardStagedPhoto(token: String): Boolean = operations.withOperation {
         photoFileStore.discardStagedPhoto(token)
     }
 
@@ -187,14 +186,14 @@ class DefaultPlantPhotoRepository @Inject constructor(
     internal suspend fun importSourceForTest(
         plantId: String,
         source: PhotoInputSource,
-    ): StoredPhoto = operationMutex.withLock {
+    ): StoredPhoto = operations.withOperation {
         attachNewPhoto(plantId, photoFileStore.importImage(source))
     }
 
-    override suspend fun removePhoto(plantId: String): Boolean = operationMutex.withLock {
+    override suspend fun removePhoto(plantId: String): Boolean = operations.withOperation {
         val owner = ownerPort.read(plantId)
         if (!owner.exists) throw PlantPhotoNotFoundException(plantId)
-        val oldPath = owner.relativePath ?: return@withLock false
+        val oldPath = owner.relativePath ?: return@withOperation false
 
         if (!ownerPort.updateMainPhotoPath(plantId, null)) {
             throw PlantPhotoNotFoundException(plantId)
@@ -208,7 +207,7 @@ class DefaultPlantPhotoRepository @Inject constructor(
     override fun resolvePhoto(relativePath: String): File? =
         photoFileStore.resolve(relativePath)
 
-    override suspend fun reconcileOrphans(): PhotoOrphanReconciliation = operationMutex.withLock {
+    override suspend fun reconcileOrphans(): PhotoOrphanReconciliation = operations.withOperation {
         photoFileStore.reconcileOrphans(ownerPort.referencedPhotoPaths())
     }
 

@@ -87,13 +87,15 @@ class RoomReminderDeliveryStore @Inject constructor(
             val pending = noticeDao.getPendingNotices()
             pending.filter { record ->
                 record.scheduleType == ReminderScheduleType.SEASONAL.name &&
+                    record.dueEpochDay <= todayEpochDay &&
                     record.occurrenceKey !in activeSeasonalOccurrenceKeys
             }.forEach { record ->
                 noticeDao.updateDeliveryState(record.id, NoticeDeliveryState.SUPPRESSED.name)
             }
             pending.filter { record ->
-                record.scheduleType != ReminderScheduleType.SEASONAL.name ||
-                    record.occurrenceKey in activeSeasonalOccurrenceKeys
+                record.dueEpochDay <= todayEpochDay &&
+                    (record.scheduleType != ReminderScheduleType.SEASONAL.name ||
+                        record.occurrenceKey in activeSeasonalOccurrenceKeys)
             }.map(NoticeRecord::toPendingDelivery)
         }
 

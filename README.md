@@ -33,6 +33,7 @@ The project was created from the official Android `architecture-templates` singl
 - Show next-due state in plant detail and filter the inventory by Upcoming or Overdue care.
 - Keep a persistent read/unread Notices inbox with notification-to-Notice and Notice-to-Plant navigation.
 - Evaluate due rules with unique daily WorkManager work and deliver at most one Android notification per occurrence.
+- Export an unencrypted local ZIP and restore the complete collection after validation, preview, and explicit replace-all confirmation from Settings → Backup. See [backup and recovery](docs/BACKUP.md).
 
 Phase 6 adds the fixed botanical palette, local Lora display typography, deterministic vector iconography, accessible care-status colors, cactus launcher artwork, and reference-led compact screen compositions while preserving every existing flow and its offline behavior.
 
@@ -41,7 +42,9 @@ Phase 6 adds the fixed botanical palette, local Lora display typography, determi
 - Settings offers System/Light/Dark theme, System/English/Spanish app language, a configurable approximate reminder time (09:00 default), permission capabilities, and About/privacy information.
 - Preferences apply immediately, persist locally through Preferences DataStore, and do not change the Room schema.
 
-Phase 8A implementation is complete, while remote release acceptance remains unchecked. Phase 8 remains open for personal-use hardening, final accessibility review, export/restore design, device reminder reliability, and signed release work.
+Phase 8A workflows, signing setup, and remote release acceptance are complete, as confirmed by the owner. Phase 8 adds manual local backup/recovery and localization/accessibility regression checks without changing Room schema v7. Phase 8 remains open for owner-operated accessibility, restore, and physical-device reminder/battery acceptance. Its completion leads to a separate `v1.0.0` MVP release PR; this implementation candidate is `0.11.0`/`27`. Later work remains in the [roadmap](docs/ROADMAP.md).
+
+Android Auto Backup and system device transfer are disabled. Keep manual ZIP backups outside app storage; the archives are not encrypted.
 
 ## Technology
 
@@ -91,6 +94,7 @@ Instrumented tests require a connected device or emulator:
 - [Testing strategy](docs/TESTING.md)
 - [Decision log](docs/DECISIONS.md)
 - [Release runbook](docs/RELEASING.md)
+- [Local backup and recovery](docs/BACKUP.md)
 
 ## License
 

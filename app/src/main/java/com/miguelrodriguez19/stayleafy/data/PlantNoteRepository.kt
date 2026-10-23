@@ -7,6 +7,7 @@ import com.miguelrodriguez19.stayleafy.model.PlantNoteDraft
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
+import com.miguelrodriguez19.stayleafy.data.backup.DataOperationCoordinator
 
 interface PlantNoteRepository {
     fun observeNotes(plantId: String): Flow<List<PlantNote>>
@@ -24,6 +25,7 @@ class DefaultPlantNoteRepository @Inject constructor(
     private val plantNoteDao: PlantNoteDao,
     private val epochMillisProvider: EpochMillisProvider,
     private val uuidProvider: UuidProvider,
+    private val operations: DataOperationCoordinator = DataOperationCoordinator(),
 ) : PlantNoteRepository {
 
     override fun observeNotes(plantId: String): Flow<List<PlantNote>> =
@@ -32,7 +34,7 @@ class DefaultPlantNoteRepository @Inject constructor(
     override fun observeNote(plantId: String, noteId: String): Flow<PlantNote?> =
         plantNoteDao.observeNote(plantId, noteId).map { note -> note?.toModel() }
 
-    override suspend fun createNote(plantId: String, draft: PlantNoteDraft): String {
+    override suspend fun createNote(plantId: String, draft: PlantNoteDraft): String = operations.withOperation {
         val body = draft.body.trim()
         require(body.isNotBlank()) { "body must not be blank" }
 
@@ -47,10 +49,10 @@ class DefaultPlantNoteRepository @Inject constructor(
                 updatedAt = now,
             ),
         )
-        return id
+        id
     }
 
-    override suspend fun updateNote(plantId: String, noteId: String, draft: PlantNoteDraft) {
+    override suspend fun updateNote(plantId: String, noteId: String, draft: PlantNoteDraft): Unit = operations.withOperation {
         val body = draft.body.trim()
         require(body.isNotBlank()) { "body must not be blank" }
 
@@ -62,7 +64,7 @@ class DefaultPlantNoteRepository @Inject constructor(
         )
     }
 
-    override suspend fun deleteNote(plantId: String, noteId: String) {
+    override suspend fun deleteNote(plantId: String, noteId: String): Unit = operations.withOperation {
         plantNoteDao.deleteNote(plantId, noteId)
     }
 }

@@ -231,6 +231,8 @@ dependencies {
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.appcompat)
     implementation(libs.androidx.datastore.preferences)
+    // Keep app and test APKs on the same coroutines ABI instead of a transitive app version.
+    implementation(libs.kotlinx.coroutines.android)
 
     // Hilt Dependency Injection
     implementation(libs.hilt.android)
@@ -249,12 +251,12 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.hilt.lifecycle.viewmodel.compose)
     implementation(libs.kotlinx.serialization.core)
+    implementation(libs.kotlinx.serialization.json)
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
     implementation(libs.androidx.work.runtime.ktx)
     ksp(libs.androidx.room.compiler)
     androidTestImplementation(libs.androidx.room.testing)
-    androidTestImplementation(libs.kotlinx.serialization.json)
 
     // Compose
     implementation(libs.androidx.compose.ui)
@@ -277,6 +279,7 @@ dependencies {
     androidTestImplementation(libs.androidx.test.core)
     androidTestImplementation(libs.androidx.test.ext.junit)
     androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.kotlinx.coroutines.test)
 
     // Navigation
     implementation(libs.androidx.navigation3.ui)

@@ -4,6 +4,7 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import kotlinx.serialization.Serializable
 
 @Entity(
     tableName = "notices",
@@ -21,6 +22,7 @@ import androidx.room.PrimaryKey
         Index(value = ["readAt", "createdAt"]),
     ],
 )
+@Serializable
 data class NoticeEntity(
     @PrimaryKey
     val id: String,

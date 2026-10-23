@@ -109,7 +109,7 @@
     <string name="more_care_rules">+%1$d</string>
     <string name="configure_care">Configurar cuidados</string>
     <string name="care_configuration_help">Elige un tipo de recordatorio por cuidado: un intervalo repetitivo o una vez al año.</string>
-    <string name="schedule_disabled">Off</string>
+    <string name="schedule_disabled">Desactivado</string>
     <string name="schedule_interval">Intervalo</string>
     <string name="schedule_seasonal">Anual</string>
     <string name="interval_days">Intervalo en días</string>
@@ -117,6 +117,7 @@
     <string name="increase_interval">Aumentar intervalo</string>
     <plurals name="interval_every_days">
         <item quantity="one">Cada %1$d día</item>
+        <item quantity="many">Cada %1$d días</item>
         <item quantity="other">Cada %1$d días</item>
     </plurals>
     <string name="interval_days_error">Escribe un número mayor que cero.</string>

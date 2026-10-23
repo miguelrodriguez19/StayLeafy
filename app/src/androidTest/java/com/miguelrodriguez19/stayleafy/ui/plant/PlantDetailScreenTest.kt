@@ -6,9 +6,13 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.hasProgressBarRangeInfo
 import androidx.compose.ui.test.hasSetTextAction
@@ -490,6 +494,16 @@ class PlantDetailScreenTest {
         composeTestRule.onAllNodesWithText(string(R.string.clear_history)).onLast().performClick()
 
         assertEquals(CareType.WATERING, clearedType)
+    }
+
+    @Test
+    fun careCell_exposesButtonRoleForAssistiveTechnology() {
+        setScreen(state = viewState(detailPlant(name = "Monstera")))
+
+        composeTestRule
+            .onNodeWithText(string(R.string.care_watering))
+            .performScrollTo()
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Button))
     }
 
     @Test

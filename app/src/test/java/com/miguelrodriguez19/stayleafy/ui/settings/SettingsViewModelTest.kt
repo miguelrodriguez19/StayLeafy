@@ -146,6 +146,11 @@ private class FakeSettingsRepository(
         value.value = value.value.copy(theme = theme)
     }
 
+    override suspend fun replacePreferences(preferences: SettingsPreferences) {
+        failure?.let { throw it }
+        value.value = preferences
+    }
+
     override suspend fun setLanguage(language: AppLanguage) {
         failure?.let { throw it }
         value.value = value.value.copy(language = language)

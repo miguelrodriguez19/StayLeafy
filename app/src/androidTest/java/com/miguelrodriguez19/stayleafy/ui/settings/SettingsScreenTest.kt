@@ -5,7 +5,10 @@ import androidx.activity.ComponentActivity
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
@@ -15,6 +18,8 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.miguelrodriguez19.stayleafy.R
 import com.miguelrodriguez19.stayleafy.data.settings.AppLanguage
@@ -60,6 +65,24 @@ class SettingsScreenTest {
 
         assertEquals(ThemePreference.DARK, selectedTheme)
         assertEquals(AppLanguage.SPANISH, selectedLanguage)
+    }
+
+    @Test
+    fun segmentedOptionsKeep48dpSemanticsAtLargeEnglishFontScale() {
+        setScreen(fontScale = 2f)
+
+        assertSegmentOption("settings_theme_system", "System")
+        assertSegmentOption("settings_theme_light", "Light")
+        assertSegmentOption("settings_theme_dark", "Dark")
+    }
+
+    @Test
+    fun segmentedOptionsKeep48dpSemanticsAtLargeSpanishFontScale() {
+        setScreen(locale = Locale.forLanguageTag("es"), fontScale = 2f)
+
+        assertSegmentOption("settings_theme_system", "Sistema")
+        assertSegmentOption("settings_theme_light", "Claro")
+        assertSegmentOption("settings_theme_dark", "Oscuro")
     }
 
     @Test
@@ -150,15 +173,22 @@ class SettingsScreenTest {
         onLanguageSelected: (AppLanguage) -> Unit = {},
         onReminderTimeSelected: (LocalTime) -> Unit = {},
         onNotificationPermissionAction: (NotificationPermissionAction) -> Unit = {},
+        locale: Locale = Locale.ENGLISH,
+        fontScale: Float = 1f,
     ) {
         val configuration = Configuration(composeTestRule.activity.resources.configuration).apply {
-            setLocale(Locale.ENGLISH)
+            setLocale(locale)
+            this.fontScale = fontScale
         }
         val localizedContext = composeTestRule.activity.createConfigurationContext(configuration)
         composeTestRule.setContent {
             CompositionLocalProvider(
                 LocalContext provides localizedContext,
                 LocalConfiguration provides configuration,
+                LocalDensity provides Density(
+                    density = composeTestRule.activity.resources.displayMetrics.density,
+                    fontScale = fontScale,
+                ),
             ) {
                 StayLeafyTheme(dynamicColor = false) {
                     SettingsScreen(
@@ -175,6 +205,14 @@ class SettingsScreenTest {
             }
         }
         composeTestRule.waitForIdle()
+    }
+
+    private fun assertSegmentOption(tag: String, label: String) {
+        composeTestRule
+            .onNodeWithTag(tag)
+            .assertIsDisplayed()
+            .assertHeightIsAtLeast(48.dp)
+            .assertTextEquals(label)
     }
 
     private fun scrollToText(text: String) {

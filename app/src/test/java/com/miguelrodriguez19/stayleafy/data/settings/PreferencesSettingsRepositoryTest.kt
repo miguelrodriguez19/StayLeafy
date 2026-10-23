@@ -1,12 +1,17 @@
 package com.miguelrodriguez19.stayleafy.data.settings
 
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import kotlinx.coroutines.flow.flow
+import java.io.IOException
 import java.io.File
 import java.time.LocalTime
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.fail
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
@@ -40,6 +45,41 @@ class PreferencesSettingsRepositoryTest {
             ),
             repository.preferences.first(),
         )
+    }
+
+    @Test
+    fun restoreReplacesAllPreferencesInOnePersistedSnapshot() = runTest {
+        val repository = repository(File(temporaryFolder.root, "restore.preferences_pb"))
+        repository.setTheme(ThemePreference.DARK)
+        val restored = SettingsPreferences(ThemePreference.LIGHT, AppLanguage.SPANISH, 23 * 60 + 59)
+
+        repository.replacePreferences(restored)
+
+        assertEquals(restored, repository.preferences.first())
+        assertEquals(restored, repository.snapshotPreferences())
+        try {
+            repository.replacePreferences(restored.copy(reminderMinuteOfDay = 1440))
+            fail("Invalid restore time must be rejected")
+        } catch (_: IllegalArgumentException) {
+            assertEquals(restored, repository.snapshotPreferences())
+        }
+    }
+
+    @Test
+    fun backupReadDoesNotReplaceIoFailureWithUiDefaults() = runTest {
+        val failingStore = object : DataStore<Preferences> {
+            override val data = flow<Preferences> { throw IOException("Unavailable") }
+            override suspend fun updateData(transform: suspend (Preferences) -> Preferences): Preferences =
+                error("No write expected")
+        }
+        val repository = PreferencesSettingsRepository(failingStore)
+        assertEquals(SettingsPreferences(), repository.preferences.first())
+        try {
+            repository.snapshotPreferences()
+            fail("Backup must fail rather than journal fallback preferences")
+        } catch (_: IOException) {
+            // Expected: an unavailable old snapshot must never start replacement.
+        }
     }
 
     private fun TestScope.repository(file: File): PreferencesSettingsRepository =

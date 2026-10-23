@@ -6,9 +6,11 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import com.miguelrodriguez19.stayleafy.data.backup.DataOperationCoordinator
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.first
 import java.io.IOException
 import java.time.LocalTime
 import javax.inject.Inject
@@ -17,6 +19,7 @@ import javax.inject.Singleton
 @Singleton
 class PreferencesSettingsRepository @Inject constructor(
     private val dataStore: DataStore<Preferences>,
+    private val operations: DataOperationCoordinator = DataOperationCoordinator(),
 ) : SettingsRepository {
 
     override val preferences: Flow<SettingsPreferences> = dataStore.data
@@ -25,16 +28,30 @@ class PreferencesSettingsRepository @Inject constructor(
         }
         .map(::toSettingsPreferences)
 
-    override suspend fun setTheme(theme: ThemePreference) {
+    override suspend fun setTheme(theme: ThemePreference): Unit = operations.withOperation {
         dataStore.edit { preferences -> preferences[THEME_KEY] = theme.name }
     }
 
-    override suspend fun setLanguage(language: AppLanguage) {
+    override suspend fun setLanguage(language: AppLanguage): Unit = operations.withOperation {
         dataStore.edit { preferences -> preferences[LANGUAGE_KEY] = language.name }
     }
 
-    override suspend fun setReminderTime(time: LocalTime) {
+    override suspend fun setReminderTime(time: LocalTime): Unit = operations.withOperation {
         dataStore.edit { preferences -> preferences[REMINDER_MINUTE_KEY] = time.toMinuteOfDay() }
+    }
+
+    override suspend fun replacePreferences(preferences: SettingsPreferences) = operations.withOperation {
+        require(preferences.reminderMinuteOfDay in 0 until SettingsPreferences.MINUTES_PER_DAY)
+        dataStore.edit { stored ->
+            stored[THEME_KEY] = preferences.theme.name
+            stored[LANGUAGE_KEY] = preferences.language.name
+            stored[REMINDER_MINUTE_KEY] = preferences.reminderMinuteOfDay
+        }
+        Unit
+    }
+
+    override suspend fun snapshotPreferences(): SettingsPreferences = operations.withOperation {
+        toSettingsPreferences(dataStore.data.first())
     }
 
     private fun toSettingsPreferences(preferences: Preferences): SettingsPreferences {
