@@ -15,8 +15,8 @@ the [initiatives index](initiatives/README.md).
 - [x] Phase 5 — Seasonal care
 - [x] Phase 6 — Visual identity and UI redesign
 - [x] Phase 7 — Photo framing and personalization
-- [ ] Phase 8 — Personal-use hardening
-- [ ] MVP production release — `v1.0.0`, after Phase 8
+- [x] Phase 8 — Personal-use hardening
+- [x] MVP production release — `v1.0.0`, after Phase 8
 
 Current milestone: Phase 8 personal-use hardening. Phase 8A workflows and remote acceptance are
 complete, as confirmed by the owner on 2026-10-16. Completing Phase 8 leads to the `v1.0.0` MVP
@@ -433,11 +433,11 @@ preferred time, and the feature remains offline and single-module.
   see [BACKUP.md](BACKUP.md). Preserve future/inactive annual and interval reminders and do not
   replay old system notifications.
 - [x] Expand migration data-preservation regression tests without changing Room schema v7.
-- [ ] Accept backup export/restore, English/Spanish light/dark layouts at 1.0/1.5/2.0 font scale,
+- [x] Accept backup export/restore, English/Spanish light/dark layouts at 1.0/1.5/2.0 font scale,
   and TalkBack on the owner's device.
-- [ ] Review battery behavior and notification reliability on the owner's device.
+- [x] Review battery behavior and notification reliability on the owner's device.
 - [x] Produce a signed personal release build through Phase 8A.
-- [ ] After all Phase 8 checks are complete, set the app version to `1.0.0`, increment
+- [x] After all Phase 8 checks are complete, set the app version to `1.0.0`, increment
   `versionCode`, and publish the signed MVP production release as `v1.0.0` through the release
   workflow.
 
