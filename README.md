@@ -42,7 +42,7 @@ Phase 6 adds the fixed botanical palette, local Lora display typography, determi
 - Settings offers System/Light/Dark theme, System/English/Spanish app language, a configurable approximate reminder time (09:00 default), permission capabilities, and About/privacy information.
 - Preferences apply immediately, persist locally through Preferences DataStore, and do not change the Room schema.
 
-Phase 8A workflows, signing setup, and remote release acceptance are complete, as confirmed by the owner. Phase 8 adds manual local backup/recovery and localization/accessibility regression checks without changing Room schema v7. Phase 8 remains open for owner-operated accessibility, restore, and physical-device reminder/battery acceptance. Its completion leads to a separate `v1.0.0` MVP release PR; this implementation candidate is `0.11.0`/`27`. Later work remains in the [roadmap](docs/ROADMAP.md).
+Phase 8A workflows, signing setup, and remote release acceptance are complete, as confirmed by the owner. Phase 8 adds manual local backup/recovery and localization/accessibility regression checks without changing Room schema v7. Phase 8 remains open for owner-operated accessibility, restore, and physical-device reminder/battery acceptance. Its completion leads to a separate `v1.0.0` MVP release PR; this implementation candidate is `0.11.0`/`27`. See the [MVP roadmap](docs/ROADMAP-MVP.md) for remaining acceptance steps and the [initiatives index](docs/initiatives/README.md) for post-MVP ideas.
 
 Android Auto Backup and system device transfer are disabled. Keep manual ZIP backups outside app storage; the archives are not encrypted.
 
@@ -90,7 +90,8 @@ Instrumented tests require a connected device or emulator:
 - [Architecture](docs/ARCHITECTURE.md)
 - [Data model](docs/DATA_MODEL.md)
 - [Reminder behavior](docs/REMINDERS.md)
-- [Roadmap](docs/ROADMAP.md)
+- [MVP roadmap](docs/ROADMAP-MVP.md)
+- [Post-MVP initiatives](docs/initiatives/README.md)
 - [Testing strategy](docs/TESTING.md)
 - [Decision log](docs/DECISIONS.md)
 - [Release runbook](docs/RELEASING.md)
