@@ -5,6 +5,7 @@ import android.text.format.DateFormat
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -42,6 +43,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.painterResource
@@ -49,6 +51,10 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -479,6 +485,25 @@ private fun PermissionSection(
     summary: NotificationPermissionSummary,
     onAction: (NotificationPermissionAction) -> Unit,
 ) {
+    val statusLabel = stringResource(
+        when (summary.status) {
+            NotificationPermissionStatus.UNKNOWN -> R.string.settings_notification_status_unknown
+            NotificationPermissionStatus.ENABLED -> R.string.settings_notification_status_enabled
+            NotificationPermissionStatus.NEEDS_PERMISSION -> R.string.settings_notification_status_needs_permission
+            NotificationPermissionStatus.BLOCKED -> R.string.settings_notification_status_blocked
+        },
+    )
+    val actionLabel = if (summary.action == NotificationPermissionAction.NONE) {
+        null
+    } else {
+        stringResource(
+            when (summary.action) {
+                NotificationPermissionAction.NONE -> R.string.settings_notification_action_none
+                NotificationPermissionAction.REQUEST_PERMISSION -> R.string.settings_allow_notifications
+                NotificationPermissionAction.OPEN_SYSTEM_SETTINGS -> R.string.settings_open_notification_settings
+            },
+        )
+    }
     SettingsSectionCard(
         title = stringResource(R.string.settings_permissions),
         icon = R.drawable.ic_bell,
@@ -489,49 +514,61 @@ private fun PermissionSection(
             supporting = if (summary.status == NotificationPermissionStatus.ENABLED) {
                 stringResource(R.string.settings_notification_enabled_supporting)
             } else {
-                stringResource(
-                    when (summary.status) {
-                        NotificationPermissionStatus.UNKNOWN -> R.string.settings_notification_status_unknown
-                        NotificationPermissionStatus.ENABLED -> R.string.settings_notification_status_enabled
-                        NotificationPermissionStatus.NEEDS_PERMISSION -> R.string.settings_notification_status_needs_permission
-                        NotificationPermissionStatus.BLOCKED -> R.string.settings_notification_status_blocked
-                    },
-                )
+                statusLabel
             },
+            trailingMetrics = PermissionRowTrailingMetrics(statusLabel, actionLabel),
             trailing = {
-                Column(horizontalAlignment = Alignment.End) {
-                    PermissionStatusPill(status = summary.status)
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    PermissionStatusPill(
+                        status = summary.status,
+                        label = statusLabel,
+                        modifier = Modifier.testTag("settings_notifications_status"),
+                    )
                     if (summary.action != NotificationPermissionAction.NONE) {
                         TextButton(
                             onClick = { onAction(summary.action) },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 48.dp)
+                                .testTag("settings_notifications_action"),
                             contentPadding = PaddingValues(horizontal = 0.dp, vertical = 0.dp),
                         ) {
                             Text(
-                                stringResource(
-                                    when (summary.action) {
-                                        NotificationPermissionAction.NONE -> R.string.settings_notification_action_none
-                                        NotificationPermissionAction.REQUEST_PERMISSION -> R.string.settings_allow_notifications
-                                        NotificationPermissionAction.OPEN_SYSTEM_SETTINGS -> R.string.settings_open_notification_settings
-                                    },
-                                ),
+                                actionLabel.orEmpty(),
+                                modifier = Modifier.fillMaxWidth(),
                                 style = MaterialTheme.typography.labelMedium,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                             )
                         }
                     }
                 }
             },
+            rowTestTag = "settings_notifications_row",
+            iconTestTag = "settings_notifications_icon",
+            titleTestTag = "settings_notifications_title",
+            informationTestTag = "settings_notifications_information",
+            trailingTestTag = "settings_notifications_trailing",
         )
         HorizontalDivider()
         PermissionRow(
             icon = R.drawable.ic_camera,
             title = stringResource(R.string.settings_camera),
             supporting = stringResource(R.string.settings_no_permission_required),
+            rowTestTag = "settings_camera_row",
+            iconTestTag = "settings_camera_icon",
+            titleTestTag = "settings_camera_title",
         )
         HorizontalDivider()
         PermissionRow(
             icon = R.drawable.ic_image,
             title = stringResource(R.string.settings_photos),
             supporting = stringResource(R.string.settings_no_permission_required),
+            rowTestTag = "settings_photos_row",
+            iconTestTag = "settings_photos_icon",
+            titleTestTag = "settings_photos_title",
         )
     }
 }
@@ -542,59 +579,202 @@ private fun PermissionRow(
     title: String,
     supporting: String,
     trailing: @Composable (() -> Unit)? = null,
+    trailingMetrics: PermissionRowTrailingMetrics? = null,
+    rowTestTag: String? = null,
+    iconTestTag: String? = null,
+    titleTestTag: String? = null,
+    informationTestTag: String? = null,
+    trailingTestTag: String? = null,
 ) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(leafyLayoutTokens.spacingSm),
+    BoxWithConstraints(
+        modifier = Modifier
+            .fillMaxWidth()
+            .withOptionalTestTag(rowTestTag),
     ) {
-        Icon(
-            painter = painterResource(icon),
-            contentDescription = null,
-            modifier = Modifier.size(18.dp),
-            tint = MaterialTheme.colorScheme.primary,
-        )
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(2.dp),
+        val density = LocalDensity.current
+        val textMeasurer = rememberTextMeasurer()
+        val useHorizontalLayout = if (trailing == null || trailingMetrics == null) {
+            false
+        } else {
+            val columnGap = with(density) { leafyLayoutTokens.spacingSm.toPx() }
+            val availableColumnWidth = maxOf(0f, with(density) { maxWidth.toPx() } - columnGap)
+            val infoWidth = availableColumnWidth * (2f / 3f)
+            val trailingWidth = availableColumnWidth / 3f
+            val iconAndGap = with(density) { (18.dp + leafyLayoutTokens.spacingSm).toPx() }
+            val titleWidth = infoWidth - iconAndGap
+            val titleRequiredWidth = textMeasurer.measure(
+                text = title,
+                style = MaterialTheme.typography.bodyLarge,
+                constraints = Constraints(maxWidth = Constraints.Infinity),
+            ).size.width.toFloat()
+            fun fitsInTwoLines(text: String, style: TextStyle, width: Float): Boolean {
+                if (width < 1f) return false
+                val layout = textMeasurer.measure(
+                    text = text,
+                    style = style,
+                    constraints = Constraints(maxWidth = width.toInt()),
+                    maxLines = 2,
+                )
+                return !layout.hasVisualOverflow
+            }
+
+            val statusFits = fitsInTwoLines(
+                text = trailingMetrics.statusLabel,
+                style = MaterialTheme.typography.labelSmall,
+                width = trailingWidth - with(density) { 20.dp.toPx() },
+            )
+            val actionFits = trailingMetrics.actionLabel?.let { label ->
+                trailingWidth >= with(density) { 48.dp.toPx() } && fitsInTwoLines(
+                    text = label,
+                    style = MaterialTheme.typography.labelMedium,
+                    width = trailingWidth,
+                )
+            } ?: true
+            // Both labels may wrap to two lines in the side column. Move the complete status/action
+            // block below the information if either needs more space; never split the pair.
+            titleRequiredWidth <= titleWidth &&
+                statusFits && actionFits
+        }
+
+        if (useHorizontalLayout) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(leafyLayoutTokens.spacingSm),
+                verticalAlignment = Alignment.Top,
+            ) {
+                PermissionRowInformation(
+                    modifier = Modifier
+                        .weight(2f)
+                        .withOptionalTestTag(informationTestTag),
+                    icon = icon,
+                    title = title,
+                    supporting = supporting,
+                    iconTestTag = iconTestTag,
+                    titleTestTag = titleTestTag,
+                )
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .withOptionalTestTag(trailingTestTag),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    trailing?.invoke()
+                }
+            }
+        } else {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(leafyLayoutTokens.spacingSm),
+            ) {
+                PermissionRowInformation(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .withOptionalTestTag(informationTestTag),
+                    icon = icon,
+                    title = title,
+                    supporting = supporting,
+                    iconTestTag = iconTestTag,
+                    titleTestTag = titleTestTag,
+                )
+                if (trailing != null) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .withOptionalTestTag(trailingTestTag),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        trailing()
+                    }
+                }
+            }
+        }
+    }
+}
+
+private data class PermissionRowTrailingMetrics(
+    val statusLabel: String,
+    val actionLabel: String?,
+)
+
+@Composable
+private fun PermissionRowInformation(
+    modifier: Modifier,
+    icon: Int,
+    title: String,
+    supporting: String,
+    iconTestTag: String?,
+    titleTestTag: String?,
+) {
+    Column(modifier = modifier) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(leafyLayoutTokens.spacingSm),
         ) {
-            Text(title, style = MaterialTheme.typography.bodyLarge)
+            PermissionRowIcon(
+                icon = icon,
+                modifier = Modifier.withOptionalTestTag(iconTestTag),
+            )
             Text(
-                text = supporting,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                text = title,
+                modifier = Modifier
+                    .weight(1f)
+                    .withOptionalTestTag(titleTestTag),
+                style = MaterialTheme.typography.bodyLarge,
             )
         }
-        trailing?.invoke()
+        Text(
+            text = supporting,
+            modifier = Modifier.padding(start = 18.dp + leafyLayoutTokens.spacingSm),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 
 @Composable
-private fun PermissionStatusPill(status: NotificationPermissionStatus) {
+private fun PermissionRowIcon(
+    icon: Int,
+    modifier: Modifier = Modifier,
+) {
+    Icon(
+        painter = painterResource(icon),
+        contentDescription = null,
+        modifier = modifier.size(18.dp),
+        tint = MaterialTheme.colorScheme.primary,
+    )
+}
+
+private fun Modifier.withOptionalTestTag(tag: String?): Modifier =
+    if (tag == null) this else testTag(tag)
+
+@Composable
+private fun PermissionStatusPill(
+    status: NotificationPermissionStatus,
+    label: String,
+    modifier: Modifier = Modifier,
+) {
     val colors = MaterialTheme.leafyColors
-    val (containerColor, contentColor, label) = when (status) {
-        NotificationPermissionStatus.ENABLED -> Triple(
+    val (containerColor, contentColor) = when (status) {
+        NotificationPermissionStatus.ENABLED -> Pair(
             colors.upcomingContainer,
             colors.onUpcoming,
-            stringResource(R.string.settings_notification_status_enabled),
         )
-        NotificationPermissionStatus.NEEDS_PERMISSION -> Triple(
+        NotificationPermissionStatus.NEEDS_PERMISSION -> Pair(
             colors.dueContainer,
             colors.onDue,
-            stringResource(R.string.settings_notification_status_needs_permission),
         )
-        NotificationPermissionStatus.BLOCKED -> Triple(
+        NotificationPermissionStatus.BLOCKED -> Pair(
             colors.overdueContainer,
             colors.onOverdue,
-            stringResource(R.string.settings_notification_status_blocked),
         )
-        NotificationPermissionStatus.UNKNOWN -> Triple(
+        NotificationPermissionStatus.UNKNOWN -> Pair(
             MaterialTheme.colorScheme.surfaceContainerHigh,
             MaterialTheme.colorScheme.onSurfaceVariant,
-            stringResource(R.string.settings_notification_status_unknown),
         )
     }
     Surface(
+        modifier = modifier,
         shape = MaterialTheme.shapes.extraLarge,
         color = containerColor,
     ) {
@@ -603,6 +783,7 @@ private fun PermissionStatusPill(status: NotificationPermissionStatus) {
             modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
             style = MaterialTheme.typography.labelSmall,
             color = contentColor,
+            textAlign = TextAlign.Center
         )
     }
 }
@@ -730,5 +911,63 @@ private fun SettingsPreview() {
             onRetry = {},
             onDismissError = {},
         )
+    }
+}
+
+@Preview(name = "Blocked EN light compact", widthDp = 320, showBackground = true)
+@Preview(
+    name = "Blocked EN dark compact",
+    widthDp = 320,
+    showBackground = true,
+    uiMode = android.content.res.Configuration.UI_MODE_NIGHT_YES,
+)
+@Preview(name = "Blocked ES light compact", widthDp = 320, locale = "es", showBackground = true)
+@Preview(
+    name = "Blocked ES dark compact",
+    widthDp = 320,
+    locale = "es",
+    showBackground = true,
+    uiMode = android.content.res.Configuration.UI_MODE_NIGHT_YES,
+)
+@Preview(name = "Blocked EN light large text", widthDp = 360, fontScale = 1.5f, showBackground = true)
+@Preview(
+    name = "Blocked EN dark large text",
+    widthDp = 360,
+    fontScale = 1.5f,
+    showBackground = true,
+    uiMode = android.content.res.Configuration.UI_MODE_NIGHT_YES,
+)
+@Preview(
+    name = "Blocked ES light large text",
+    widthDp = 360,
+    locale = "es",
+    fontScale = 1.5f,
+    showBackground = true,
+)
+@Preview(
+    name = "Blocked ES dark large text",
+    widthDp = 360,
+    locale = "es",
+    fontScale = 1.5f,
+    showBackground = true,
+    uiMode = android.content.res.Configuration.UI_MODE_NIGHT_YES,
+)
+@Composable
+private fun SettingsBlockedPreview() {
+    StayLeafyTheme {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            color = MaterialTheme.colorScheme.background,
+        ) {
+            PermissionSection(
+                summary = NotificationPermissionSummary(
+                    status = NotificationPermissionStatus.BLOCKED,
+                    action = NotificationPermissionAction.OPEN_SYSTEM_SETTINGS,
+                ),
+                onAction = {},
+            )
+        }
     }
 }

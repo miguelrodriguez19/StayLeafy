@@ -142,7 +142,26 @@ Do not write tests that wait for real wall-clock background execution.
 - Cover Preferences DataStore defaults, persistence, malformed or unavailable preference recovery, immediate theme/language application, and locale fallback.
 - Cover preferred-time calculation before, at, and after the selected local time, time-zone/DST changes, and WorkManager unique-work updates. Assert best-effort schedule parameters rather than wall-clock execution.
 - Cover notification capability status and settings action by API level; assert that camera and picker capability rows do not request broad permissions.
-- Cover About/privacy version and copy, Settings navigation/restoration, always-visible bottom navigation, English/Spanish text, both themes, and deterministic previews.
+- Cover notification status/action layout at constrained 320.dp and 360.dp screen widths (approximately 256.dp and 296.dp permission-row widths after existing padding), plus a normal 411.dp width. Each trailing label can use up to two lines in the side column; if either would need a third line, both move below the information together. Cover one-line chips with two-line buttons and two-line chips with two-line buttons, in English and Spanish. Assert title/icon alignment for notification, camera, and photo rows, no overlap or clipped status text, and a minimum 48.dp action target, including allowed-to-blocked recomposition.
+- Cover About/privacy version and copy, Settings navigation/restoration, always-visible bottom navigation, English/Spanish text, both themes, and deterministic previews, including blocked-status previews in compact and large-text configurations.
+
+I-003 completed verification on 2026-10-26:
+
+- `ANDROID_SERIAL=emulator-5554 ./gradlew connectedDebugAndroidTest` passed all 150 connected tests
+  on the Pixel 8a API 36 emulator, with 0 failures and 0 skips. The result includes 19 Settings
+  tests and the 24-case blocked-status matrix across widths, font scales, locales, and themes.
+  Explicit cases keep one-line chips with two-line buttons and two-line chips with two-line
+  buttons beside the information, moving the complete pair below only when it needs more space.
+- `./gradlew test lint assembleDebug` passed with 179 JVM tests, 0 failures, 2 expected skips, and
+  no lint errors.
+- `bash scripts/tests/run.sh` passed 63 version tests and 19 release-state tests. The version
+  validator accepted `origin/main` with `fix(settings): keep notification status readable` and
+  version `1.0.1`/`29`.
+- Manual Android verification at 360.dp requested notification permission, allowed it, then revoked
+  it from Android notification settings and returned to Settings. The chip and button stayed
+  together at the side while each fit within two lines, then moved below together when the blocked
+  chip needed more space. The three capability icons align with their titles. Captures were
+  inspected under `app/build/reports/i003/two-lines/`.
 
 Phase 5 reuses this harness for seasonal occurrence keys, schedule-specific localized content, active-window evaluation, matching-care satisfaction, and deduplication. Inventory care filters remain covered as interval-only behavior.
 
