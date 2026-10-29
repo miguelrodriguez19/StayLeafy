@@ -3,13 +3,21 @@ package com.miguelrodriguez19.stayleafy.ui.reminder
 import androidx.activity.ComponentActivity
 import android.content.res.Configuration
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.miguelrodriguez19.stayleafy.R
@@ -32,10 +40,43 @@ class NoticeScreensTest {
 
     @Test
     fun emptyState_displaysGuidance() {
-        setList(NoticeListUiState.Empty)
+        setList(NoticeListUiState.Empty, unreadOnly = false)
 
         composeTestRule.onNodeWithText(string(R.string.no_notices)).assertIsDisplayed()
         composeTestRule.onNodeWithText(string(R.string.no_notices_hint)).assertIsDisplayed()
+    }
+
+    @Test
+    fun emptyUnreadFilter_explainsReadNoticesAreHidden() {
+        setList(NoticeListUiState.Empty, unreadOnly = true)
+
+        composeTestRule.onNodeWithText(string(R.string.no_unread_notices)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(string(R.string.no_unread_notices_hint)).assertIsDisplayed()
+    }
+
+    @Test
+    fun unreadFilter_isSwitchAndForwardsNewValue() {
+        var inboxState by mutableStateOf(NoticeInboxUiState(listState = NoticeListUiState.Empty))
+        composeTestRule.setContent {
+            StayLeafyTheme(dynamicColor = false) {
+                NoticeListScreen(
+                    state = inboxState,
+                    notificationWarning = false,
+                    onNoticeClick = {},
+                    onRetry = {},
+                    onUnreadOnlyChange = { inboxState = inboxState.copy(unreadOnly = it) },
+                    onMarkAllRead = {},
+                    onOpenNotificationSettings = {},
+                )
+            }
+        }
+
+        composeTestRule.onNodeWithContentDescription(string(R.string.show_all_notices))
+            .assertIsOn()
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Switch))
+            .performClick()
+        composeTestRule.onNodeWithContentDescription(string(R.string.hide_read_notices)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(string(R.string.no_notices)).assertIsDisplayed()
     }
 
     @Test
@@ -51,9 +92,13 @@ class NoticeScreensTest {
             ) {
                 StayLeafyTheme(dynamicColor = false) {
                     NoticeListScreen(
-                        state = NoticeListUiState.Empty,
+                        state = NoticeInboxUiState(
+                            unreadOnly = false,
+                            listState = NoticeListUiState.Empty,
+                        ),
                         notificationWarning = false,
                         onNoticeClick = {}, onRetry = {}, onMarkAllRead = {},
+                        onUnreadOnlyChange = {},
                         onOpenNotificationSettings = {},
                     )
                 }
@@ -62,6 +107,38 @@ class NoticeScreensTest {
 
         composeTestRule.onNodeWithText("Avisos").assertIsDisplayed()
         composeTestRule.onNodeWithText("Todo al día").assertIsDisplayed()
+    }
+
+    @Test
+    fun emptyUnreadFilter_usesSpanishResourcesInDarkTheme() {
+        val configuration = Configuration(composeTestRule.activity.resources.configuration).apply {
+            setLocale(Locale.forLanguageTag("es"))
+        }
+        val localizedContext = composeTestRule.activity.createConfigurationContext(configuration)
+        composeTestRule.setContent {
+            CompositionLocalProvider(
+                LocalContext provides localizedContext,
+                LocalConfiguration provides configuration,
+            ) {
+                StayLeafyTheme(darkTheme = true, dynamicColor = false) {
+                    NoticeListScreen(
+                        state = NoticeInboxUiState(listState = NoticeListUiState.Empty),
+                        notificationWarning = false,
+                        onNoticeClick = {},
+                        onRetry = {},
+                        onUnreadOnlyChange = {},
+                        onMarkAllRead = {},
+                        onOpenNotificationSettings = {},
+                    )
+                }
+            }
+        }
+
+        composeTestRule.onNodeWithText("No tienes avisos sin leer").assertIsDisplayed()
+        composeTestRule.onNodeWithText(
+            "Los avisos leídos están ocultos. Usa el botón del ojo para mostrar todos los avisos.",
+        ).assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription("Mostrar todos los avisos").assertIsDisplayed()
     }
 
     @Test
@@ -153,18 +230,26 @@ class NoticeScreensTest {
 
     private fun setList(
         state: NoticeListUiState,
+        unreadOnly: Boolean = true,
+        unreadCount: Int = (state as? NoticeListUiState.Content)?.notices?.count { !it.isRead } ?: 0,
         notificationWarning: Boolean = false,
         onNoticeClick: (String) -> Unit = {},
+        onUnreadOnlyChange: (Boolean) -> Unit = {},
         onMarkAllRead: () -> Unit = {},
         onOpenNotificationSettings: () -> Unit = {},
     ) {
         composeTestRule.setContent {
             StayLeafyTheme(dynamicColor = false) {
                 NoticeListScreen(
-                    state = state,
+                    state = NoticeInboxUiState(
+                        unreadOnly = unreadOnly,
+                        listState = state,
+                        unreadCount = unreadCount,
+                    ),
                     notificationWarning = notificationWarning,
                     onNoticeClick = onNoticeClick,
                     onRetry = {},
+                    onUnreadOnlyChange = onUnreadOnlyChange,
                     onMarkAllRead = onMarkAllRead,
                     onOpenNotificationSettings = onOpenNotificationSettings,
                 )

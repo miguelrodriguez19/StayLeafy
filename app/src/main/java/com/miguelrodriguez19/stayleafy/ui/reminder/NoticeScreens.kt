@@ -27,6 +27,8 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.IconToggleButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -42,6 +44,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.shape.CircleShape
@@ -61,6 +66,8 @@ import com.miguelrodriguez19.stayleafy.ui.components.LeafyEmptyState
 import com.miguelrodriguez19.stayleafy.ui.components.LeafyPrimaryButton
 import com.miguelrodriguez19.stayleafy.ui.components.leafyTopAppBarColors
 import com.miguelrodriguez19.stayleafy.ui.components.LeafyStateContent
+import com.miguelrodriguez19.stayleafy.ui.reminder.viewmodels.NoticeDetailViewModel
+import com.miguelrodriguez19.stayleafy.ui.reminder.viewmodels.NoticeListViewModel
 import com.miguelrodriguez19.stayleafy.ui.theme.StayLeafyTheme
 import com.miguelrodriguez19.stayleafy.ui.theme.leafyColors
 
@@ -82,6 +89,7 @@ fun NoticeListRoute(
         notificationWarning = warning,
         onNoticeClick = onNoticeClick,
         onRetry = viewModel::retry,
+        onUnreadOnlyChange = viewModel::setUnreadOnly,
         onMarkAllRead = viewModel::markAllRead,
         onOpenNotificationSettings = {
             val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -102,15 +110,15 @@ fun NoticeListRoute(
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun NoticeListScreen(
-    state: NoticeListUiState,
+    state: NoticeInboxUiState,
     notificationWarning: Boolean,
     onNoticeClick: (String) -> Unit,
     onRetry: () -> Unit,
+    onUnreadOnlyChange: (Boolean) -> Unit,
     onMarkAllRead: () -> Unit,
     onOpenNotificationSettings: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val unread = (state as? NoticeListUiState.Content)?.notices?.count { !it.isRead } ?: 0
     var showOptions by remember { mutableStateOf(false) }
     Scaffold(
         modifier = modifier,
@@ -124,6 +132,27 @@ fun NoticeListScreen(
                     )
                 },
                 actions = {
+                    IconToggleButton(
+                        checked = state.unreadOnly,
+                        onCheckedChange = onUnreadOnlyChange,
+                        modifier = Modifier.semantics { role = Role.Switch },
+                        colors = IconButtonDefaults.iconToggleButtonColors(
+                            checkedContentColor = if (state.listState == NoticeListUiState.Empty) {
+                                MaterialTheme.leafyColors.accent
+                            } else {
+                                MaterialTheme.colorScheme.primary
+                            },
+                        ),
+                    ) {
+                        Icon(
+                            painterResource(
+                                if (state.unreadOnly) R.drawable.ic_eye_closed else R.drawable.ic_eye_open,
+                            ),
+                            contentDescription = stringResource(
+                                if (state.unreadOnly) R.string.show_all_notices else R.string.hide_read_notices,
+                            ),
+                        )
+                    }
                     IconButton(onClick = { showOptions = true }) {
                         Icon(
                             painterResource(R.drawable.ic_more),
@@ -136,7 +165,7 @@ fun NoticeListScreen(
                     ) {
                         DropdownMenuItem(
                             text = { Text(stringResource(R.string.mark_all_read)) },
-                            enabled = unread > 0,
+                            enabled = state.unreadCount > 0,
                             onClick = {
                                 showOptions = false
                                 onMarkAllRead()
@@ -167,7 +196,7 @@ fun NoticeListScreen(
                     }
                 }
             }
-            when (state) {
+            when (val listState = state.listState) {
                 NoticeListUiState.Loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator()
                 }
@@ -177,15 +206,19 @@ fun NoticeListScreen(
                     onAction = onRetry,
                 )
                 NoticeListUiState.Empty -> LeafyEmptyState(
-                    title = stringResource(R.string.no_notices),
-                    supporting = stringResource(R.string.no_notices_hint),
+                    title = stringResource(
+                        if (state.unreadOnly) R.string.no_unread_notices else R.string.no_notices,
+                    ),
+                    supporting = stringResource(
+                        if (state.unreadOnly) R.string.no_unread_notices_hint else R.string.no_notices_hint,
+                    ),
                     modifier = Modifier.fillMaxSize(),
                 )
                 is NoticeListUiState.Content -> LazyColumn(
                     modifier = Modifier.fillMaxWidth().weight(1f),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    items(state.notices, key = AppNotice::id) { notice ->
+                    items(listState.notices, key = AppNotice::id) { notice ->
                         NoticeRow(notice = notice, onClick = { onNoticeClick(notice.id) })
                     }
                 }
@@ -441,9 +474,14 @@ private val previewNotice = AppNotice(
 private fun NoticeListPreview() {
     StayLeafyTheme(dynamicColor = false) {
         NoticeListScreen(
-            state = NoticeListUiState.Content(listOf(previewNotice)),
+            state = NoticeInboxUiState(
+                unreadOnly = true,
+                listState = NoticeListUiState.Content(listOf(previewNotice)),
+                unreadCount = 1,
+            ),
             notificationWarning = true,
-            onNoticeClick = {}, onRetry = {}, onMarkAllRead = {}, onOpenNotificationSettings = {},
+            onNoticeClick = {}, onRetry = {}, onUnreadOnlyChange = {}, onMarkAllRead = {},
+            onOpenNotificationSettings = {},
         )
     }
 }
@@ -454,9 +492,10 @@ private fun NoticeListPreview() {
 private fun NoticeEmptyPreview() {
     StayLeafyTheme(dynamicColor = false) {
         NoticeListScreen(
-            state = NoticeListUiState.Empty,
+            state = NoticeInboxUiState(listState = NoticeListUiState.Empty),
             notificationWarning = false,
-            onNoticeClick = {}, onRetry = {}, onMarkAllRead = {}, onOpenNotificationSettings = {},
+            onNoticeClick = {}, onRetry = {}, onUnreadOnlyChange = {}, onMarkAllRead = {},
+            onOpenNotificationSettings = {},
         )
     }
 }
@@ -467,9 +506,10 @@ private fun NoticeEmptyPreview() {
 private fun NoticeErrorPreview() {
     StayLeafyTheme(dynamicColor = false) {
         NoticeListScreen(
-            state = NoticeListUiState.Error,
+            state = NoticeInboxUiState(listState = NoticeListUiState.Error),
             notificationWarning = false,
-            onNoticeClick = {}, onRetry = {}, onMarkAllRead = {}, onOpenNotificationSettings = {},
+            onNoticeClick = {}, onRetry = {}, onUnreadOnlyChange = {}, onMarkAllRead = {},
+            onOpenNotificationSettings = {},
         )
     }
 }
@@ -480,9 +520,10 @@ private fun NoticeErrorPreview() {
 private fun NoticeLoadingPreview() {
     StayLeafyTheme(dynamicColor = false) {
         NoticeListScreen(
-            state = NoticeListUiState.Loading,
+            state = NoticeInboxUiState(listState = NoticeListUiState.Loading),
             notificationWarning = false,
-            onNoticeClick = {}, onRetry = {}, onMarkAllRead = {}, onOpenNotificationSettings = {},
+            onNoticeClick = {}, onRetry = {}, onUnreadOnlyChange = {}, onMarkAllRead = {},
+            onOpenNotificationSettings = {},
         )
     }
 }

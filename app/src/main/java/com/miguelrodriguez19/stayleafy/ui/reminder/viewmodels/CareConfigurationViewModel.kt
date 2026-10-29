@@ -1,89 +1,44 @@
-package com.miguelrodriguez19.stayleafy.ui.reminder
+package com.miguelrodriguez19.stayleafy.ui.reminder.viewmodels
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.miguelrodriguez19.stayleafy.data.CareEventRepository
 import com.miguelrodriguez19.stayleafy.data.PlantRepository
 import com.miguelrodriguez19.stayleafy.data.ZoneIdProvider
-import com.miguelrodriguez19.stayleafy.model.AppNotice
 import com.miguelrodriguez19.stayleafy.model.AnnualDate
 import com.miguelrodriguez19.stayleafy.model.CareEvent
 import com.miguelrodriguez19.stayleafy.model.CareScheduleDraft
 import com.miguelrodriguez19.stayleafy.model.CareScheduleMode
-import com.miguelrodriguez19.stayleafy.model.CareStatusSummary
 import com.miguelrodriguez19.stayleafy.model.CareType
-import com.miguelrodriguez19.stayleafy.model.IntervalReminderDraft
 import com.miguelrodriguez19.stayleafy.model.IntervalReminderConfiguration
 import com.miguelrodriguez19.stayleafy.model.IntervalReminderRule
 import com.miguelrodriguez19.stayleafy.model.ReminderDueSource
 import com.miguelrodriguez19.stayleafy.model.SeasonalReminderConfiguration
 import com.miguelrodriguez19.stayleafy.model.SeasonalReminderRule
+import com.miguelrodriguez19.stayleafy.ui.reminder.CareConfigurationUiState
+import com.miguelrodriguez19.stayleafy.ui.reminder.CareRuleForm
+import com.miguelrodriguez19.stayleafy.ui.reminder.UiGateway
+import com.miguelrodriguez19.stayleafy.ui.reminder.ReminderDueSourceChoice
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.time.Instant
-import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.onStart
-import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-
-@HiltViewModel
-class PlantCareSummaryViewModel @Inject constructor(
-    gateway: Phase4UiGateway,
-) : ViewModel() {
-    val summaries: StateFlow<List<CareStatusSummary>> = gateway.observeCareSummaries()
-        .catch { emit(emptyList()) }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
-}
-
-@OptIn(ExperimentalCoroutinesApi::class)
-@HiltViewModel(assistedFactory = PlantCareStatusViewModel.Factory::class)
-class PlantCareStatusViewModel @AssistedInject constructor(
-    @Assisted private val plantId: String,
-    private val gateway: Phase4UiGateway,
-) : ViewModel() {
-    private val reload = MutableStateFlow(0)
-
-    val uiState: StateFlow<CareReminderUiState> = reload.flatMapLatest {
-        combine(
-            gateway.observeCareSummaries(),
-            gateway.observeSeasonalSummaries(plantId),
-        ) { summaries, seasonal ->
-            CareReminderUiState.Content(
-                summaries = summaries.filter { it.plantId == plantId },
-                seasonalSummaries = seasonal,
-            ) as CareReminderUiState
-        }
-            .onStart { emit(CareReminderUiState.Loading) }
-            .catch { emit(CareReminderUiState.Error) }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), CareReminderUiState.Loading)
-
-    fun retry() { reload.value += 1 }
-
-    @AssistedFactory
-    interface Factory {
-        fun create(plantId: String): PlantCareStatusViewModel
-    }
-}
 
 @HiltViewModel(assistedFactory = CareConfigurationViewModel.Factory::class)
 class CareConfigurationViewModel @AssistedInject constructor(
     @Assisted private val plantId: String,
     private val plantRepository: PlantRepository,
     private val careEventRepository: CareEventRepository,
-    private val gateway: Phase4UiGateway,
+    private val gateway: UiGateway,
     private val zoneIdProvider: ZoneIdProvider,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow<CareConfigurationUiState>(CareConfigurationUiState.Loading)
@@ -282,67 +237,18 @@ class CareConfigurationViewModel @AssistedInject constructor(
     }
 }
 
-@OptIn(ExperimentalCoroutinesApi::class)
-@HiltViewModel
-class NoticeListViewModel @Inject constructor(
-    private val gateway: Phase4UiGateway,
-) : ViewModel() {
-    private val reload = MutableStateFlow(0)
-    private val warningReload = MutableStateFlow(0)
+private data class ConfigurationObservation(
+    val plant: com.miguelrodriguez19.stayleafy.model.Plant?,
+    val intervalRules: List<IntervalReminderRule>,
+    val seasonalRules: List<SeasonalReminderRule>,
+    val events: List<CareEvent>,
+)
 
-    val uiState: StateFlow<NoticeListUiState> = reload.flatMapLatest {
-        gateway.observeNotices()
-            .map<List<AppNotice>, NoticeListUiState> { notices ->
-                val sorted = notices.sortedWith(compareByDescending<AppNotice> { it.createdAt }.thenByDescending { it.id })
-                if (sorted.isEmpty()) NoticeListUiState.Empty else NoticeListUiState.Content(sorted)
-            }
-            .onStart { emit(NoticeListUiState.Loading) }
-            .catch { emit(NoticeListUiState.Error) }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), NoticeListUiState.Loading)
-
-    val notificationWarning: StateFlow<Boolean> = warningReload.flatMapLatest {
-        gateway.observeNotificationWarning().catch { emit(false) }
+private fun List<CareEvent>.latestEpochDays(zoneId: java.time.ZoneId): Map<CareType, Long> =
+    groupBy(CareEvent::careType).mapValues { (_, values) ->
+        val latest = values.maxBy(CareEvent::performedAt)
+        Instant.ofEpochMilli(latest.performedAt).atZone(zoneId).toLocalDate().toEpochDay()
     }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
-
-    fun retry() { reload.value += 1 }
-    fun refreshNotificationWarning() { warningReload.value += 1 }
-    fun markAllRead() { viewModelScope.launch { runCatching { gateway.markAllNoticesRead() } } }
-}
-
-@OptIn(ExperimentalCoroutinesApi::class)
-@HiltViewModel(assistedFactory = NoticeDetailViewModel.Factory::class)
-class NoticeDetailViewModel @AssistedInject constructor(
-    @Assisted private val noticeId: String,
-    private val gateway: Phase4UiGateway,
-) : ViewModel() {
-    private val reload = MutableStateFlow(0)
-
-    val uiState: StateFlow<NoticeDetailUiState> = reload.flatMapLatest {
-        gateway.observeNotice(noticeId)
-            .map<AppNotice?, NoticeDetailUiState> { notice ->
-                if (notice == null) NoticeDetailUiState.NotFound else NoticeDetailUiState.Content(notice)
-            }
-            .onStart { emit(NoticeDetailUiState.Loading) }
-            .catch { emit(NoticeDetailUiState.Error) }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), NoticeDetailUiState.Loading)
-
-    init { viewModelScope.launch { runCatching { gateway.markNoticeRead(noticeId) } } }
-
-    fun retry() { reload.value += 1 }
-
-    @AssistedFactory
-    interface Factory {
-        fun create(noticeId: String): NoticeDetailViewModel
-    }
-}
-
-@HiltViewModel
-class RootNavigationViewModel @Inject constructor(gateway: Phase4UiGateway) : ViewModel() {
-    val unreadCount: StateFlow<Int> = gateway.observeUnreadCount()
-        .catch { emit(0) }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
-}
 
 private fun List<IntervalReminderRule>.toForm(
     type: CareType,
@@ -371,16 +277,3 @@ private fun List<IntervalReminderRule>.toForm(
         seasonEnd = seasonal?.end,
     )
 }
-
-private data class ConfigurationObservation(
-    val plant: com.miguelrodriguez19.stayleafy.model.Plant?,
-    val intervalRules: List<IntervalReminderRule>,
-    val seasonalRules: List<SeasonalReminderRule>,
-    val events: List<CareEvent>,
-)
-
-private fun List<CareEvent>.latestEpochDays(zoneId: java.time.ZoneId): Map<CareType, Long> =
-    groupBy(CareEvent::careType).mapValues { (_, values) ->
-        val latest = values.maxBy(CareEvent::performedAt)
-        Instant.ofEpochMilli(latest.performedAt).atZone(zoneId).toLocalDate().toEpochDay()
-    }

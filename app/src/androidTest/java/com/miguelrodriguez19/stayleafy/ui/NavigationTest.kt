@@ -26,7 +26,7 @@ import com.miguelrodriguez19.stayleafy.testdi.FakeCareEventRepository
 import com.miguelrodriguez19.stayleafy.testdi.FakePlantNoteRepository
 import com.miguelrodriguez19.stayleafy.testdi.FakePlantRepository
 import com.miguelrodriguez19.stayleafy.testdi.fakePlant
-import com.miguelrodriguez19.stayleafy.ui.reminder.FakePhase4UiGateway
+import com.miguelrodriguez19.stayleafy.ui.reminder.FakeUiGateway
 import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
 import javax.inject.Inject
@@ -56,7 +56,7 @@ class NavigationTest {
     lateinit var careRepository: FakeCareEventRepository
 
     @Inject
-    lateinit var phase4Gateway: FakePhase4UiGateway
+    lateinit var uiGateway: FakeUiGateway
 
     @Before
     fun setUp() {
@@ -64,7 +64,7 @@ class NavigationTest {
         repository.reset()
         noteRepository.reset()
         careRepository.reset()
-        phase4Gateway.reset()
+        uiGateway.reset()
         repository.replacePlants(
             listOf(
                 fakePlant(
@@ -150,7 +150,7 @@ class NavigationTest {
     fun rootTabs_switchBetweenIndependentPlantAndNoticeRoots() {
         composeTestRule.onNodeWithText(string(R.string.navigation_notices)).performClick()
         composeTestRule.onAllNodesWithText(string(R.string.notices_title)).onFirst().assertIsDisplayed()
-        composeTestRule.onNodeWithText(string(R.string.no_notices)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(string(R.string.no_unread_notices)).assertIsDisplayed()
 
         composeTestRule.onNodeWithText(string(R.string.navigation_plants)).performClick()
         composeTestRule.onNodeWithText(string(R.string.plants_title)).assertIsDisplayed()
@@ -158,8 +158,52 @@ class NavigationTest {
     }
 
     @Test
+    fun noticeFilter_preservesSelectionAcrossTabsDetailsAndActivityRecreation() {
+        uiGateway.replaceNotices(listOf(testNotice().copy(readAt = 1L)))
+        composeTestRule.onNodeWithText(string(R.string.navigation_notices)).performClick()
+        composeTestRule.onNodeWithText(string(R.string.no_unread_notices)).assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription(string(R.string.show_all_notices)).performClick()
+
+        composeTestRule.onNodeWithText(string(R.string.navigation_plants)).performClick()
+        composeTestRule.onNodeWithText(string(R.string.navigation_notices)).performClick()
+        composeTestRule.onNodeWithContentDescription(string(R.string.hide_read_notices)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(
+            string(R.string.notice_row_title, string(R.string.care_watering), "Monstera"),
+        ).performClick()
+        composeTestRule.onNodeWithText(string(R.string.notice_details)).assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription(string(R.string.back)).performClick()
+        composeTestRule.onNodeWithContentDescription(string(R.string.hide_read_notices)).assertIsDisplayed()
+
+        composeTestRule.activityRule.scenario.recreate()
+        composeTestRule.onNodeWithContentDescription(string(R.string.hide_read_notices)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(
+            string(R.string.notice_row_title, string(R.string.care_watering), "Monstera"),
+        ).assertIsDisplayed()
+    }
+
+    @Test
+    fun noticeFilter_readOnOpenAndMarkAllReadRemoveRows() {
+        uiGateway.replaceNotices(listOf(testNotice()))
+        composeTestRule.onNodeWithText(string(R.string.navigation_notices)).performClick()
+        composeTestRule.onNodeWithText(
+            string(R.string.notice_row_title, string(R.string.care_watering), "Monstera"),
+        ).performClick()
+        composeTestRule.onNodeWithContentDescription(string(R.string.back)).performClick()
+        composeTestRule.onNodeWithText(string(R.string.no_unread_notices)).assertIsDisplayed()
+
+        uiGateway.replaceNotices(listOf(testNotice()))
+        composeTestRule.onNodeWithText(
+            string(R.string.notice_row_title, string(R.string.care_watering), "Monstera"),
+        ).assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription(string(R.string.more_options)).performClick()
+        composeTestRule.onNodeWithText(string(R.string.mark_all_read)).performClick()
+        composeTestRule.onNodeWithText(string(R.string.no_unread_notices)).assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription(string(R.string.show_all_notices)).assertIsDisplayed()
+    }
+
+    @Test
     fun unreadBadge_andAndroidNoticeHook_openNoticeDetail() {
-        phase4Gateway.replaceNotices(listOf(testNotice()))
+        uiGateway.replaceNotices(listOf(testNotice()))
         composeTestRule.waitForIdle()
         composeTestRule.onNodeWithText("1", useUnmergedTree = true).assertIsDisplayed()
 
@@ -173,7 +217,7 @@ class NavigationTest {
 
     @Test
     fun noticesTab_reselectedFromDetail_returnsToNoticeList() {
-        phase4Gateway.replaceNotices(listOf(testNotice()))
+        uiGateway.replaceNotices(listOf(testNotice()))
         AndroidNoticeNavigation.openNotice("notice-id")
         composeTestRule.waitForIdle()
         composeTestRule.onNodeWithText(string(R.string.notice_details)).assertIsDisplayed()
@@ -182,6 +226,8 @@ class NavigationTest {
 
         composeTestRule.onAllNodesWithText(string(R.string.notices_title)).onFirst().assertIsDisplayed()
         composeTestRule.onNodeWithText(string(R.string.notice_details)).assertDoesNotExist()
+        composeTestRule.onNodeWithText(string(R.string.no_unread_notices)).assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription(string(R.string.show_all_notices)).performClick()
         composeTestRule.onNodeWithText(
             string(R.string.notice_row_title, string(R.string.care_watering), "Monstera"),
         ).assertIsDisplayed()
@@ -199,7 +245,7 @@ class NavigationTest {
 
     @Test
     fun noticeToPlant_backThenNotices_returnsToNoticeInbox() {
-        phase4Gateway.replaceNotices(listOf(testNotice()))
+        uiGateway.replaceNotices(listOf(testNotice()))
         AndroidNoticeNavigation.openNotice("notice-id")
         composeTestRule.waitForIdle()
 
@@ -212,6 +258,8 @@ class NavigationTest {
 
         composeTestRule.onAllNodesWithText(string(R.string.notices_title)).onFirst().assertIsDisplayed()
         composeTestRule.onNodeWithText(string(R.string.notice_details)).assertDoesNotExist()
+        composeTestRule.onNodeWithText(string(R.string.no_unread_notices)).assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription(string(R.string.show_all_notices)).performClick()
         composeTestRule.onNodeWithText(
             string(R.string.notice_row_title, string(R.string.care_watering), "Monstera"),
         ).assertIsDisplayed()

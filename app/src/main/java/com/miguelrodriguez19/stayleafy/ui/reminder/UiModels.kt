@@ -63,6 +63,13 @@ sealed interface NoticeListUiState {
     data class Content(val notices: List<AppNotice>) : NoticeListUiState
 }
 
+@Immutable
+data class NoticeInboxUiState(
+    val unreadOnly: Boolean = true,
+    val listState: NoticeListUiState = NoticeListUiState.Loading,
+    val unreadCount: Int = 0,
+)
+
 sealed interface NoticeDetailUiState {
     data object Loading : NoticeDetailUiState
     data object Error : NoticeDetailUiState

@@ -105,7 +105,7 @@ The following Phase 5 requirements are implemented.
 ### Notifications
 
 - **FR-NOTIFICATION-001** — Notifications are generated locally; no push service is used.
-- **FR-NOTIFICATION-002** — On Android versions requiring runtime notification permission, the app explains the benefit and requests permission contextually after the first active reminder rule is saved. Saving the rule does not depend on the permission result.
+- **FR-NOTIFICATION-002** — On Android versions requiring runtime notification permission, the app explains the benefit and requests permission contextually after the first active reminder rule is saved. Saving the rule does not depend on the permission result. Upgrading from the previous UI preference store may show the contextual explanation once more; subsequent saves remember it in the new store.
 - **FR-NOTIFICATION-003** — A notification identifies the plant and the care action.
 - **FR-NOTIFICATION-004** — Tapping a notification selects the Notices root and opens the matching Notice detail; the detail provides a separate action to open the plant.
 - **FR-NOTIFICATION-005** — The scheduler avoids duplicate notifications for the same rule occurrence.
@@ -128,6 +128,7 @@ The following Phase 5 requirements are implemented.
 - **FR-NOTICE-009** — Notice text is derived from stored semantic values and current localized resources; translated display strings are not persisted.
 - **FR-NOTICE-010** — Opening a Plant from Notice detail removes that Notice detail from the Notices stack. Returning to the Plants root and selecting Notices therefore opens the Notices inbox rather than the previous detail.
 - **FR-NOTICE-011** — Selecting the already active Plants or Notices bottom-navigation tab returns that tab to its root list. Selecting the other tab preserves the other tab's independent navigation state.
+- **FR-NOTICE-012** — The Notices app bar provides an eye toggle immediately left of overflow. Unread-only filtering is on by default and shows only unread Notices; its closed-eye state means read Notices are hidden, and its open-eye state shows all Notices. The activity-scoped in-memory selection survives tab changes, Notice detail navigation, and configuration changes, and resets to unread-only after process recreation. It is not persisted as a preference. A Notice opened while filtering is active disappears from the list reactively after returning from detail. When no unread Notices remain, the existing empty illustration is shown with localized “No unread notices” / “No tienes avisos sin leer” copy and no call to action; the toggle remains available to show all Notices. Filtering does not change the global unread badge, read-on-open or Mark all as read behavior, delivery state, or system notifications, and does not add a mark-unread action or Room schema change.
 
 ### Preferences and localization
 

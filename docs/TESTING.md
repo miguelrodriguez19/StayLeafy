@@ -197,6 +197,9 @@ Phase 4 Compose and navigation coverage adds:
 - Notice detail not-found state, notification-to-Notice routing, and Notice-to-Plant routing.
 - Notice-to-Plant routing clears the source Notice detail so selecting Notices later returns to the inbox.
 - Reselecting the active Plants or Notices tab from a nested destination returns to that tab's root list.
+- I-007 unread-only filtering defaults on, uses the closed-eye state to hide read Notices and the open-eye state to show all, and retains its activity-scoped in-memory selection across tab changes, Notice detail navigation, and configuration changes. A newly created ViewModel after process recreation defaults to unread-only.
+- Opening a Notice while filtered updates the inbox reactively on return. The no-unread state reuses the existing empty illustration, has localized “No unread notices” / “No tienes avisos sin leer” copy without a call to action, and leaves the eye toggle available to show all Notices.
+- Filtering does not change the global unread badge, read-on-open or Mark all as read behavior, delivery state, or system notification behavior; it adds no mark-unread action, persisted preference, or Room change.
 - Contextual permission explanation and the Notices-only blocked-permission banner with application-settings callback.
 - English/Spanish text and light/dark previews for reminder configuration, care status, Notices, details, permission guidance, and confirmations.
 

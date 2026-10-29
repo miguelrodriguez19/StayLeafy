@@ -56,7 +56,7 @@ import com.miguelrodriguez19.stayleafy.model.Plant
 import com.miguelrodriguez19.stayleafy.ui.components.LeafyAddFab
 import com.miguelrodriguez19.stayleafy.ui.components.LeafyEmptyState
 import com.miguelrodriguez19.stayleafy.ui.components.leafyTopAppBarColors
-import com.miguelrodriguez19.stayleafy.ui.reminder.PlantCareSummaryViewModel
+import com.miguelrodriguez19.stayleafy.ui.reminder.viewmodels.PlantCareSummaryViewModel
 import com.miguelrodriguez19.stayleafy.ui.reminder.localizedName
 import com.miguelrodriguez19.stayleafy.ui.theme.StayLeafyTheme
 import com.miguelrodriguez19.stayleafy.ui.theme.leafyColors

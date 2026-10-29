@@ -164,12 +164,16 @@
     <string name="care_season_satisfied">Season completed · %1$s</string>
     <string name="care_season_range">%1$s – %2$s</string>
     <string name="notices_title">Notices</string>
+    <string name="show_all_notices">Show all notices</string>
+    <string name="hide_read_notices">Hide read notices</string>
     <string name="mark_all_read">Mark all read</string>
     <string name="notifications_blocked_message">Notifications are blocked. Reminders and notices remain active in the app.</string>
     <string name="open_settings">Open settings</string>
     <string name="load_notices_error">We couldn’t load your notices.</string>
     <string name="no_notices">All caught up</string>
     <string name="no_notices_hint">New care reminders will appear here when they’re due.</string>
+    <string name="no_unread_notices">No unread notices</string>
+    <string name="no_unread_notices_hint">Read notices are hidden. Use the eye button to show all notices.</string>
     <string name="notice_row_title">%1$s · %2$s</string>
     <string name="season_notice_row_title">%1$s season · %2$s</string>
     <string name="notice_due_date">Due: %1$s</string>
