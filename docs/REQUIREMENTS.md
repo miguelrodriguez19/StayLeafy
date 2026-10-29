@@ -105,7 +105,7 @@ The following Phase 5 requirements are implemented.
 ### Notifications
 
 - **FR-NOTIFICATION-001** — Notifications are generated locally; no push service is used.
-- **FR-NOTIFICATION-002** — On Android versions requiring runtime notification permission, the app explains the benefit and requests permission contextually after the first active reminder rule is saved. Saving the rule does not depend on the permission result.
+- **FR-NOTIFICATION-002** — On Android versions requiring runtime notification permission, the app explains the benefit and requests permission contextually after the first active reminder rule is saved. Saving the rule does not depend on the permission result. Upgrading from the previous UI preference store may show the contextual explanation once more; subsequent saves remember it in the new store.
 - **FR-NOTIFICATION-003** — A notification identifies the plant and the care action.
 - **FR-NOTIFICATION-004** — Tapping a notification selects the Notices root and opens the matching Notice detail; the detail provides a separate action to open the plant.
 - **FR-NOTIFICATION-005** — The scheduler avoids duplicate notifications for the same rule occurrence.

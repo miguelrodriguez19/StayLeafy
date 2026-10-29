@@ -27,7 +27,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
-interface Phase4UiGateway {
+interface UiGateway {
     fun observeRules(plantId: String): Flow<List<IntervalReminderRule>>
     fun observeSeasonalRules(plantId: String): Flow<List<SeasonalReminderRule>>
     fun observeCareSummaries(): Flow<List<CareStatusSummary>>
@@ -44,14 +44,14 @@ interface Phase4UiGateway {
     suspend fun markPermissionEducationShown()
 }
 
-/** Adapts the Room-backed Phase 4 repositories to the state-oriented UI surface. */
+/** Adapts the local reminder and notice repositories to the state-oriented UI surface. */
 @Singleton
-class RepositoryPhase4UiGateway @Inject constructor(
+class RepositoryUiGateway @Inject constructor(
     private val reminderRepository: ReminderRepository,
     private val noticeRepository: NoticeRepository,
     private val notificationGateway: ReminderNotificationGateway,
     @ApplicationContext private val context: Context,
-) : Phase4UiGateway {
+) : UiGateway {
     private val preferences = context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
 
     override fun observeRules(plantId: String): Flow<List<IntervalReminderRule>> =
@@ -107,14 +107,14 @@ class RepositoryPhase4UiGateway @Inject constructor(
     }
 
     private companion object {
-        const val PREFERENCES_NAME = "phase4_ui"
+        const val PREFERENCES_NAME = "preferences_ui"
         const val PERMISSION_EDUCATION_SHOWN = "notification_permission_education_shown"
     }
 }
 
 @Module
 @InstallIn(SingletonComponent::class)
-interface Phase4UiGatewayModule {
+interface UiGatewayModule {
     @Binds
-    fun bindPhase4UiGateway(implementation: RepositoryPhase4UiGateway): Phase4UiGateway
+    fun bindUiGateway(implementation: RepositoryUiGateway): UiGateway
 }

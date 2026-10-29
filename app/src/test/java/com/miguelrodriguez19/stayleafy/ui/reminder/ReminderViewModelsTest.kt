@@ -23,6 +23,9 @@ import com.miguelrodriguez19.stayleafy.model.SeasonalCareSummary
 import com.miguelrodriguez19.stayleafy.model.SeasonalReminderConfiguration
 import com.miguelrodriguez19.stayleafy.model.SeasonalReminderRule
 import com.miguelrodriguez19.stayleafy.test.MainDispatcherRule
+import com.miguelrodriguez19.stayleafy.ui.reminder.viewmodels.CareConfigurationViewModel
+import com.miguelrodriguez19.stayleafy.ui.reminder.viewmodels.NoticeDetailViewModel
+import com.miguelrodriguez19.stayleafy.ui.reminder.viewmodels.NoticeListViewModel
 import java.time.ZoneId
 import java.time.LocalDate
 import kotlinx.coroutines.flow.Flow
@@ -43,7 +46,7 @@ import org.junit.Rule
 import org.junit.Test
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
-class Phase4ViewModelsTest {
+class ReminderViewModelsTest {
 
     @get:Rule
     val mainDispatcherRule = MainDispatcherRule()
@@ -52,7 +55,7 @@ class Phase4ViewModelsTest {
     fun noticeList_defaultsToUnreadAndRetryRetainsSelectionAfterError() = runTest {
         val older = notice(id = "older", createdAt = 10)
         val newer = notice(id = "newer", createdAt = 20)
-        val gateway = FakePhase4Gateway(notices = listOf(older, newer)).apply {
+        val gateway = FakeGateway(notices = listOf(older, newer)).apply {
             noticeObserveFailures = 1
         }
         val viewModel = NoticeListViewModel(gateway)
@@ -78,7 +81,7 @@ class Phase4ViewModelsTest {
         val firstUnread = notice(id = "a-unread", createdAt = 20)
         val secondUnread = notice(id = "b-unread", createdAt = 20)
         val olderUnread = notice(id = "older-unread", createdAt = 5)
-        val gateway = FakePhase4Gateway(listOf(read, firstUnread, secondUnread, olderUnread))
+        val gateway = FakeGateway(listOf(read, firstUnread, secondUnread, olderUnread))
         val viewModel = NoticeListViewModel(gateway)
 
         val unreadState = viewModel.uiState.firstMatching { it.listState is NoticeListUiState.Content }
@@ -103,7 +106,7 @@ class Phase4ViewModelsTest {
     @Test
     fun noticeList_showsEmptyWhenNoNoticesMatchCurrentFilter() = runTest {
         val read = notice(id = "read", createdAt = 10).copy(readAt = 1)
-        val gateway = FakePhase4Gateway(listOf(read))
+        val gateway = FakeGateway(listOf(read))
         val viewModel = NoticeListViewModel(gateway)
 
         val unreadState = viewModel.uiState.firstMatching { it.listState is NoticeListUiState.Empty }
@@ -127,7 +130,7 @@ class Phase4ViewModelsTest {
     fun noticeList_reactsToReadNewAndMarkAllChanges() = runTest {
         val first = notice(id = "first", createdAt = 10)
         val second = notice(id = "second", createdAt = 20)
-        val gateway = FakePhase4Gateway(listOf(first, second))
+        val gateway = FakeGateway(listOf(first, second))
         val viewModel = NoticeListViewModel(gateway)
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
             viewModel.uiState.collect { }
@@ -164,7 +167,7 @@ class Phase4ViewModelsTest {
 
     @Test
     fun noticeDetail_marksNoticeReadAndReportsMissingNotice() = runTest {
-        val gateway = FakePhase4Gateway(notices = emptyList())
+        val gateway = FakeGateway(notices = emptyList())
         val viewModel = NoticeDetailViewModel("missing", gateway)
 
         advanceUntilIdle()
@@ -178,7 +181,7 @@ class Phase4ViewModelsTest {
 
     @Test
     fun careConfiguration_requiresExplicitSourceAndSavesAllTypesAtomically() = runTest {
-        val gateway = FakePhase4Gateway()
+        val gateway = FakeGateway()
         val viewModel = CareConfigurationViewModel(
             plantId = "plant",
             plantRepository = FakePlantRepository(plant()),
@@ -237,7 +240,7 @@ class Phase4ViewModelsTest {
                     ),
                 ),
             ),
-            gateway = FakePhase4Gateway(),
+            gateway = FakeGateway(),
             zoneIdProvider = FixedZoneIdProvider,
         )
         advanceUntilIdle()
@@ -268,7 +271,7 @@ class Phase4ViewModelsTest {
             plantId = "missing",
             plantRepository = FakePlantRepository(null),
             careEventRepository = FakeCareEventRepository(),
-            gateway = FakePhase4Gateway(),
+            gateway = FakeGateway(),
             zoneIdProvider = FixedZoneIdProvider,
         )
 
@@ -279,7 +282,7 @@ class Phase4ViewModelsTest {
 
     @Test
     fun careConfiguration_requiresSeasonStartAndSavesCrossYearSeason() = runTest {
-        val gateway = FakePhase4Gateway()
+        val gateway = FakeGateway()
         val viewModel = CareConfigurationViewModel(
             plantId = "plant",
             plantRepository = FakePlantRepository(plant()),
@@ -316,9 +319,9 @@ private suspend fun <T> kotlinx.coroutines.flow.StateFlow<T>.firstMatching(
     predicate: (T) -> Boolean,
 ): T = first(predicate)
 
-private class FakePhase4Gateway(
+private class FakeGateway(
     notices: List<AppNotice> = emptyList(),
-) : Phase4UiGateway {
+) : UiGateway {
     private val noticeState = MutableStateFlow(notices)
     var noticeObserveFailures = 0
     var noticeObserveCalls = 0

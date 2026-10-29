@@ -21,15 +21,15 @@ import kotlinx.coroutines.flow.update
 @Module
 @TestInstallIn(
     components = [SingletonComponent::class],
-    replaces = [Phase4UiGatewayModule::class],
+    replaces = [UiGatewayModule::class],
 )
-interface Phase4UiTestModule {
+interface UiTestModule {
     @Binds
-    fun bindPhase4UiGateway(gateway: FakePhase4UiGateway): Phase4UiGateway
+    fun bindUiGateway(gateway: FakeUiGateway): UiGateway
 }
 
 @Singleton
-class FakePhase4UiGateway @Inject constructor() : Phase4UiGateway {
+class FakeUiGateway @Inject constructor() : UiGateway {
     private val rules = MutableStateFlow<List<IntervalReminderRule>>(emptyList())
     private val summaries = MutableStateFlow<List<CareStatusSummary>>(emptyList())
     private val notices = MutableStateFlow<List<AppNotice>>(emptyList())

@@ -68,6 +68,7 @@ import com.miguelrodriguez19.stayleafy.ui.components.LeafyCareIcon
 import com.miguelrodriguez19.stayleafy.ui.components.LeafyPrimaryButton
 import com.miguelrodriguez19.stayleafy.ui.components.LeafyDiscardChangesDialog
 import com.miguelrodriguez19.stayleafy.ui.components.leafyTopAppBarColors
+import com.miguelrodriguez19.stayleafy.ui.reminder.viewmodels.CareConfigurationViewModel
 import com.miguelrodriguez19.stayleafy.ui.theme.StayLeafyTheme
 import com.miguelrodriguez19.stayleafy.ui.theme.leafyColors
 import java.time.LocalDate

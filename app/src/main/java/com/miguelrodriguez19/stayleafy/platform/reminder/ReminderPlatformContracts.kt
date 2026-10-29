@@ -25,7 +25,7 @@ data class PendingReminderDelivery(
 )
 
 /**
- * Port implemented by the Phase 4 NoticeRepository adapter.
+ * Port implemented by the Room-backed reminder delivery adapter.
  *
  * [preparePendingDeliveries] must atomically create or return one PENDING notice per occurrence.
  * DELIVERED and SUPPRESSED notices must not be returned again. Keeping those transitions in the

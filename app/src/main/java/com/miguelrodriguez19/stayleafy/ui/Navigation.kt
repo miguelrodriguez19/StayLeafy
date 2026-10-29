@@ -56,9 +56,9 @@ import com.miguelrodriguez19.stayleafy.ui.backup.BackupRoute
 import com.miguelrodriguez19.stayleafy.ui.reminder.CareConfigurationRoute
 import com.miguelrodriguez19.stayleafy.ui.reminder.NoticeDetailRoute
 import com.miguelrodriguez19.stayleafy.ui.reminder.NoticeListRoute
-import com.miguelrodriguez19.stayleafy.ui.reminder.NoticeListViewModel
+import com.miguelrodriguez19.stayleafy.ui.reminder.viewmodels.NoticeListViewModel
 import com.miguelrodriguez19.stayleafy.ui.theme.leafyColors
-import com.miguelrodriguez19.stayleafy.ui.reminder.RootNavigationViewModel
+import com.miguelrodriguez19.stayleafy.ui.reminder.viewmodels.RootNavigationViewModel
 import com.miguelrodriguez19.stayleafy.ui.settings.NotificationPermissionAction
 import com.miguelrodriguez19.stayleafy.ui.settings.NotificationPermissionStatus
 import com.miguelrodriguez19.stayleafy.ui.settings.NotificationPermissionSummary

@@ -94,7 +94,7 @@ import com.miguelrodriguez19.stayleafy.model.SeasonalCareState
 import com.miguelrodriguez19.stayleafy.model.SeasonalCareSummary
 import com.miguelrodriguez19.stayleafy.model.CareType
 import com.miguelrodriguez19.stayleafy.ui.reminder.CareReminderUiState
-import com.miguelrodriguez19.stayleafy.ui.reminder.PlantCareStatusViewModel
+import com.miguelrodriguez19.stayleafy.ui.reminder.viewmodels.PlantCareStatusViewModel
 import com.miguelrodriguez19.stayleafy.ui.components.LeafyCareIcon
 import com.miguelrodriguez19.stayleafy.ui.components.LeafyDestructiveButton
 import com.miguelrodriguez19.stayleafy.ui.components.LeafyDestructiveOutlinedButton

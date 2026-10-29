@@ -122,6 +122,8 @@ On Android versions requiring runtime notification permission:
 - When permission is blocked and at least one rule is active, show guidance only in the Notices root, with an action to open the application's notification settings.
 - The application and in-app Notices remain fully usable without permission.
 
+The contextual-explanation flag now uses the `preferences_ui` SharedPreferences file. The previous file is not migrated, so an existing installation with notifications blocked may see the explanation once more after saving an active rule. Once shown, the new store remembers it. This does not reset Android permission, reminder rules, or Notice delivery state.
+
 A due occurrence evaluated without permission is `SUPPRESSED`. Granting permission later applies only to future occurrences; the app never delivers suppressed notifications retroactively.
 
 Settings includes a notification-capability summary with a route to Android notification settings when access is blocked. Camera capture and photo selection use system-owned UI and do not require broad app permissions; the summary states this explicitly. The existing contextual notification prompt and Notices guidance remain in place.

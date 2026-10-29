@@ -66,6 +66,8 @@ import com.miguelrodriguez19.stayleafy.ui.components.LeafyEmptyState
 import com.miguelrodriguez19.stayleafy.ui.components.LeafyPrimaryButton
 import com.miguelrodriguez19.stayleafy.ui.components.leafyTopAppBarColors
 import com.miguelrodriguez19.stayleafy.ui.components.LeafyStateContent
+import com.miguelrodriguez19.stayleafy.ui.reminder.viewmodels.NoticeDetailViewModel
+import com.miguelrodriguez19.stayleafy.ui.reminder.viewmodels.NoticeListViewModel
 import com.miguelrodriguez19.stayleafy.ui.theme.StayLeafyTheme
 import com.miguelrodriguez19.stayleafy.ui.theme.leafyColors
 
