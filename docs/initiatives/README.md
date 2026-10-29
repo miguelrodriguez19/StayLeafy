@@ -12,7 +12,7 @@ starting new implementation.
 
 | ID    | Initiative                                                                                    | Status | Type        |
 |-------|-----------------------------------------------------------------------------------------------|--------|-------------|
-| I-001 | [Preserve the Plants list position](I-001-preserve-plants-list-position.md)                   | Idea   | Bug         |
+| I-001 | [Preserve the Plants list position](I-001-preserve-plants-list-position.md)                   | Done   | Bug         |
 | I-002 | [Configurable quick filters and advanced filtering](I-002-configurable-plant-filters.md)      | Idea   | Feature     |
 | I-003 | [Keep notification status readable in Settings](I-003-settings-notification-status-layout.md) | Done   | Bug         |
 | I-004 | [Small care, Notice, and inventory improvements](I-004-care-notice-inventory-improvements.md) | Idea   | Improvement |

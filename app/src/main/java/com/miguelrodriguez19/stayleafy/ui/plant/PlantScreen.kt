@@ -17,7 +17,9 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -35,7 +37,11 @@ import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
@@ -122,7 +128,67 @@ fun PlantListScreen(
     onUpcomingOnlyChange: (Boolean) -> Unit = {},
     onOverdueOnlyChange: (Boolean) -> Unit = {},
     careSummaries: Map<String, List<CareStatusSummary>> = emptyMap(),
+    listState: LazyListState = rememberLazyListState(),
 ) {
+    // Keep the state above the content branch so Loading and Nav3 entry restoration retain its numeric position.
+    val filterKey = PlantListFilterKey(
+        query = filterQuery,
+        favoritesOnly = favoritesOnly,
+        upcomingOnly = upcomingOnly,
+        overdueOnly = overdueOnly,
+    )
+    var previousFilterKey by remember { mutableStateOf(filterKey) }
+    var previousState by remember { mutableStateOf<PlantListUiState?>(null) }
+    var previousPlantIds by remember { mutableStateOf<List<String>?>(null) }
+    var pendingPosition by remember { mutableStateOf<PlantListPosition?>(null) }
+
+    // SideEffect runs before the next lazy measure, so this request replaces key-based anchoring after a reorder.
+    SideEffect {
+        val filterChanged = previousFilterKey != filterKey
+        val stateChanged = previousState != state
+        if (filterChanged) {
+            previousFilterKey = filterKey
+            pendingPosition = null
+            listState.requestScrollToItem(0)
+        }
+
+        when (val currentState = state) {
+            PlantListUiState.Loading -> {
+                if (!filterChanged && stateChanged && previousState is PlantListUiState.Content && pendingPosition == null) {
+                    pendingPosition = listState.currentPosition()
+                }
+            }
+
+            is PlantListUiState.Content -> {
+                val currentPlantIds = if (stateChanged) currentState.plants.map(Plant::id) else previousPlantIds
+                val plantOrderChanged = previousPlantIds != null && currentPlantIds != null &&
+                    previousPlantIds != currentPlantIds
+                if (!filterChanged && (pendingPosition != null || plantOrderChanged)) {
+                    val position = pendingPosition ?: listState.currentPosition()
+                    listState.requestScrollToItem(
+                        index = position.index.coerceAtMost(currentState.plants.lastIndex),
+                        scrollOffset = position.offset,
+                    )
+                    pendingPosition = null
+                } else if (!filterChanged && listState.firstVisibleItemIndex > currentState.plants.lastIndex) {
+                    listState.requestScrollToItem(currentState.plants.lastIndex)
+                }
+                if (stateChanged) {
+                    previousPlantIds = currentPlantIds
+                }
+            }
+
+            is PlantListUiState.Empty,
+            is PlantListUiState.Error -> {
+                if (!filterChanged && stateChanged && previousState is PlantListUiState.Content && pendingPosition == null) {
+                    pendingPosition = listState.currentPosition()
+                }
+            }
+        }
+
+        previousState = state
+    }
+
     val filtersHaveNoResults = (state as? PlantListUiState.Empty)?.isFiltered == true
     val selectedFilterContainerColor = if (filtersHaveNoResults) {
         MaterialTheme.leafyColors.accent
@@ -295,6 +361,7 @@ fun PlantListScreen(
                     onPlantClick = onPlantClick,
                     onFavoriteClick = onFavoriteClick,
                     careSummaries = careSummaries,
+                    listState = listState,
                 )
             }
         }
@@ -338,15 +405,34 @@ private fun EmptyPlantList(
     )
 }
 
+private data class PlantListFilterKey(
+    val query: String,
+    val favoritesOnly: Boolean,
+    val upcomingOnly: Boolean,
+    val overdueOnly: Boolean,
+)
+
+private data class PlantListPosition(
+    val index: Int,
+    val offset: Int,
+)
+
+private fun LazyListState.currentPosition(): PlantListPosition = PlantListPosition(
+    index = firstVisibleItemIndex,
+    offset = firstVisibleItemScrollOffset,
+)
+
 @Composable
 private fun PlantListContent(
     plants: List<Plant>,
     onPlantClick: (String) -> Unit,
     onFavoriteClick: (String, Boolean) -> Unit,
     careSummaries: Map<String, List<CareStatusSummary>>,
+    listState: LazyListState,
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
+        state = listState,
         contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 88.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
