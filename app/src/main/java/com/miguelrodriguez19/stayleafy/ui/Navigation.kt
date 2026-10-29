@@ -56,6 +56,7 @@ import com.miguelrodriguez19.stayleafy.ui.backup.BackupRoute
 import com.miguelrodriguez19.stayleafy.ui.reminder.CareConfigurationRoute
 import com.miguelrodriguez19.stayleafy.ui.reminder.NoticeDetailRoute
 import com.miguelrodriguez19.stayleafy.ui.reminder.NoticeListRoute
+import com.miguelrodriguez19.stayleafy.ui.reminder.NoticeListViewModel
 import com.miguelrodriguez19.stayleafy.ui.theme.leafyColors
 import com.miguelrodriguez19.stayleafy.ui.reminder.RootNavigationViewModel
 import com.miguelrodriguez19.stayleafy.ui.settings.NotificationPermissionAction
@@ -99,6 +100,7 @@ fun MainNavigation(
     val noticesViewModelStoreDecorator = rememberViewModelStoreNavEntryDecorator<NavKey>()
     var selectedTab by rememberSaveable { mutableStateOf(RootTab.Plants) }
     val rootViewModel: RootNavigationViewModel = hiltViewModel()
+    val noticeListViewModel: NoticeListViewModel = hiltViewModel()
     val unreadCount by rootViewModel.unreadCount.collectAsStateWithLifecycle()
     var permissionRefresh by rememberSaveable { mutableIntStateOf(0) }
     var notificationPermissionRequested by rememberSaveable { mutableStateOf(false) }
@@ -269,6 +271,7 @@ fun MainNavigation(
                         entry<NoticeList> {
                             NoticeListRoute(
                                 onNoticeClick = { noticeId -> noticesBackStack.add(NoticeDetail(noticeId)) },
+                                viewModel = noticeListViewModel,
                             )
                         }
                         entry<NoticeDetail> { key ->

@@ -86,6 +86,10 @@ The inbox offers Mark all as read when unread Notices exist. This is a one-way o
 
 Completing matching care, disabling a rule, or replacing its current occurrence also marks the previous Notice read and cancels its displayed notification. Deleting a Plant cascades through its rules to its Notices.
 
+The inbox app bar has an eye toggle immediately left of overflow. Unread-only filtering starts on: the closed-eye state hides read Notices, while the open-eye state shows all Notices. This is presentation state held in an activity-scoped in-memory ViewModel, so it survives tab changes, Notice detail navigation, and configuration changes; a new process starts with unread-only filtering again. The selection is not stored in Room or user preferences. If a Notice is opened while unread-only filtering is active, its read-state update removes it from the list reactively when the user returns from detail.
+
+When unread-only filtering produces no rows, the existing empty illustration is reused with localized “No unread notices” / “No tienes avisos sin leer” copy and no call to action. The eye toggle stays available so the user can show all Notices. Filtering leaves the global unread badge, read-on-open and Mark all as read behavior, delivery state, and system notifications unchanged. It does not allow a Notice to be marked unread or change the Room schema.
+
 ## Background evaluation
 
 Phase 4 introduced unique periodic WorkManager evaluation approximately once per day around 09:00 local time. Phase 7 makes that preferred local time configurable, with 09:00 retained as the default.

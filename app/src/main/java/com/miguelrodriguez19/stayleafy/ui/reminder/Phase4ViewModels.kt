@@ -289,16 +289,47 @@ class NoticeListViewModel @Inject constructor(
 ) : ViewModel() {
     private val reload = MutableStateFlow(0)
     private val warningReload = MutableStateFlow(0)
+    private val unreadOnly = MutableStateFlow(true)
 
-    val uiState: StateFlow<NoticeListUiState> = reload.flatMapLatest {
+    private val noticesState = reload.flatMapLatest {
         gateway.observeNotices()
-            .map<List<AppNotice>, NoticeListUiState> { notices ->
-                val sorted = notices.sortedWith(compareByDescending<AppNotice> { it.createdAt }.thenByDescending { it.id })
-                if (sorted.isEmpty()) NoticeListUiState.Empty else NoticeListUiState.Content(sorted)
+            .map<List<AppNotice>, NoticeSourceState> { notices ->
+                NoticeSourceState.Content(notices)
             }
-            .onStart { emit(NoticeListUiState.Loading) }
-            .catch { emit(NoticeListUiState.Error) }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), NoticeListUiState.Loading)
+            .onStart { emit(NoticeSourceState.Loading) }
+            .catch { emit(NoticeSourceState.Error) }
+    }
+
+    val uiState: StateFlow<NoticeInboxUiState> = combine(noticesState, unreadOnly) { source, showUnreadOnly ->
+        when (source) {
+            NoticeSourceState.Loading -> NoticeInboxUiState(
+                unreadOnly = showUnreadOnly,
+                listState = NoticeListUiState.Loading,
+            )
+            NoticeSourceState.Error -> NoticeInboxUiState(
+                unreadOnly = showUnreadOnly,
+                listState = NoticeListUiState.Error,
+            )
+            is NoticeSourceState.Content -> {
+                val sorted = source.notices
+                    .sortedWith(compareByDescending<AppNotice> { it.createdAt }.thenByDescending { it.id })
+                val visible = if (showUnreadOnly) sorted.filter { it.readAt == null } else sorted
+                NoticeInboxUiState(
+                    unreadOnly = showUnreadOnly,
+                    listState = if (visible.isEmpty()) {
+                        NoticeListUiState.Empty
+                    } else {
+                        NoticeListUiState.Content(visible)
+                    },
+                    unreadCount = source.notices.count { it.readAt == null },
+                )
+            }
+        }
+    }.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5_000),
+        NoticeInboxUiState(),
+    )
 
     val notificationWarning: StateFlow<Boolean> = warningReload.flatMapLatest {
         gateway.observeNotificationWarning().catch { emit(false) }
@@ -306,8 +337,15 @@ class NoticeListViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     fun retry() { reload.value += 1 }
+    fun setUnreadOnly(unreadOnly: Boolean) { this.unreadOnly.value = unreadOnly }
     fun refreshNotificationWarning() { warningReload.value += 1 }
     fun markAllRead() { viewModelScope.launch { runCatching { gateway.markAllNoticesRead() } } }
+}
+
+private sealed interface NoticeSourceState {
+    data object Loading : NoticeSourceState
+    data object Error : NoticeSourceState
+    data class Content(val notices: List<AppNotice>) : NoticeSourceState
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)

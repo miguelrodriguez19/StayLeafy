@@ -27,10 +27,14 @@ import java.time.ZoneId
 import java.time.LocalDate
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -45,7 +49,7 @@ class Phase4ViewModelsTest {
     val mainDispatcherRule = MainDispatcherRule()
 
     @Test
-    fun noticeList_reportsErrorAndRetryReturnsSortedContent() = runTest {
+    fun noticeList_defaultsToUnreadAndRetryRetainsSelectionAfterError() = runTest {
         val older = notice(id = "older", createdAt = 10)
         val newer = notice(id = "newer", createdAt = 20)
         val gateway = FakePhase4Gateway(notices = listOf(older, newer)).apply {
@@ -53,14 +57,109 @@ class Phase4ViewModelsTest {
         }
         val viewModel = NoticeListViewModel(gateway)
 
-        assertEquals(NoticeListUiState.Error, viewModel.uiState.firstMatching { it is NoticeListUiState.Error })
+        assertEquals(NoticeInboxUiState(), viewModel.uiState.value)
+        val error = viewModel.uiState.firstMatching { it.listState is NoticeListUiState.Error }
+        assertTrue(error.unreadOnly)
 
+        viewModel.setUnreadOnly(false)
         viewModel.retry()
 
-        val content = viewModel.uiState.firstMatching { it is NoticeListUiState.Content }
-            as NoticeListUiState.Content
+        val contentState = viewModel.uiState.firstMatching { it.listState is NoticeListUiState.Content }
+        val content = contentState.listState as NoticeListUiState.Content
+        assertFalse(contentState.unreadOnly)
         assertEquals(listOf(newer, older), content.notices)
+        assertEquals(2, contentState.unreadCount)
         assertEquals(2, gateway.noticeObserveCalls)
+    }
+
+    @Test
+    fun noticeList_filtersUnreadAndSortsBothModesWithoutWritingToGateway() = runTest {
+        val read = notice(id = "z-read", createdAt = 20).copy(readAt = 10)
+        val firstUnread = notice(id = "a-unread", createdAt = 20)
+        val secondUnread = notice(id = "b-unread", createdAt = 20)
+        val olderUnread = notice(id = "older-unread", createdAt = 5)
+        val gateway = FakePhase4Gateway(listOf(read, firstUnread, secondUnread, olderUnread))
+        val viewModel = NoticeListViewModel(gateway)
+
+        val unreadState = viewModel.uiState.firstMatching { it.listState is NoticeListUiState.Content }
+        assertEquals(3, unreadState.unreadCount)
+        assertEquals(
+            listOf(secondUnread, firstUnread, olderUnread),
+            (unreadState.listState as NoticeListUiState.Content).notices,
+        )
+
+        viewModel.setUnreadOnly(false)
+        val allState = viewModel.uiState.firstMatching {
+            !it.unreadOnly && it.listState is NoticeListUiState.Content
+        }
+        assertEquals(3, allState.unreadCount)
+        assertEquals(
+            listOf(read, secondUnread, firstUnread, olderUnread),
+            (allState.listState as NoticeListUiState.Content).notices,
+        )
+        assertEquals(0, gateway.noticeWriteCalls)
+    }
+
+    @Test
+    fun noticeList_showsEmptyWhenNoNoticesMatchCurrentFilter() = runTest {
+        val read = notice(id = "read", createdAt = 10).copy(readAt = 1)
+        val gateway = FakePhase4Gateway(listOf(read))
+        val viewModel = NoticeListViewModel(gateway)
+
+        val unreadState = viewModel.uiState.firstMatching { it.listState is NoticeListUiState.Empty }
+        assertTrue(unreadState.unreadOnly)
+        assertEquals(0, unreadState.unreadCount)
+
+        viewModel.setUnreadOnly(false)
+        val allState = viewModel.uiState.firstMatching {
+            !it.unreadOnly && it.listState is NoticeListUiState.Content
+        }
+        assertEquals(listOf(read), (allState.listState as NoticeListUiState.Content).notices)
+
+        gateway.setNotices(emptyList())
+        val emptyState = viewModel.uiState.firstMatching {
+            !it.unreadOnly && it.listState is NoticeListUiState.Empty
+        }
+        assertEquals(0, emptyState.unreadCount)
+    }
+
+    @Test
+    fun noticeList_reactsToReadNewAndMarkAllChanges() = runTest {
+        val first = notice(id = "first", createdAt = 10)
+        val second = notice(id = "second", createdAt = 20)
+        val gateway = FakePhase4Gateway(listOf(first, second))
+        val viewModel = NoticeListViewModel(gateway)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            viewModel.uiState.collect { }
+        }
+        advanceUntilIdle()
+
+        gateway.markNoticeRead(first.id)
+        advanceUntilIdle()
+        val afterRead = viewModel.uiState.value
+        assertEquals(1, afterRead.unreadCount)
+        assertEquals(listOf(second), (afterRead.listState as NoticeListUiState.Content).notices)
+
+        val newNotice = notice(id = "new", createdAt = 30)
+        gateway.addNotice(newNotice)
+        advanceUntilIdle()
+        val afterNewNotice = viewModel.uiState.value
+        assertEquals(2, afterNewNotice.unreadCount)
+        assertEquals(listOf(newNotice, second), (afterNewNotice.listState as NoticeListUiState.Content).notices)
+
+        viewModel.markAllRead()
+        advanceUntilIdle()
+        val afterMarkAll = viewModel.uiState.value
+        assertEquals(0, afterMarkAll.unreadCount)
+        assertEquals(NoticeListUiState.Empty, afterMarkAll.listState)
+        assertEquals(1, gateway.markAllNoticesReadCalls)
+
+        viewModel.setUnreadOnly(false)
+        advanceUntilIdle()
+        assertEquals(
+            listOf(newNotice.copy(readAt = 1), second.copy(readAt = 1), first.copy(readAt = 1)),
+            (viewModel.uiState.value.listState as NoticeListUiState.Content).notices,
+        )
     }
 
     @Test
@@ -225,8 +324,20 @@ private class FakePhase4Gateway(
     var noticeObserveCalls = 0
         private set
     val markedRead = mutableListOf<String>()
+    var noticeWriteCalls = 0
+        private set
+    var markAllNoticesReadCalls = 0
+        private set
     val savedRules = mutableListOf<Pair<String, List<IntervalReminderDraft>>>()
     val savedSchedules = mutableListOf<Pair<String, List<CareScheduleDraft>>>()
+
+    fun setNotices(notices: List<AppNotice>) {
+        noticeState.value = notices
+    }
+
+    fun addNotice(notice: AppNotice) {
+        noticeState.value = noticeState.value.filterNot { it.id == notice.id } + notice
+    }
 
     override fun observeRules(plantId: String): Flow<List<IntervalReminderRule>> = flowOf(emptyList())
 
@@ -251,7 +362,7 @@ private class FakePhase4Gateway(
             noticeObserveFailures -= 1
             error("load failed")
         }
-        emit(noticeState.value)
+        emitAll(noticeState)
     }
 
     override fun observeNotice(noticeId: String): Flow<AppNotice?> =
@@ -261,10 +372,20 @@ private class FakePhase4Gateway(
         flowOf(noticeState.value.count { it.readAt == null })
 
     override suspend fun markNoticeRead(noticeId: String) {
+        noticeWriteCalls += 1
         markedRead += noticeId
+        noticeState.value = noticeState.value.map { notice ->
+            if (notice.id == noticeId && notice.readAt == null) notice.copy(readAt = 1) else notice
+        }
     }
 
-    override suspend fun markAllNoticesRead() = Unit
+    override suspend fun markAllNoticesRead() {
+        noticeWriteCalls += 1
+        markAllNoticesReadCalls += 1
+        noticeState.value = noticeState.value.map { notice ->
+            if (notice.readAt == null) notice.copy(readAt = 1) else notice
+        }
+    }
 
     override fun observeNotificationWarning(): Flow<Boolean> = flowOf(false)
 

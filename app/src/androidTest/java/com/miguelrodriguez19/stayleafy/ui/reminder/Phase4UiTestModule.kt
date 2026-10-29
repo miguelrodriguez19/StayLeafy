@@ -16,6 +16,7 @@ import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.update
 
 @Module
 @TestInstallIn(
@@ -48,8 +49,16 @@ class FakePhase4UiGateway @Inject constructor() : Phase4UiGateway {
     override fun observeNotice(noticeId: String): Flow<AppNotice?> =
         notices.map { values -> values.firstOrNull { it.id == noticeId } }
     override fun observeUnreadCount(): Flow<Int> = notices.map { values -> values.count { it.readAt == null } }
-    override suspend fun markNoticeRead(noticeId: String) = Unit
-    override suspend fun markAllNoticesRead() = Unit
+    override suspend fun markNoticeRead(noticeId: String) {
+        notices.update { values ->
+            values.map { notice ->
+                if (notice.id == noticeId && notice.readAt == null) notice.copy(readAt = 1L) else notice
+            }
+        }
+    }
+    override suspend fun markAllNoticesRead() {
+        notices.update { values -> values.map { it.copy(readAt = it.readAt ?: 1L) } }
+    }
     override fun observeNotificationWarning(): Flow<Boolean> = MutableStateFlow(false)
     override suspend fun shouldShowPermissionEducation(): Boolean = false
     override suspend fun markPermissionEducationShown() = Unit

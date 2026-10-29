@@ -164,12 +164,16 @@
     <string name="care_season_satisfied">Temporada completada · %1$s</string>
     <string name="care_season_range">%1$s – %2$s</string>
     <string name="notices_title">Avisos</string>
+    <string name="show_all_notices">Mostrar todos los avisos</string>
+    <string name="hide_read_notices">Ocultar avisos leídos</string>
     <string name="mark_all_read">Marcar todo como leído</string>
     <string name="notifications_blocked_message">Las notificaciones están bloqueadas. Los recordatorios y avisos siguen activos en la aplicación.</string>
     <string name="open_settings">Abrir ajustes</string>
     <string name="load_notices_error">No se han podido cargar tus avisos.</string>
     <string name="no_notices">Todo al día</string>
     <string name="no_notices_hint">Los nuevos recordatorios de cuidados aparecerán aquí cuando venzan.</string>
+    <string name="no_unread_notices">No tienes avisos sin leer</string>
+    <string name="no_unread_notices_hint">Los avisos leídos están ocultos. Usa el botón del ojo para mostrar todos los avisos.</string>
     <string name="notice_row_title">%1$s · %2$s</string>
     <string name="season_notice_row_title">Temporada de %1$s · %2$s</string>
     <string name="notice_due_date">Previsto: %1$s</string>

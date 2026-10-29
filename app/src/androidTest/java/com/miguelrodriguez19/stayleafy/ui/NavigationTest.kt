@@ -150,11 +150,55 @@ class NavigationTest {
     fun rootTabs_switchBetweenIndependentPlantAndNoticeRoots() {
         composeTestRule.onNodeWithText(string(R.string.navigation_notices)).performClick()
         composeTestRule.onAllNodesWithText(string(R.string.notices_title)).onFirst().assertIsDisplayed()
-        composeTestRule.onNodeWithText(string(R.string.no_notices)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(string(R.string.no_unread_notices)).assertIsDisplayed()
 
         composeTestRule.onNodeWithText(string(R.string.navigation_plants)).performClick()
         composeTestRule.onNodeWithText(string(R.string.plants_title)).assertIsDisplayed()
         composeTestRule.onNodeWithText("Monstera").assertIsDisplayed()
+    }
+
+    @Test
+    fun noticeFilter_preservesSelectionAcrossTabsDetailsAndActivityRecreation() {
+        phase4Gateway.replaceNotices(listOf(testNotice().copy(readAt = 1L)))
+        composeTestRule.onNodeWithText(string(R.string.navigation_notices)).performClick()
+        composeTestRule.onNodeWithText(string(R.string.no_unread_notices)).assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription(string(R.string.show_all_notices)).performClick()
+
+        composeTestRule.onNodeWithText(string(R.string.navigation_plants)).performClick()
+        composeTestRule.onNodeWithText(string(R.string.navigation_notices)).performClick()
+        composeTestRule.onNodeWithContentDescription(string(R.string.hide_read_notices)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(
+            string(R.string.notice_row_title, string(R.string.care_watering), "Monstera"),
+        ).performClick()
+        composeTestRule.onNodeWithText(string(R.string.notice_details)).assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription(string(R.string.back)).performClick()
+        composeTestRule.onNodeWithContentDescription(string(R.string.hide_read_notices)).assertIsDisplayed()
+
+        composeTestRule.activityRule.scenario.recreate()
+        composeTestRule.onNodeWithContentDescription(string(R.string.hide_read_notices)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(
+            string(R.string.notice_row_title, string(R.string.care_watering), "Monstera"),
+        ).assertIsDisplayed()
+    }
+
+    @Test
+    fun noticeFilter_readOnOpenAndMarkAllReadRemoveRows() {
+        phase4Gateway.replaceNotices(listOf(testNotice()))
+        composeTestRule.onNodeWithText(string(R.string.navigation_notices)).performClick()
+        composeTestRule.onNodeWithText(
+            string(R.string.notice_row_title, string(R.string.care_watering), "Monstera"),
+        ).performClick()
+        composeTestRule.onNodeWithContentDescription(string(R.string.back)).performClick()
+        composeTestRule.onNodeWithText(string(R.string.no_unread_notices)).assertIsDisplayed()
+
+        phase4Gateway.replaceNotices(listOf(testNotice()))
+        composeTestRule.onNodeWithText(
+            string(R.string.notice_row_title, string(R.string.care_watering), "Monstera"),
+        ).assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription(string(R.string.more_options)).performClick()
+        composeTestRule.onNodeWithText(string(R.string.mark_all_read)).performClick()
+        composeTestRule.onNodeWithText(string(R.string.no_unread_notices)).assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription(string(R.string.show_all_notices)).assertIsDisplayed()
     }
 
     @Test
@@ -182,6 +226,8 @@ class NavigationTest {
 
         composeTestRule.onAllNodesWithText(string(R.string.notices_title)).onFirst().assertIsDisplayed()
         composeTestRule.onNodeWithText(string(R.string.notice_details)).assertDoesNotExist()
+        composeTestRule.onNodeWithText(string(R.string.no_unread_notices)).assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription(string(R.string.show_all_notices)).performClick()
         composeTestRule.onNodeWithText(
             string(R.string.notice_row_title, string(R.string.care_watering), "Monstera"),
         ).assertIsDisplayed()
@@ -212,6 +258,8 @@ class NavigationTest {
 
         composeTestRule.onAllNodesWithText(string(R.string.notices_title)).onFirst().assertIsDisplayed()
         composeTestRule.onNodeWithText(string(R.string.notice_details)).assertDoesNotExist()
+        composeTestRule.onNodeWithText(string(R.string.no_unread_notices)).assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription(string(R.string.show_all_notices)).performClick()
         composeTestRule.onNodeWithText(
             string(R.string.notice_row_title, string(R.string.care_watering), "Monstera"),
         ).assertIsDisplayed()
