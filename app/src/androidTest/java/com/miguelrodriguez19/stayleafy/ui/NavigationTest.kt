@@ -4,9 +4,11 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.hasScrollToIndexAction
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
@@ -15,7 +17,10 @@ import androidx.compose.ui.test.onLast
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performScrollToIndex
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTextReplacement
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.miguelrodriguez19.stayleafy.R
 import com.miguelrodriguez19.stayleafy.model.PlantNote
@@ -31,6 +36,7 @@ import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
 import javax.inject.Inject
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -277,6 +283,134 @@ class NavigationTest {
     }
 
     @Test
+    fun plantListPosition_afterEditSaveAndBack_keepsNumericIndexAfterReorder() {
+        replaceWithNumberedPlants(40)
+        scrollToListIndex(20)
+        val originalTop = plantTop("Plant 20")
+
+        clickListPlant("Plant 20")
+        composeTestRule.onNodeWithContentDescription(string(R.string.edit_plant)).performClick()
+        composeTestRule
+            .onNode(hasText(string(R.string.plant_name)) and hasSetTextAction())
+            .performTextReplacement("Zzz updated")
+        composeTestRule.onNodeWithContentDescription(string(R.string.save)).performClick()
+        composeTestRule.waitUntil(timeoutMillis = 5_000) {
+            composeTestRule.onAllNodesWithText("Zzz updated").fetchSemanticsNodes().isNotEmpty()
+        }
+
+        composeTestRule.onNodeWithContentDescription(string(R.string.back)).performClick()
+        composeTestRule.waitUntil(timeoutMillis = 5_000) {
+            composeTestRule.onAllNodesWithText("Plant 21").fetchSemanticsNodes().isNotEmpty()
+        }
+
+        val restoredNumericIndexTop = plantTop("Plant 21")
+        assertEquals(originalTop, restoredNumericIndexTop, 1f)
+        composeTestRule.onNodeWithText("Zzz updated").assertDoesNotExist()
+    }
+
+    @Test
+    fun plantListPosition_survivesSystemBackFromDetail() {
+        replaceWithNumberedPlants(40)
+        scrollToListIndex(26)
+        val originalTop = plantTop("Plant 26")
+
+        clickListPlant("Plant 26")
+        composeTestRule.onNodeWithText("Plant 26").assertIsDisplayed()
+        composeTestRule.activityRule.scenario.onActivity { activity ->
+            activity.onBackPressedDispatcher.onBackPressed()
+        }
+        composeTestRule.waitUntil(timeoutMillis = 5_000) {
+            composeTestRule.onAllNodesWithText("Plant 26").fetchSemanticsNodes().isNotEmpty()
+        }
+
+        assertEquals(originalTop, plantTop("Plant 26"), 1f)
+    }
+
+    @Test
+    fun plantListPosition_survivesActivityRecreation() {
+        replaceWithNumberedPlants(40)
+        scrollToListIndex(22)
+        val topBeforeScroll = plantTop("Plant 23")
+        composeTestRule
+            .onNode(hasScrollToIndexAction())
+            .performSemanticsAction(SemanticsActions.ScrollBy) { scrollBy ->
+                scrollBy(0f, 27f)
+            }
+        composeTestRule.waitForIdle()
+        val topBeforeRecreation = plantTop("Plant 23")
+        assertTrue(topBeforeRecreation < topBeforeScroll)
+
+        composeTestRule.activityRule.scenario.recreate()
+        composeTestRule.waitUntil(timeoutMillis = 10_000) {
+            composeTestRule.onAllNodesWithText("Plant 23").fetchSemanticsNodes().isNotEmpty()
+        }
+
+        assertEquals(topBeforeRecreation, plantTop("Plant 23"), 1f)
+    }
+
+    @Test
+    fun plantListPosition_afterFavoriteLeavesActiveFilter_keepsNumericIndex() {
+        repository.replacePlants(
+            (0 until 40).map { index ->
+                fakePlant(
+                    id = "plant-$index",
+                    name = "Plant %02d".format(index),
+                    isFavorite = true,
+                )
+            },
+        )
+        composeTestRule.waitUntil(timeoutMillis = 5_000) {
+            composeTestRule.onAllNodesWithText("Plant 00").fetchSemanticsNodes().isNotEmpty()
+        }
+        composeTestRule.onNodeWithText(string(R.string.favorites_only)).performClick()
+        composeTestRule.waitForIdle()
+        scrollToListIndex(20)
+        val originalTop = plantTop("Plant 20")
+
+        clickListPlant("Plant 20")
+        composeTestRule.onNodeWithContentDescription(string(R.string.remove_favorite)).performClick()
+        composeTestRule.waitUntil(timeoutMillis = 5_000) {
+            repository.currentPlants.firstOrNull { it.id == "plant-20" }?.isFavorite == false &&
+                composeTestRule.onAllNodesWithContentDescription(
+                    string(R.string.add_favorite),
+                ).fetchSemanticsNodes().isNotEmpty()
+        }
+
+        composeTestRule.onNodeWithContentDescription(string(R.string.back)).performClick()
+        composeTestRule.waitUntil(timeoutMillis = 5_000) {
+            composeTestRule.onAllNodesWithText("Plant 21").fetchSemanticsNodes().isNotEmpty()
+        }
+
+        assertEquals(originalTop, plantTop("Plant 21"), 1f)
+        composeTestRule.onNodeWithText("Plant 20").assertDoesNotExist()
+        composeTestRule.onNodeWithText(string(R.string.clear_filters)).assertIsDisplayed()
+    }
+
+    @Test
+    fun plantListPosition_survivesActivityRecreationWhileDetailIsOpen() {
+        replaceWithNumberedPlants(40)
+        scrollToListIndex(24)
+        val originalTop = plantTop("Plant 24")
+
+        clickListPlant("Plant 24")
+        composeTestRule.onNodeWithText("Plant 24").assertIsDisplayed()
+        composeTestRule.activityRule.scenario.recreate()
+        composeTestRule.waitUntil(timeoutMillis = 10_000) {
+            composeTestRule.onAllNodesWithContentDescription(
+                string(R.string.edit_plant),
+            ).fetchSemanticsNodes().isNotEmpty()
+        }
+        composeTestRule.onNodeWithText("Plant 24").assertIsDisplayed()
+
+        composeTestRule.onNodeWithContentDescription(string(R.string.back)).performClick()
+        composeTestRule.waitUntil(timeoutMillis = 5_000) {
+            composeTestRule.onAllNodesWithText("Plant 24").fetchSemanticsNodes().isNotEmpty()
+        }
+
+        assertEquals(originalTop, plantTop("Plant 24"), 1f)
+    }
+
+    @Test
     fun detailDeleteConfirm_returnsToListWithoutDeletedPlant() {
         clickListPlant("Monstera")
         composeTestRule.onNodeWithText(string(R.string.delete_plant)).performScrollTo().performClick()
@@ -352,6 +486,25 @@ class NavigationTest {
             .onNode(hasText(name, substring = false) and hasClickAction())
             .performClick()
     }
+
+    private fun replaceWithNumberedPlants(count: Int) {
+        repository.replacePlants(
+            (0 until count).map { index ->
+                fakePlant(id = "plant-$index", name = "Plant %02d".format(index))
+            },
+        )
+        composeTestRule.waitUntil(timeoutMillis = 5_000) {
+            composeTestRule.onAllNodesWithText("Plant 00").fetchSemanticsNodes().isNotEmpty()
+        }
+    }
+
+    private fun scrollToListIndex(index: Int) {
+        composeTestRule.onNode(hasScrollToIndexAction()).performScrollToIndex(index)
+        composeTestRule.waitForIdle()
+    }
+
+    private fun plantTop(name: String): Float =
+        composeTestRule.onNodeWithText(name).fetchSemanticsNode().boundsInRoot.top
 
     private fun string(id: Int, vararg arguments: Any): String =
         composeTestRule.activity.getString(id, *arguments)

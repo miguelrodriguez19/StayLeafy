@@ -34,6 +34,7 @@ Phase delivery note: Phases 1–7 and the independent plant-screen correction ar
 - **FR-PLANT-016** — Plant descriptions are optional and limited to 500 characters; the editor shows the current count against that limit.
 - **FR-PLANT-017** — Leaving Plant create or edit with unsaved changes through the back arrow asks for confirmation before discarding them.
 - **FR-PLANT-018** — In Plant detail preview, tapping a primary photo expands it with an animated layout change that preserves the complete image; tapping again restores the compact size.
+- **FR-PLANT-019** — Returning from plant detail or edit with the app-bar back arrow or system Back restores the Plants list's first visible item index and scroll offset. This position survives configuration changes and transient loading. If editing changes sort order or filter membership, restoration keeps the numeric position and clamps it to a valid item when the list is shorter. Manually changing or clearing search or filters starts the list at the beginning. Position is held only for the current app session and is not persisted across a future app launch.
 
 ### Primary photo
 

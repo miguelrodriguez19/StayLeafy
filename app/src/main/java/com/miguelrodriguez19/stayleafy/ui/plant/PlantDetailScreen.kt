@@ -1038,8 +1038,7 @@ private fun PlantFormFields(
             label = { Text(stringResource(R.string.description)) },
             leadingIcon = { FormFieldIcon(R.drawable.ic_note) },
             minLines = 4,
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-            keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
+            maxLines = 15
         )
         Text(
             text = stringResource(

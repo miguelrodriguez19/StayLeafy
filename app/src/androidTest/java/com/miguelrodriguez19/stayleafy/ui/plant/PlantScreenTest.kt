@@ -2,9 +2,12 @@ package com.miguelrodriguez19.stayleafy.ui.plant
 
 import android.content.res.Configuration
 import androidx.activity.ComponentActivity
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
@@ -12,6 +15,7 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onLast
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -21,7 +25,11 @@ import com.miguelrodriguez19.stayleafy.model.CareDueStatus
 import com.miguelrodriguez19.stayleafy.model.CareStatusSummary
 import com.miguelrodriguez19.stayleafy.model.CareType
 import com.miguelrodriguez19.stayleafy.ui.theme.StayLeafyTheme
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -192,6 +200,284 @@ class PlantScreenTest {
     }
 
     @Test
+    fun listPosition_survivesContentLoadingContentWithExactIndexAndOffset() {
+        val plants = numberedPlants(40)
+        val state = mutableStateOf<PlantListUiState>(PlantListUiState.Content(plants))
+        val listState = LazyListState()
+
+        composeTestRule.setContent {
+            StayLeafyTheme(dynamicColor = false) {
+                PlantListScreen(
+                    state = state.value,
+                    filterQuery = "",
+                    favoritesOnly = false,
+                    mutationError = null,
+                    onQueryChange = {},
+                    onFavoritesOnlyChange = {},
+                    onClearFilters = {},
+                    onRetry = {},
+                    onAddPlant = {},
+                    onPlantClick = {},
+                    onFavoriteClick = { _, _ -> },
+                    onDismissMutationError = {},
+                    listState = listState,
+                )
+            }
+        }
+
+        scrollTo(listState, index = 18, offset = 27)
+        composeTestRule.runOnIdle { state.value = PlantListUiState.Loading }
+        composeTestRule.onNodeWithText(string(R.string.loading)).assertIsDisplayed()
+        composeTestRule.runOnIdle { state.value = PlantListUiState.Content(plants) }
+        composeTestRule.waitForIdle()
+
+        assertListPosition(listState, index = 18, offset = 27)
+    }
+
+    @Test
+    fun listPosition_clampsToLastIndexWhenContentShrinks() {
+        val plants = numberedPlants(40)
+        val state = mutableStateOf<PlantListUiState>(PlantListUiState.Content(plants))
+        val listState = LazyListState()
+
+        composeTestRule.setContent {
+            StayLeafyTheme(dynamicColor = false) {
+                PlantListScreen(
+                    state = state.value,
+                    filterQuery = "",
+                    favoritesOnly = false,
+                    mutationError = null,
+                    onQueryChange = {},
+                    onFavoritesOnlyChange = {},
+                    onClearFilters = {},
+                    onRetry = {},
+                    onAddPlant = {},
+                    onPlantClick = {},
+                    onFavoriteClick = { _, _ -> },
+                    onDismissMutationError = {},
+                    listState = listState,
+                )
+            }
+        }
+
+        scrollTo(listState, index = 25, offset = 31)
+        composeTestRule.runOnIdle {
+            state.value = PlantListUiState.Content(plants.take(18))
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.runOnIdle {
+            assertTrue(listState.firstVisibleItemIndex in 0 until 18)
+            assertTrue(listState.layoutInfo.visibleItemsInfo.any { it.index == 17 })
+        }
+        composeTestRule.onNodeWithText("Plant 17").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Plant 18").assertDoesNotExist()
+    }
+
+    @Test
+    fun listPosition_preservesNumericIndexAndOffsetWhenItemsReorder() {
+        val plants = numberedPlants(40)
+        val state = mutableStateOf<PlantListUiState>(PlantListUiState.Content(plants))
+        val listState = LazyListState()
+
+        composeTestRule.setContent {
+            StayLeafyTheme(dynamicColor = false) {
+                PlantListScreen(
+                    state = state.value,
+                    filterQuery = "",
+                    favoritesOnly = false,
+                    mutationError = null,
+                    onQueryChange = {},
+                    onFavoritesOnlyChange = {},
+                    onClearFilters = {},
+                    onRetry = {},
+                    onAddPlant = {},
+                    onPlantClick = {},
+                    onFavoriteClick = { _, _ -> },
+                    onDismissMutationError = {},
+                    listState = listState,
+                )
+            }
+        }
+
+        scrollTo(listState, index = 18, offset = 27)
+        val reordered = plants.toMutableList().apply {
+            val formerlyVisible = removeAt(18)
+            add(0, formerlyVisible)
+        }
+        composeTestRule.runOnIdle {
+            state.value = PlantListUiState.Content(reordered)
+        }
+        composeTestRule.waitForIdle()
+
+        assertListPosition(listState, index = 18, offset = 27)
+        composeTestRule.onNodeWithText("Plant 19").assertIsDisplayed()
+    }
+
+    @Test
+    fun manualQueryChangeWhileLoading_resetsPositionWhenContentReturns() {
+        val plants = numberedPlants(40)
+        val query = mutableStateOf("")
+        val state = mutableStateOf<PlantListUiState>(PlantListUiState.Content(plants))
+        val listState = LazyListState()
+
+        composeTestRule.setContent {
+            StayLeafyTheme(dynamicColor = false) {
+                PlantListScreen(
+                    state = state.value,
+                    filterQuery = query.value,
+                    favoritesOnly = false,
+                    mutationError = null,
+                    onQueryChange = {
+                        query.value = it
+                        state.value = PlantListUiState.Loading
+                    },
+                    onFavoritesOnlyChange = {},
+                    onClearFilters = {
+                        query.value = ""
+                        state.value = PlantListUiState.Loading
+                    },
+                    onRetry = {},
+                    onAddPlant = {},
+                    onPlantClick = {},
+                    onFavoriteClick = { _, _ -> },
+                    onDismissMutationError = {},
+                    listState = listState,
+                )
+            }
+        }
+
+        scrollTo(listState, index = 29, offset = 35)
+        composeTestRule.onNode(hasSetTextAction()).performTextReplacement("Plant")
+        composeTestRule.onNodeWithText(string(R.string.loading)).assertIsDisplayed()
+        composeTestRule.runOnIdle {
+            state.value = PlantListUiState.Content(
+                plants.filter { it.name.contains(query.value, ignoreCase = true) },
+            )
+        }
+        composeTestRule.waitForIdle()
+
+        assertListPosition(listState, index = 0, offset = 0)
+        composeTestRule.onNodeWithText("Plant 00").assertIsDisplayed()
+
+        scrollTo(listState, index = 29, offset = 35)
+        composeTestRule.onNodeWithText(string(R.string.clear_filters)).performClick()
+        composeTestRule.onNodeWithText(string(R.string.loading)).assertIsDisplayed()
+        composeTestRule.runOnIdle {
+            state.value = PlantListUiState.Content(plants)
+        }
+        composeTestRule.waitForIdle()
+
+        assertListPosition(listState, index = 0, offset = 0)
+        composeTestRule.onNodeWithText("Plant 00").assertIsDisplayed()
+    }
+
+    @Test
+    fun manualFavoriteAndCareFilters_resetListPosition() {
+        val plants = numberedPlants(40).map { it.copy(isFavorite = true) }
+        val state = mutableStateOf<PlantListUiState>(PlantListUiState.Content(plants))
+        val favoritesOnly = mutableStateOf(false)
+        val upcomingOnly = mutableStateOf(false)
+        val overdueOnly = mutableStateOf(false)
+        val listState = LazyListState()
+
+        composeTestRule.setContent {
+            StayLeafyTheme(dynamicColor = false) {
+                PlantListScreen(
+                    state = state.value,
+                    filterQuery = "",
+                    favoritesOnly = favoritesOnly.value,
+                    mutationError = null,
+                    onQueryChange = {},
+                    onFavoritesOnlyChange = {
+                        favoritesOnly.value = it
+                        state.value = PlantListUiState.Loading
+                    },
+                    onClearFilters = {},
+                    onRetry = {},
+                    onAddPlant = {},
+                    onPlantClick = {},
+                    onFavoriteClick = { _, _ -> },
+                    onDismissMutationError = {},
+                    upcomingOnly = upcomingOnly.value,
+                    overdueOnly = overdueOnly.value,
+                    onUpcomingOnlyChange = {
+                        upcomingOnly.value = it
+                        state.value = PlantListUiState.Loading
+                    },
+                    onOverdueOnlyChange = {
+                        overdueOnly.value = it
+                        state.value = PlantListUiState.Loading
+                    },
+                    listState = listState,
+                )
+            }
+        }
+
+        fun assertFilterReturnsAtStart() {
+            composeTestRule.onNodeWithText(string(R.string.loading)).assertIsDisplayed()
+            composeTestRule.runOnIdle { state.value = PlantListUiState.Content(plants) }
+            composeTestRule.waitForIdle()
+            assertListPosition(listState, index = 0, offset = 0)
+        }
+
+        scrollTo(listState, index = 24, offset = 19)
+        composeTestRule.onNodeWithText(string(R.string.favorites_only)).performClick()
+        assertFilterReturnsAtStart()
+
+        scrollTo(listState, index = 20, offset = 23)
+        composeTestRule.onNodeWithText(string(R.string.upcoming_filter)).performClick()
+        assertFilterReturnsAtStart()
+
+        scrollTo(listState, index = 15, offset = 35)
+        composeTestRule.onNodeWithText(string(R.string.overdue_filter)).performClick()
+        assertFilterReturnsAtStart()
+    }
+
+    @Test
+    fun listPosition_survivesEmptyAndErrorStates() {
+        val plants = numberedPlants(40)
+        val state = mutableStateOf<PlantListUiState>(PlantListUiState.Content(plants))
+        val listState = LazyListState()
+
+        composeTestRule.setContent {
+            StayLeafyTheme(dynamicColor = false) {
+                PlantListScreen(
+                    state = state.value,
+                    filterQuery = "",
+                    favoritesOnly = false,
+                    mutationError = null,
+                    onQueryChange = {},
+                    onFavoritesOnlyChange = {},
+                    onClearFilters = {},
+                    onRetry = {},
+                    onAddPlant = {},
+                    onPlantClick = {},
+                    onFavoriteClick = { _, _ -> },
+                    onDismissMutationError = {},
+                    listState = listState,
+                )
+            }
+        }
+
+        scrollTo(listState, index = 23, offset = 41)
+        composeTestRule.runOnIdle { state.value = PlantListUiState.Empty(isFiltered = false) }
+        composeTestRule.onNodeWithText(string(R.string.no_plants_yet)).assertIsDisplayed()
+        composeTestRule.runOnIdle { state.value = PlantListUiState.Loading }
+        composeTestRule.runOnIdle { state.value = PlantListUiState.Content(plants) }
+        composeTestRule.waitForIdle()
+        assertListPosition(listState, index = 23, offset = 41)
+
+        scrollTo(listState, index = 16, offset = 29)
+        composeTestRule.runOnIdle { state.value = PlantListUiState.Error() }
+        composeTestRule.onNodeWithText(string(R.string.load_plants_error)).assertIsDisplayed()
+        composeTestRule.runOnIdle { state.value = PlantListUiState.Loading }
+        composeTestRule.runOnIdle { state.value = PlantListUiState.Content(plants) }
+        composeTestRule.waitForIdle()
+        assertListPosition(listState, index = 16, offset = 29)
+    }
+
+    @Test
     fun emptyState_usesSpanishResources() {
         val configuration = Configuration(
             composeTestRule.activity.resources.configuration,
@@ -275,7 +561,35 @@ class PlantScreenTest {
 
     private fun string(id: Int, vararg arguments: Any): String =
         composeTestRule.activity.getString(id, *arguments)
+
+    private fun scrollTo(listState: LazyListState, index: Int, offset: Int) {
+        composeTestRule.runOnUiThread {
+            CoroutineScope(Dispatchers.Main).launch {
+                listState.scrollToItem(index, offset)
+            }
+        }
+        composeTestRule.waitUntil(timeoutMillis = 5_000) {
+            var reachedPosition = false
+            composeTestRule.runOnIdle {
+                reachedPosition = listState.firstVisibleItemIndex == index &&
+                    listState.firstVisibleItemScrollOffset == offset
+            }
+            reachedPosition
+        }
+    }
+
+    private fun assertListPosition(listState: LazyListState, index: Int, offset: Int) {
+        composeTestRule.runOnIdle {
+            assertEquals(index, listState.firstVisibleItemIndex)
+            assertEquals(offset, listState.firstVisibleItemScrollOffset)
+        }
+    }
 }
+
+private fun numberedPlants(count: Int): List<Plant> =
+    (0 until count).map { index ->
+        testPlant(id = "plant-$index", name = "Plant %02d".format(index))
+    }
 
 private fun testPlant(
     id: String,
