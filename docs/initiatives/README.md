@@ -4,9 +4,9 @@ Work after the `v1.0.0` production release is organized as initiatives and tasks
 numbered phases. The [MVP roadmap](../ROADMAP-MVP.md) retains the remaining Phase 8 acceptance and
 release steps.
 
-The initiatives below are ideas for planning, not implemented or scheduled features. Their
-identifiers and order do not establish priority. Resolve open questions and define acceptance
-criteria before implementation.
+The initiatives below track completed work, active work, and post-MVP ideas. Their identifiers and
+order do not establish priority. Resolve open questions and define acceptance criteria before
+starting new implementation.
 
 ## Index
 
@@ -14,7 +14,7 @@ criteria before implementation.
 |-------|-----------------------------------------------------------------------------------------------|--------|-------------|
 | I-001 | [Preserve the Plants list position](I-001-preserve-plants-list-position.md)                   | Idea   | Bug         |
 | I-002 | [Configurable quick filters and advanced filtering](I-002-configurable-plant-filters.md)      | Idea   | Feature     |
-| I-003 | [Keep notification status readable in Settings](I-003-settings-notification-status-layout.md) | Idea   | Bug         |
+| I-003 | [Keep notification status readable in Settings](I-003-settings-notification-status-layout.md) | Done   | Bug         |
 | I-004 | [Small care, Notice, and inventory improvements](I-004-care-notice-inventory-improvements.md) | Idea   | Improvement |
 | I-005 | [AI writing-assistance spike](I-005-ai-writing-assistance-spike.md)                           | Idea   | Spike       |
 | I-006 | [Bulk care quick actions](I-006-bulk-care-quick-actions.md)                                   | Idea   | Feature     |
