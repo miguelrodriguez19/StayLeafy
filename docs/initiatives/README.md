@@ -19,6 +19,10 @@ starting new implementation.
 | I-005 | [AI writing-assistance spike](I-005-ai-writing-assistance-spike.md)                           | Idea   | Spike       |
 | I-006 | [Bulk care quick actions](I-006-bulk-care-quick-actions.md)                                   | Done   | Feature     |
 | I-007 | [Unread-only Notices filter](I-007-unread-notices-filter.md)                                  | Done   | Feature     |
+| I-008 | [Care interval recommendations from history](I-008-care-interval-recommendations.md)         | Idea   | Feature     |
+| I-009 | [Plant shortcuts and inline care Notices](I-009-plant-shortcuts-inline-care-notices.md)       | Idea   | Feature     |
+| I-010 | [Stable Plants card layout](I-010-stable-plants-card-layout.md)                               | Idea   | Improvement |
+| I-011 | [Location suggestions and filtering](I-011-location-suggestions-and-filtering.md)             | Idea   | Feature     |
 
 ## Creating and maintaining an initiative
 
