@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
@@ -23,6 +24,10 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FabPosition
 import androidx.compose.material3.FilterChip
@@ -31,11 +36,14 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberDatePickerState
+import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
@@ -45,8 +53,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.style.TextOverflow
@@ -61,6 +72,10 @@ import com.miguelrodriguez19.stayleafy.model.CareType
 import com.miguelrodriguez19.stayleafy.model.Plant
 import com.miguelrodriguez19.stayleafy.ui.components.LeafyAddFab
 import com.miguelrodriguez19.stayleafy.ui.components.LeafyEmptyState
+import com.miguelrodriguez19.stayleafy.ui.components.LeafyPrimaryButton
+import com.miguelrodriguez19.stayleafy.ui.components.SettingsSectionCard
+import com.miguelrodriguez19.stayleafy.ui.components.SettingsSegment
+import com.miguelrodriguez19.stayleafy.ui.components.SettingsSegmentedControl
 import com.miguelrodriguez19.stayleafy.ui.components.leafyTopAppBarColors
 import com.miguelrodriguez19.stayleafy.ui.reminder.viewmodels.PlantCareSummaryViewModel
 import com.miguelrodriguez19.stayleafy.ui.reminder.localizedName
@@ -77,11 +92,19 @@ fun PlantListRoute(
     modifier: Modifier = Modifier,
     viewModel: PlantViewModel = hiltViewModel(),
     careSummaryViewModel: PlantCareSummaryViewModel = hiltViewModel(),
+    bulkCareViewModel: BulkCareViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val filter by viewModel.filter.collectAsStateWithLifecycle()
     val mutationError by viewModel.mutationError.collectAsStateWithLifecycle()
     val careSummaries by careSummaryViewModel.summaries.collectAsStateWithLifecycle()
+    val bulkCare by bulkCareViewModel.uiState.collectAsStateWithLifecycle()
+
+    BackHandler(enabled = bulkCare.isSelectionMode) {
+        if (bulkCare.isConfirming) bulkCareViewModel.cancelConfirmation()
+        else if (bulkCare.isFormOpen) bulkCareViewModel.returnToSelection()
+        else bulkCareViewModel.exitSelection()
+    }
 
     PlantListScreen(
         state = state,
@@ -102,6 +125,20 @@ fun PlantListRoute(
         onUpcomingOnlyChange = viewModel::updateUpcomingOnly,
         onOverdueOnlyChange = viewModel::updateOverdueOnly,
         careSummaries = careSummaries.groupBy(CareStatusSummary::plantId),
+        bulkCare = bulkCare,
+        onStartBulkCare = bulkCareViewModel::startSelection,
+        onToggleBulkCarePlant = bulkCareViewModel::togglePlant,
+        onSelectVisiblePlants = bulkCareViewModel::selectVisiblePlants,
+        onClearBulkCareSelection = bulkCareViewModel::clearSelection,
+        onExitBulkCare = bulkCareViewModel::exitSelection,
+        onContinueBulkCare = bulkCareViewModel::continueToForm,
+        onOpenBulkCareConfirmation = bulkCareViewModel::openConfirmation,
+        onCancelBulkCareConfirmation = bulkCareViewModel::cancelConfirmation,
+        onBackFromBulkCareForm = bulkCareViewModel::returnToSelection,
+        onBulkCareTypeChange = bulkCareViewModel::setCareType,
+        onBulkCareDateChange = bulkCareViewModel::setPerformedEpochDay,
+        onSubmitBulkCare = bulkCareViewModel::confirmSubmission,
+        onDismissBulkCareCompletion = bulkCareViewModel::dismissCompletion,
         modifier = modifier,
     )
 }
@@ -129,6 +166,20 @@ fun PlantListScreen(
     onOverdueOnlyChange: (Boolean) -> Unit = {},
     careSummaries: Map<String, List<CareStatusSummary>> = emptyMap(),
     listState: LazyListState = rememberLazyListState(),
+    bulkCare: BulkCareUiState = BulkCareUiState(),
+    onStartBulkCare: () -> Unit = {},
+    onToggleBulkCarePlant: (Plant) -> Unit = {},
+    onSelectVisiblePlants: (List<Plant>) -> Unit = {},
+    onClearBulkCareSelection: () -> Unit = {},
+    onExitBulkCare: () -> Unit = {},
+    onContinueBulkCare: () -> Unit = {},
+    onOpenBulkCareConfirmation: () -> Unit = {},
+    onCancelBulkCareConfirmation: () -> Unit = {},
+    onBackFromBulkCareForm: () -> Unit = {},
+    onBulkCareTypeChange: (CareType) -> Unit = {},
+    onBulkCareDateChange: (Long) -> Unit = {},
+    onSubmitBulkCare: () -> Unit = {},
+    onDismissBulkCareCompletion: () -> Unit = {},
 ) {
     // Keep the state above the content branch so Loading and Nav3 entry restoration retain its numeric position.
     val filterKey = PlantListFilterKey(
@@ -200,42 +251,127 @@ fun PlantListScreen(
     } else {
         MaterialTheme.colorScheme.onPrimaryContainer
     }
-
+    val navigationDescription = stringResource(if (bulkCare.isFormOpen) R.string.back else R.string.cancel)
     Scaffold(
         modifier = modifier,
         topBar = {
             TopAppBar(
                 colors = leafyTopAppBarColors(),
+                navigationIcon = {
+                    if (bulkCare.isSelectionMode) {
+                        IconButton(
+                            onClick = when {
+                                bulkCare.isFormOpen -> onBackFromBulkCareForm
+                                else -> onExitBulkCare
+                            },
+                            enabled = !bulkCare.isSubmitting,
+                            modifier = Modifier.semantics {
+                                contentDescription = navigationDescription
+                            },
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_back),
+                                contentDescription = null,
+                            )
+                        }
+                    }
+                },
                 title = {
                     Text(
-                        stringResource(R.string.plants_title),
-                        style = MaterialTheme.typography.headlineMedium,
+                        stringResource(
+                            when {
+                                bulkCare.isFormOpen -> R.string.bulk_care_form_title
+                                bulkCare.isSelectionMode -> R.string.bulk_care_select_plants
+                                else -> R.string.plants_title
+                            },
+                        ),
+                        style = if (bulkCare.isSelectionMode) {
+                            MaterialTheme.typography.titleLarge
+                        } else {
+                            MaterialTheme.typography.headlineMedium
+                        },
                     )
                 },
                 actions = {
-                    IconButton(onClick = onSettingsClick) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_settings),
-                            contentDescription = stringResource(R.string.settings),
-                        )
+                    if (!bulkCare.isSelectionMode) {
+                        IconButton(onClick = onStartBulkCare) {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_care_checklist),
+                                contentDescription = stringResource(R.string.bulk_care_action_description),
+                            )
+                        }
+                        IconButton(onClick = onSettingsClick) {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_settings),
+                                contentDescription = stringResource(R.string.settings),
+                            )
+                        }
                     }
                 },
             )
         },
         floatingActionButton = {
-            LeafyAddFab(
-                contentDescription = stringResource(R.string.add_plant),
-                onClick = onAddPlant,
-            )
+            if (!bulkCare.isSelectionMode) {
+                LeafyAddFab(
+                    contentDescription = stringResource(R.string.add_plant),
+                    onClick = onAddPlant,
+                )
+            }
         },
         floatingActionButtonPosition = FabPosition.End,
+        bottomBar = {
+            if (bulkCare.isSelectionMode && !bulkCare.isFormOpen) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.surface)
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    TextButton(
+                        onClick = onClearBulkCareSelection,
+                        enabled = bulkCare.selectedCount > 0 && !bulkCare.isSubmitting,
+                    ) { Text(stringResource(R.string.bulk_care_clear_selection)) }
+                    androidx.compose.material3.Button(
+                        onClick = onContinueBulkCare,
+                        enabled = bulkCare.selectedCount > 0 && !bulkCare.isSubmitting,
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Text(stringResource(R.string.bulk_care_continue_count, bulkCare.selectedCount))
+                    }
+                }
+            } else if (bulkCare.isFormOpen) {
+                LeafyPrimaryButton(
+                    text = stringResource(
+                        when {
+                            bulkCare.isSubmitting -> R.string.bulk_care_loading
+                            bulkCare.hasError -> R.string.bulk_care_retry
+                            else -> R.string.bulk_care_record
+                        },
+                    ),
+                    onClick = onOpenBulkCareConfirmation,
+                    enabled = bulkCare.careType != null && !bulkCare.isSubmitting,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                )
+            }
+        },
     ) { innerPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(horizontal = leafyLayoutTokens.spacingXl),
+                .padding(horizontal = if (bulkCare.isFormOpen) leafyLayoutTokens.spacingLg else leafyLayoutTokens.spacingXl),
         ) {
+            if (bulkCare.isFormOpen) {
+                BulkCareForm(
+                    state = bulkCare,
+                    onCareTypeChange = onBulkCareTypeChange,
+                    onDateChange = onBulkCareDateChange,
+                )
+            } else {
             TextField(
                 value = filterQuery,
                 onValueChange = onQueryChange,
@@ -333,6 +469,36 @@ fun PlantListScreen(
                 }
             }
 
+            bulkCare.completion?.let { completion ->
+                BulkCareCompletionCard(
+                    completion = completion,
+                    onDismiss = onDismissBulkCareCompletion,
+                    modifier = Modifier.padding(bottom = leafyLayoutTokens.spacingSm),
+                )
+            }
+
+            if (bulkCare.isSelectionMode) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        stringResource(
+                            R.string.bulk_care_selection_count,
+                            bulkCare.selectedCount,
+                        ),
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.weight(1f),
+                    )
+                    if (state is PlantListUiState.Content) {
+                        TextButton(
+                            onClick = { onSelectVisiblePlants(state.plants) },
+                            enabled = !bulkCare.isSubmitting,
+                        ) { Text(stringResource(R.string.bulk_care_select_visible)) }
+                    }
+                }
+            }
+
             mutationError?.let {
                 InlineError(
                     message = stringResource(R.string.favorite_update_error),
@@ -350,19 +516,282 @@ fun PlantListScreen(
                     onAction = onRetry,
                 )
 
-                is PlantListUiState.Empty -> EmptyPlantList(
-                    isFiltered = state.isFiltered,
-                    onAddPlant = onAddPlant,
-                    onClearFilters = onClearFilters,
-                )
+                is PlantListUiState.Empty -> Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .testTag("plants_empty_state_content"),
+                ) {
+                    EmptyPlantList(
+                        isFiltered = state.isFiltered,
+                        onAddPlant = onAddPlant,
+                        allowAdd = !bulkCare.isSelectionMode,
+                    )
+                }
 
                 is PlantListUiState.Content -> PlantListContent(
                     plants = state.plants,
-                    onPlantClick = onPlantClick,
+                    onPlantClick = { id ->
+                        if (bulkCare.isSelectionMode) {
+                            state.plants.firstOrNull { it.id == id }?.let(onToggleBulkCarePlant)
+                        } else {
+                            onPlantClick(id)
+                        }
+                    },
                     onFavoriteClick = onFavoriteClick,
                     careSummaries = careSummaries,
                     listState = listState,
+                    selectionMode = bulkCare.isSelectionMode,
+                    selectedPlantIds = bulkCare.selectedPlantIds.toSet(),
+                    onToggleSelection = { plant -> onToggleBulkCarePlant(plant) },
                 )
+            }
+            }
+        }
+    }
+    if (bulkCare.isConfirming && bulkCare.careType != null) {
+        AlertDialog(
+            onDismissRequest = onCancelBulkCareConfirmation,
+            title = { Text(stringResource(R.string.bulk_care_confirm_title)) },
+            text = {
+                Text(
+                    stringResource(
+                        R.string.bulk_care_confirm_summary,
+                        bulkCare.careType.localizedName(),
+                        formatEpochDay(bulkCare.performedEpochDay),
+                        bulkCare.selectedCount,
+                    ),
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = onSubmitBulkCare,
+                    enabled = !bulkCare.isSubmitting,
+                ) { Text(stringResource(R.string.bulk_care_record)) }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = onCancelBulkCareConfirmation,
+                    enabled = !bulkCare.isSubmitting,
+                ) { Text(stringResource(R.string.cancel)) }
+            },
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun BulkCareForm(
+    state: BulkCareUiState,
+    onCareTypeChange: (CareType) -> Unit,
+    onDateChange: (Long) -> Unit,
+) {
+    var showDatePicker by remember { mutableStateOf(false) }
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(top = leafyLayoutTokens.spacingMd)
+            .verticalScroll(androidx.compose.foundation.rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(leafyLayoutTokens.spacingMd),
+    ) {
+        Text(
+            text = stringResource(R.string.bulk_care_selection_count, state.selectedCount),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        SettingsSectionCard(
+            title = stringResource(R.string.bulk_care_section_care),
+            icon = R.drawable.ic_leaf,
+        ) {
+            SettingsSegmentedControl(
+                options = listOf(
+                    SettingsSegment("watering", stringResource(R.string.bulk_care_type_water), "bulk_care_type_water"),
+                    SettingsSegment("pruning", stringResource(R.string.bulk_care_type_prune), "bulk_care_type_prune"),
+                    SettingsSegment("fertilizing", stringResource(R.string.bulk_care_type_fertilize), "bulk_care_type_fertilize"),
+                ),
+                selectedKey = when (state.careType) {
+                    CareType.WATERING -> "watering"
+                    CareType.PRUNING -> "pruning"
+                    CareType.FERTILIZING -> "fertilizing"
+                    null -> null
+                },
+                enabled = !state.isSubmitting,
+                onSelected = { key ->
+                    onCareTypeChange(
+                        when (key) {
+                            "watering" -> CareType.WATERING
+                            "pruning" -> CareType.PRUNING
+                            else -> CareType.FERTILIZING
+                        },
+                    )
+                },
+            )
+        }
+        androidx.compose.material3.Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(enabled = !state.isSubmitting, role = Role.Button) { showDatePicker = true },
+            shape = MaterialTheme.shapes.medium,
+            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        ) {
+            FlowRow(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(leafyLayoutTokens.spacingLg),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalArrangement = Arrangement.spacedBy(leafyLayoutTokens.spacingSm),
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(leafyLayoutTokens.spacingSm),
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_calendar),
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                        tint = MaterialTheme.colorScheme.primary,
+                    )
+                    Text(stringResource(R.string.bulk_care_performed_date))
+                }
+                Text(
+                    text = formatEpochDay(state.performedEpochDay),
+                    color = MaterialTheme.colorScheme.primary,
+                    style = MaterialTheme.typography.titleMedium,
+                )
+            }
+        }
+        SettingsSectionCard(
+            title = stringResource(R.string.bulk_care_selected_plants),
+            icon = R.drawable.ic_leaf,
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(leafyLayoutTokens.spacingSm)) {
+                state.selectedPlantIds.forEach { id ->
+                    val plant = state.selectedPlants[id] ?: BulkCarePlantPreview(id, id, null)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(leafyLayoutTokens.spacingMd),
+                    ) {
+                        PlantPhotoBox(
+                            relativePath = plant.photoPath,
+                            modifier = Modifier.size(40.dp).testTag("bulk_care_preview_photo_${plant.id}"),
+                        )
+                        Text(
+                            text = plant.name,
+                            modifier = Modifier.weight(1f),
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    }
+                }
+            }
+        }
+        if (state.hasError) {
+            Text(
+                text = stringResource(R.string.bulk_care_error),
+                color = MaterialTheme.leafyColors.accent,
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(bottom = leafyLayoutTokens.spacingMd),
+            )
+        }
+    }
+    if (showDatePicker) {
+        val todayMillis = initialAcquisitionDatePickerMillis(null, state.todayEpochDay)
+        val pickerState = rememberDatePickerState(
+            initialSelectedDateMillis = initialAcquisitionDatePickerMillis(
+                state.performedEpochDay,
+                state.todayEpochDay,
+            ),
+            selectableDates = remember(todayMillis) {
+                object : SelectableDates {
+                    override fun isSelectableDate(utcTimeMillis: Long): Boolean = utcTimeMillis <= todayMillis
+                }
+            },
+        )
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        pickerState.selectedDateMillis?.let { onDateChange(pickerMillisToEpochDay(it)) }
+                        showDatePicker = false
+                    },
+                    enabled = !state.isSubmitting,
+                ) { Text(stringResource(R.string.select_date)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }, enabled = !state.isSubmitting) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
+        ) { DatePicker(state = pickerState, showModeToggle = false) }
+    }
+}
+
+@Composable
+private fun BulkCareCompletionCard(
+    completion: BulkCareCompletion,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val recordedCount = completion.result.recordedPlantIds.size
+    val skippedCount = completion.result.skippedPlantIds.size
+    val dismissDescription = stringResource(R.string.bulk_care_dismiss_result)
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.medium,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = leafyLayoutTokens.spacingMd, end = leafyLayoutTokens.spacingSm),
+            verticalAlignment = Alignment.Top,
+        ) {
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(vertical = leafyLayoutTokens.spacingMd),
+                verticalArrangement = Arrangement.spacedBy(leafyLayoutTokens.spacingXs),
+            ) {
+                Text(
+                    text = stringResource(
+                        R.string.bulk_care_completion_context,
+                        completion.careType.localizedName(),
+                        formatEpochDay(completion.performedEpochDay),
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                if (recordedCount > 0) {
+                    Text(
+                        text = pluralStringResource(R.plurals.bulk_care_recorded_count, recordedCount, recordedCount),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
+                if (skippedCount > 0) {
+                    Text(
+                        text = pluralStringResource(R.plurals.bulk_care_skipped_count, skippedCount, skippedCount),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                if (recordedCount == 0 && skippedCount > 0) {
+                    Text(
+                        text = stringResource(R.string.bulk_care_duplicates_only),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            IconButton(
+                onClick = onDismiss,
+                modifier = Modifier.semantics {
+                    contentDescription = dismissDescription
+                },
+            ) {
+                Icon(painter = painterResource(R.drawable.ic_close), contentDescription = null)
             }
         }
     }
@@ -390,7 +819,8 @@ internal fun LoadingContent(modifier: Modifier = Modifier) {
 private fun EmptyPlantList(
     isFiltered: Boolean,
     onAddPlant: () -> Unit,
-    onClearFilters: () -> Unit,
+    allowAdd: Boolean = true,
+    modifier: Modifier = Modifier,
 ) {
     LeafyEmptyState(
         title = stringResource(
@@ -399,9 +829,10 @@ private fun EmptyPlantList(
         supporting = stringResource(
             if (isFiltered) R.string.try_different_filter else R.string.add_first_plant_hint,
         ),
-        modifier = Modifier.fillMaxWidth(),
-        action = stringResource(if (isFiltered) R.string.clear_filters else R.string.add_plant),
-        onAction = if (isFiltered) onClearFilters else onAddPlant,
+        modifier = modifier.fillMaxWidth(),
+        action = if (!isFiltered && allowAdd) stringResource(R.string.add_plant) else null,
+        onAction = onAddPlant,
+        adaptiveIllustration = true,
     )
 }
 
@@ -429,6 +860,9 @@ private fun PlantListContent(
     onFavoriteClick: (String, Boolean) -> Unit,
     careSummaries: Map<String, List<CareStatusSummary>>,
     listState: LazyListState,
+    selectionMode: Boolean = false,
+    selectedPlantIds: Set<String> = emptySet(),
+    onToggleSelection: (Plant) -> Unit = {},
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -442,6 +876,9 @@ private fun PlantListContent(
                 onClick = { onPlantClick(plant.id) },
                 onFavoriteClick = { onFavoriteClick(plant.id, !plant.isFavorite) },
                 careSummaries = careSummaries[plant.id].orEmpty(),
+                selectionMode = selectionMode,
+                selected = plant.id in selectedPlantIds,
+                onToggleSelection = { onToggleSelection(plant) },
             )
         }
     }
@@ -453,6 +890,9 @@ private fun PlantListItem(
     onClick: () -> Unit,
     onFavoriteClick: () -> Unit,
     careSummaries: List<CareStatusSummary>,
+    selectionMode: Boolean = false,
+    selected: Boolean = false,
+    onToggleSelection: () -> Unit = {},
 ) {
     val favoriteDescription = stringResource(
         if (plant.isFavorite) R.string.remove_favorite else R.string.add_favorite,
@@ -504,20 +944,30 @@ private fun PlantListItem(
                             )
                         }
                     }
-                    IconButton(
-                        onClick = onFavoriteClick,
-                        modifier = Modifier
-                            .size(32.dp)
-                            .semantics { contentDescription = favoriteDescription },
-                    ) {
-                        Icon(
-                            painterResource(
-                                if (plant.isFavorite) R.drawable.ic_favorite
-                                else R.drawable.ic_favorite_border,
-                            ),
-                            contentDescription = null,
-                            tint = MaterialTheme.leafyColors.accent,
+                    if (selectionMode) {
+                        Checkbox(
+                            checked = selected,
+                            onCheckedChange = { onToggleSelection() },
+                            modifier = Modifier.semantics {
+                                contentDescription = plant.name
+                            },
                         )
+                    } else {
+                        IconButton(
+                            onClick = onFavoriteClick,
+                            modifier = Modifier
+                                .size(32.dp)
+                                .semantics { contentDescription = favoriteDescription },
+                        ) {
+                            Icon(
+                                painterResource(
+                                    if (plant.isFavorite) R.drawable.ic_favorite
+                                    else R.drawable.ic_favorite_border,
+                                ),
+                                contentDescription = null,
+                                tint = MaterialTheme.leafyColors.accent,
+                            )
+                        }
                     }
                 }
                 plant.location?.let { location ->

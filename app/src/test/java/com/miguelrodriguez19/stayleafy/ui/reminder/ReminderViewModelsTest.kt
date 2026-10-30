@@ -6,6 +6,8 @@ import com.miguelrodriguez19.stayleafy.data.ZoneIdProvider
 import com.miguelrodriguez19.stayleafy.model.AppNotice
 import com.miguelrodriguez19.stayleafy.model.AnnualDate
 import com.miguelrodriguez19.stayleafy.model.CareEvent
+import com.miguelrodriguez19.stayleafy.model.BulkCareResult
+import com.miguelrodriguez19.stayleafy.model.CareEventCreateResult
 import com.miguelrodriguez19.stayleafy.model.CareEventDraft
 import com.miguelrodriguez19.stayleafy.model.CareScheduleDraft
 import com.miguelrodriguez19.stayleafy.model.CareScheduleMode
@@ -421,7 +423,14 @@ private class FakeCareEventRepository(
 
     override fun observeEvent(plantId: String, eventId: String): Flow<CareEvent?> = flowOf(null)
 
-    override suspend fun createEvent(plantId: String, draft: CareEventDraft): String = error("Not used")
+    override suspend fun createEvent(plantId: String, draft: CareEventDraft): CareEventCreateResult =
+        error("Not used")
+
+    override suspend fun recordBulkCare(
+        plantIds: List<String>,
+        careType: CareType,
+        performedEpochDay: Long,
+    ): BulkCareResult = error("Not used")
 
     override suspend fun updateEvent(plantId: String, eventId: String, draft: CareEventDraft) = Unit
 

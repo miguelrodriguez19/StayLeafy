@@ -35,6 +35,7 @@ Phase delivery note: Phases 1–7 and the independent plant-screen correction ar
 - **FR-PLANT-017** — Leaving Plant create or edit with unsaved changes through the back arrow asks for confirmation before discarding them.
 - **FR-PLANT-018** — In Plant detail preview, tapping a primary photo expands it with an animated layout change that preserves the complete image; tapping again restores the compact size.
 - **FR-PLANT-019** — Returning from plant detail or edit with the app-bar back arrow or system Back restores the Plants list's first visible item index and scroll offset. This position survives configuration changes and transient loading. If editing changes sort order or filter membership, restoration keeps the numeric position and clamps it to a valid item when the list is shorter. Manually changing or clearing search or filters starts the list at the beginning. Position is held only for the current app session and is not persisted across a future app launch.
+- **FR-PLANT-020** — The empty Plants view does not scroll. Its decorative illustration uses the existing 196dp size when space permits and shrinks to fit the remaining height after filters, result feedback, and text. Filtered empty results have no additional primary Clear filters button; the filter-bar Clear filters action remains available.
 
 ### Primary photo
 
@@ -69,6 +70,11 @@ Phase delivery note: Phases 1–7 and the independent plant-screen correction ar
 - **FR-CARE-007** — The repository rejects a completion timestamp later than the injected current time.
 - **FR-CARE-008** — Plant detail always shows one cell per supported care type with only that type's latest localized date, or a never-recorded label.
 - **FR-CARE-009** — Existing care-event notes remain optional, trimmed, and stored as `NULL` when blank. Inline Phase 3 actions create events without notes.
+- **FR-CARE-010** — New individual and bulk care records are limited to one event per plant, care type, and local calendar day, interpreted in the device's current timezone. An individual duplicate shows a localized already-recorded toast without changing history or reminder state. Historical and restored duplicates are retained.
+- **FR-CARE-011** — A checklist icon in the Plants app bar starts bulk-care selection, with row checkboxes, a selected count, Select visible, and Clear selection. Search and filters remain available; selection includes hidden results without a separate hidden count. Adding plants, opening plant detail, and changing favorites are unavailable in this mode.
+- **FR-CARE-012** — Record care applies one explicitly chosen care type through the shared Settings-style segmented control and one non-future local date, defaulting to today. The form previews every selected plant with its thumbnail or existing placeholder and name, including hidden selections. Register opens a confirmation dialog with care type, date, and count; there is no separate review screen.
+- **FR-CARE-013** — Bulk care commits all new events and matching reminder/Notice updates atomically. Existing same-day records are skipped. Completion returns to Plants with a dismissible card beneath the filters, including when filtered results are empty. It identifies care and the recorded count, mentions skipped duplicates only when present, and explains an all-duplicate no-op. The card remains until dismissed, another selection starts, or Plants is left. Failure preserves the form draft for retry and commits no partial batch.
+- **FR-CARE-014** — Bulk selection, its draft, and the confirmation dialog survive rotation, are discarded when leaving Plants or after process death, and never automatically submit on restoration. Closing the dialog retains the form; returning from the form retains selection and care/date choices. Cancelling selection makes no writes. Filters and list-position behavior remain unchanged.
 
 ### Interval reminders
 

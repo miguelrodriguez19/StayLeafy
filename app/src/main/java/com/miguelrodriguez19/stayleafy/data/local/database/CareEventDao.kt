@@ -23,6 +23,9 @@ interface CareEventDao {
     @Query("SELECT * FROM care_events WHERE plantId = :plantId AND id = :eventId")
     fun observeEvent(plantId: String, eventId: String): Flow<CareEventEntity?>
 
+    @Query("SELECT id FROM plants WHERE id IN (:plantIds)")
+    suspend fun getExistingPlantIds(plantIds: List<String>): List<String>
+
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertEvent(event: CareEventEntity)
 
@@ -102,41 +105,74 @@ interface CareEventDao {
     suspend fun getUnreadOccurrenceNoticeIds(occurrenceKey: String): List<String>
 
     @Transaction
-    suspend fun insertEventAndAdvanceReminder(
-        event: CareEventEntity,
+    suspend fun recordEventsIfNotRecorded(
+        events: List<CareEventEntity>,
+        dayStartInclusive: Long,
+        dayEndExclusive: Long,
         performedEpochDay: Long,
-    ): List<String> {
-        val resolvedNoticeIds = mutableListOf<String>()
-        val latestBeforeInsert = getLatestPerformedAt(event.plantId, event.careType)
-        insertEvent(event)
-        if (latestBeforeInsert == null || event.performedAt >= latestBeforeInsert) {
-            getIntervalRule(event.plantId, event.careType)?.let { rule ->
-                val intervalDays = requireNotNull(rule.intervalDays)
-                resolvedNoticeIds += getUnreadNoticeIds(rule.id)
-                markRuleNoticesRead(rule.id, event.updatedAt)
-                updateRuleDueDate(
-                    ruleId = rule.id,
-                    nextDueEpochDay = Math.addExact(performedEpochDay, intervalDays.toLong()),
-                    updatedAt = event.updatedAt,
-                )
-            }
+    ): CareEventDaoWriteResult {
+        require(events.isNotEmpty()) { "At least one care event is required" }
+        require(dayStartInclusive < dayEndExclusive) { "Care day must have a positive duration" }
+        require(events.map(CareEventEntity::plantId).distinct().size == events.size) {
+            "Care event plant ids must be unique"
         }
 
-        getSeasonalRule(event.plantId, event.careType)?.let { rule ->
-            val start = AnnualDate(
-                requireNotNull(rule.seasonStartMonth),
-                requireNotNull(rule.seasonStartDay),
-            )
-            val end = rule.seasonEndMonth?.let { month ->
-                AnnualDate(month, requireNotNull(rule.seasonEndDay))
-            }
-            seasonalOccurrenceContaining(performedEpochDay, start, end)?.let { occurrence ->
-                val key = "seasonal:${rule.id}:${occurrence.startEpochDay}"
-                resolvedNoticeIds += getUnreadOccurrenceNoticeIds(key)
-                markOccurrenceNoticeRead(key, event.updatedAt)
+        val plantIds = events.map(CareEventEntity::plantId)
+        val existingPlantIds = getExistingPlantIds(plantIds).toSet()
+        val missingPlantIds = plantIds.filterNot(existingPlantIds::contains)
+        require(missingPlantIds.isEmpty()) { "Plants do not exist: ${missingPlantIds.joinToString()}" }
+
+        val recordedPlantIds = mutableListOf<String>()
+        val skippedPlantIds = mutableListOf<String>()
+        val resolvedNoticeIds = mutableListOf<String>()
+
+        events.forEach { event ->
+            if (countEventsInWindow(
+                    plantId = event.plantId,
+                    careType = event.careType,
+                    startInclusive = dayStartInclusive,
+                    endExclusive = dayEndExclusive,
+                ) > 0
+            ) {
+                skippedPlantIds += event.plantId
+            } else {
+                val latestBeforeInsert = getLatestPerformedAt(event.plantId, event.careType)
+                insertEvent(event)
+                recordedPlantIds += event.plantId
+                if (latestBeforeInsert == null || event.performedAt >= latestBeforeInsert) {
+                    getIntervalRule(event.plantId, event.careType)?.let { rule ->
+                        val intervalDays = requireNotNull(rule.intervalDays)
+                        resolvedNoticeIds += getUnreadNoticeIds(rule.id)
+                        markRuleNoticesRead(rule.id, event.updatedAt)
+                        updateRuleDueDate(
+                            ruleId = rule.id,
+                            nextDueEpochDay = Math.addExact(performedEpochDay, intervalDays.toLong()),
+                            updatedAt = event.updatedAt,
+                        )
+                    }
+                }
+
+                getSeasonalRule(event.plantId, event.careType)?.let { rule ->
+                    val start = AnnualDate(
+                        requireNotNull(rule.seasonStartMonth),
+                        requireNotNull(rule.seasonStartDay),
+                    )
+                    val end = rule.seasonEndMonth?.let { month ->
+                        AnnualDate(month, requireNotNull(rule.seasonEndDay))
+                    }
+                    seasonalOccurrenceContaining(performedEpochDay, start, end)?.let { occurrence ->
+                        val key = "seasonal:${rule.id}:${occurrence.startEpochDay}"
+                        resolvedNoticeIds += getUnreadOccurrenceNoticeIds(key)
+                        markOccurrenceNoticeRead(key, event.updatedAt)
+                    }
+                }
             }
         }
-        return resolvedNoticeIds.distinct()
+        return CareEventDaoWriteResult(
+            recordedPlantIds = recordedPlantIds,
+            skippedPlantIds = skippedPlantIds,
+            resolvedNoticeIds = resolvedNoticeIds.distinct(),
+        )
     }
 
     @Query(
@@ -164,3 +200,9 @@ interface CareEventDao {
     @Query("DELETE FROM care_events WHERE plantId = :plantId AND careType = :careType")
     suspend fun deleteEventsByType(plantId: String, careType: String): Int
 }
+
+data class CareEventDaoWriteResult(
+    val recordedPlantIds: List<String>,
+    val skippedPlantIds: List<String>,
+    val resolvedNoticeIds: List<String>,
+)

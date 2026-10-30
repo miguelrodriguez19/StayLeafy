@@ -1,8 +1,11 @@
 package com.miguelrodriguez19.stayleafy.data
 
 import com.miguelrodriguez19.stayleafy.data.local.database.CareEventDao
+import com.miguelrodriguez19.stayleafy.data.local.database.CareEventDaoWriteResult
 import com.miguelrodriguez19.stayleafy.data.local.database.CareEventEntity
 import com.miguelrodriguez19.stayleafy.data.local.database.ReminderRuleEntity
+import com.miguelrodriguez19.stayleafy.model.BulkCareResult
+import com.miguelrodriguez19.stayleafy.model.CareEventCreateResult
 import com.miguelrodriguez19.stayleafy.model.CareEventDraft
 import com.miguelrodriguez19.stayleafy.model.CareType
 import com.miguelrodriguez19.stayleafy.platform.reminder.PendingReminderDelivery
@@ -29,7 +32,7 @@ class DefaultCareEventRepositoryTest {
         val dao = RecordingCareEventDao()
         val repository = createRepository(dao)
 
-        val id = repository.createEvent(
+        val result = repository.createEvent(
             plantId = "plant-1",
             draft = CareEventDraft(
                 careType = CareType.WATERING,
@@ -38,10 +41,10 @@ class DefaultCareEventRepositoryTest {
             ),
         )
 
-        assertEquals(fixedUuid, id)
+        assertEquals(CareEventCreateResult.Created(fixedUuid), result)
         assertEquals(
             CareEventEntity(
-                id = id,
+                id = fixedUuid,
                 plantId = "plant-1",
                 careType = CareType.WATERING.name,
                 performedAt = fixedNow - 1_000,
@@ -117,11 +120,110 @@ class DefaultCareEventRepositoryTest {
 
         repository.createEvent(
             "plant-1",
-            CareEventDraft(CareType.WATERING, fixedNow - 10_000L, null),
+            CareEventDraft(CareType.WATERING, fixedNow - 86_400_000L, null),
         )
 
         assertEquals(null, dao.updatedRuleDueEpochDay)
         assertEquals(null, dao.resolvedRuleId)
+    }
+
+    @Test
+    fun createEvent_sameLocalDayReturnsAlreadyRecordedWithoutInsertingOrResolvingReminder() = runTest {
+        val existing = eventEntity().copy(performedAt = fixedNow - 60_000L)
+        val rule = reminderRule(nextDueEpochDay = 20_000L)
+        val dao = RecordingCareEventDao(initialEvents = listOf(existing), reminderRule = rule)
+        val repository = createRepository(dao)
+
+        val result = repository.createEvent(
+            plantId = existing.plantId,
+            draft = CareEventDraft(CareType.WATERING, fixedNow, "Another watering"),
+        )
+
+        assertEquals(CareEventCreateResult.AlreadyRecorded, result)
+        assertEquals(1, dao.events.size)
+        assertEquals(null, dao.updatedRuleDueEpochDay)
+        assertEquals(null, dao.resolvedRuleId)
+    }
+
+    @Test
+    fun recordBulkCare_deduplicatesIdsAndUsesCurrentLocalTimeOnSelectedPastDay() = runTest {
+        val now = java.time.ZonedDateTime.of(2025, 4, 1, 16, 45, 12, 0, java.time.ZoneId.of("Europe/Madrid"))
+            .toInstant().toEpochMilli()
+        val dao = RecordingCareEventDao()
+        val countingNow = CountingEpochMillisProvider(now)
+        val countingZone = CountingZoneIdProvider(ZoneId.of("Europe/Madrid"))
+        val repository = createRepository(
+            dao = dao,
+            epochMillisProvider = countingNow,
+            zoneIdProvider = countingZone,
+            uuidProvider = SequenceCareEventUuidProvider(),
+        )
+        val chosenDay = java.time.LocalDate.of(2025, 3, 30).toEpochDay()
+
+        val result = repository.recordBulkCare(
+            plantIds = listOf("plant-1", "plant-2", "plant-1"),
+            careType = CareType.WATERING,
+            performedEpochDay = chosenDay,
+        )
+
+        assertEquals(BulkCareResult(listOf("plant-1", "plant-2"), emptyList()), result)
+        assertEquals(2, dao.events.size)
+        assertEquals(
+            java.time.ZonedDateTime.of(2025, 3, 30, 16, 45, 12, 0, java.time.ZoneId.of("Europe/Madrid"))
+                .toInstant().toEpochMilli(),
+            dao.events.first().performedAt,
+        )
+        assertEquals(now, dao.events.first().createdAt)
+        assertEquals(1, countingNow.calls)
+        assertEquals(1, countingZone.calls)
+        val dayWindow = requireNotNull(dao.recordCall)
+        assertEquals(23 * 60 * 60 * 1_000L, dayWindow.dayEndExclusive - dayWindow.dayStartInclusive)
+    }
+
+    @Test
+    fun recordBulkCare_reportsMixedAndAllDuplicatesWithoutChangingDuplicateHistory() = runTest {
+        val today = epochDayAt(fixedNow, ZoneOffset.UTC)
+        val existing = eventEntity().copy(plantId = "plant-1", performedAt = fixedNow - 1_000L)
+        val dao = RecordingCareEventDao(initialEvents = listOf(existing))
+        val repository = createRepository(dao, uuidProvider = SequenceCareEventUuidProvider())
+
+        val mixed = repository.recordBulkCare(
+            listOf("plant-1", "plant-2"),
+            CareType.WATERING,
+            today,
+        )
+        val allDuplicate = repository.recordBulkCare(
+            listOf("plant-1", "plant-2"),
+            CareType.WATERING,
+            today,
+        )
+
+        assertEquals(BulkCareResult(listOf("plant-2"), listOf("plant-1")), mixed)
+        assertEquals(BulkCareResult(emptyList(), listOf("plant-1", "plant-2")), allDuplicate)
+        assertEquals(2, dao.events.size)
+    }
+
+    @Test
+    fun recordBulkCare_rejectsEmptyOrFutureDayBeforeReadingProviders() = runTest {
+        val countingNow = CountingEpochMillisProvider(fixedNow)
+        val countingZone = CountingZoneIdProvider(ZoneOffset.UTC)
+        val repository = createRepository(
+            dao = RecordingCareEventDao(),
+            epochMillisProvider = countingNow,
+            zoneIdProvider = countingZone,
+        )
+
+        val emptyError = runCatching {
+            repository.recordBulkCare(emptyList(), CareType.WATERING, 20_000L)
+        }.exceptionOrNull()
+        val futureError = runCatching {
+            repository.recordBulkCare(listOf("plant-1"), CareType.WATERING, 30_000L)
+        }.exceptionOrNull()
+
+        assertTrue(emptyError is IllegalArgumentException)
+        assertTrue(futureError is IllegalArgumentException)
+        assertEquals(1, countingNow.calls)
+        assertEquals(1, countingZone.calls)
     }
 
     @Test
@@ -234,11 +336,13 @@ class DefaultCareEventRepositoryTest {
     private fun createRepository(
         dao: CareEventDao,
         uuidProvider: UuidProvider = FixedCareEventUuidProvider(fixedUuid),
+        epochMillisProvider: EpochMillisProvider = FixedCareEventEpochMillisProvider(fixedNow),
+        zoneIdProvider: ZoneIdProvider = FixedCareEventZoneIdProvider(ZoneOffset.UTC),
     ) = DefaultCareEventRepository(
         careEventDao = dao,
-        epochMillisProvider = FixedCareEventEpochMillisProvider(fixedNow),
+        epochMillisProvider = epochMillisProvider,
         uuidProvider = uuidProvider,
-        zoneIdProvider = FixedCareEventZoneIdProvider(ZoneOffset.UTC),
+        zoneIdProvider = zoneIdProvider,
         notificationGateway = NoOpCareNotificationGateway,
     )
 }
@@ -247,8 +351,24 @@ private class FixedCareEventZoneIdProvider(private val zoneId: ZoneId) : ZoneIdP
     override fun currentZoneId(): ZoneId = zoneId
 }
 
+private class CountingZoneIdProvider(private val zoneId: ZoneId) : ZoneIdProvider {
+    var calls = 0
+    override fun currentZoneId(): ZoneId {
+        calls += 1
+        return zoneId
+    }
+}
+
 private class FixedCareEventEpochMillisProvider(private val value: Long) : EpochMillisProvider {
     override fun now(): Long = value
+}
+
+private class CountingEpochMillisProvider(private val value: Long) : EpochMillisProvider {
+    var calls = 0
+    override fun now(): Long {
+        calls += 1
+        return value
+    }
 }
 
 private class FixedCareEventUuidProvider(private val value: String) : UuidProvider {
@@ -263,6 +383,11 @@ private class RecordingUuidProvider(private val value: String) : UuidProvider {
         calls += 1
         return value
     }
+}
+
+private class SequenceCareEventUuidProvider : UuidProvider {
+    private var nextId = 0
+    override fun newUuid(): String = "bulk-${++nextId}"
 }
 
 private class RecordingCareEventDao(
@@ -288,6 +413,12 @@ private class RecordingCareEventDao(
     var resolvedRuleId: String? = null
         private set
 
+    var recordCall: CareEventRecordCall? = null
+        private set
+
+    val events: List<CareEventEntity>
+        get() = data.value
+
     val currentEvent: CareEventEntity?
         get() = data.value.firstOrNull { it.id == "event-1" }
 
@@ -301,9 +432,43 @@ private class RecordingCareEventDao(
         return data.map { events -> events.firstOrNull { it.plantId == plantId && it.id == eventId } }
     }
 
+    override suspend fun getExistingPlantIds(plantIds: List<String>): List<String> = plantIds
+
     override suspend fun insertEvent(event: CareEventEntity) {
         insertedEvent = event
         data.value = data.value + event
+    }
+
+    override suspend fun recordEventsIfNotRecorded(
+        events: List<CareEventEntity>,
+        dayStartInclusive: Long,
+        dayEndExclusive: Long,
+        performedEpochDay: Long,
+    ): CareEventDaoWriteResult {
+        recordCall = CareEventRecordCall(dayStartInclusive, dayEndExclusive, performedEpochDay)
+        val recordedPlantIds = mutableListOf<String>()
+        val skippedPlantIds = mutableListOf<String>()
+        events.forEach { event ->
+            val duplicate = data.value.any {
+                it.plantId == event.plantId &&
+                    it.careType == event.careType &&
+                    it.performedAt >= dayStartInclusive && it.performedAt < dayEndExclusive
+            }
+            if (duplicate) {
+                skippedPlantIds += event.plantId
+            } else {
+                val latestBeforeInsert = getLatestPerformedAt(event.plantId, event.careType)
+                insertEvent(event)
+                recordedPlantIds += event.plantId
+                if (latestBeforeInsert == null || event.performedAt >= latestBeforeInsert) {
+                    getIntervalRule(event.plantId, event.careType)?.let { rule ->
+                        resolvedRuleId = rule.id
+                        updatedRuleDueEpochDay = Math.addExact(performedEpochDay, requireNotNull(rule.intervalDays).toLong())
+                    }
+                }
+            }
+        }
+        return CareEventDaoWriteResult(recordedPlantIds, skippedPlantIds, emptyList())
     }
 
     override suspend fun getLatestPerformedAt(plantId: String, careType: String): Long? =
@@ -399,6 +564,12 @@ private data class CareEventUpdateCall(
 )
 
 private data class EventKey(val plantId: String, val eventId: String)
+
+private data class CareEventRecordCall(
+    val dayStartInclusive: Long,
+    val dayEndExclusive: Long,
+    val performedEpochDay: Long,
+)
 
 private fun eventEntity() = CareEventEntity(
     id = "event-1",

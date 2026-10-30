@@ -2,6 +2,7 @@ package com.miguelrodriguez19.stayleafy.ui.plant
 
 import android.content.res.Configuration
 import android.net.Uri
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContract
@@ -68,6 +69,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
@@ -122,6 +124,7 @@ fun PlantDetailRoute(
     onConfigureCare: () -> Unit = {},
     photoCropContract: PlantPhotoCropContract? = null,
 ) {
+    val context = LocalContext.current
     val resolvedPhotoCropContract = photoCropContract ?: remember { UCropPhotoContract() }
     val viewModel: PlantDetailViewModel = hiltViewModel(
         creationCallback = { factory: PlantDetailViewModel.Factory -> factory.create(plantId) },
@@ -167,6 +170,16 @@ fun PlantDetailRoute(
         val careViewModel: PlantCareViewModel = hiltViewModel(
             creationCallback = { factory: PlantCareViewModel.Factory -> factory.create(plantId) },
         )
+        val duplicateCareMessage = stringResource(R.string.care_already_recorded)
+        LaunchedEffect(careViewModel, context, duplicateCareMessage) {
+            careViewModel.duplicateCareEvents.collect {
+                Toast.makeText(
+                    context,
+                    duplicateCareMessage,
+                    Toast.LENGTH_SHORT,
+                ).show()
+            }
+        }
         val observedCare by careViewModel.uiState.collectAsStateWithLifecycle()
         val observedCareError by careViewModel.mutationError.collectAsStateWithLifecycle()
         val observedCareMutating by careViewModel.isMutating.collectAsStateWithLifecycle()

@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.miguelrodriguez19.stayleafy.data.CareEventRepository
 import com.miguelrodriguez19.stayleafy.data.EpochMillisProvider
 import com.miguelrodriguez19.stayleafy.model.CareEvent
+import com.miguelrodriguez19.stayleafy.model.CareEventCreateResult
 import com.miguelrodriguez19.stayleafy.model.CareEventDraft
 import com.miguelrodriguez19.stayleafy.model.CareType
 import dagger.assisted.Assisted
@@ -13,6 +14,7 @@ import dagger.assisted.AssistedInject
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -22,6 +24,8 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.receiveAsFlow
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -33,6 +37,8 @@ class PlantCareViewModel @AssistedInject constructor(
     private val repository: CareEventRepository,
     private val epochMillisProvider: EpochMillisProvider,
 ) : ViewModel() {
+    private val duplicateCareChannel = Channel<Unit>(Channel.BUFFERED)
+    val duplicateCareEvents: Flow<Unit> = duplicateCareChannel.receiveAsFlow()
     private val reload = MutableStateFlow(0)
     private val _mutationError = MutableStateFlow<UiErrorCategory?>(null)
     val mutationError: StateFlow<UiErrorCategory?> = _mutationError.asStateFlow()
@@ -57,7 +63,7 @@ class PlantCareViewModel @AssistedInject constructor(
         _isMutating.value = true
         _mutationError.value = null
         viewModelScope.launch {
-            runCatching {
+            val result = runCatching {
                 val now = epochMillisProvider.now()
                 repository.createEvent(
                     plantId,
@@ -67,7 +73,10 @@ class PlantCareViewModel @AssistedInject constructor(
                         note = null,
                     ),
                 )
-            }.onFailure { _mutationError.value = UiErrorCategory.CareSave }
+            }.onFailure { _mutationError.value = UiErrorCategory.CareSave }.getOrNull()
+            if (result == CareEventCreateResult.AlreadyRecorded) {
+                duplicateCareChannel.trySend(Unit)
+            }
             _isMutating.value = false
         }
     }

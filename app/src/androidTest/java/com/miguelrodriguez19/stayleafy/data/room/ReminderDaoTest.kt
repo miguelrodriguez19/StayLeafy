@@ -70,23 +70,33 @@ class ReminderDaoTest {
     fun latestCareAdvancesDueAndReadsNoticeWhileBackdatedCareDoesNotRegress() = runBlocking {
         val plant = testPlant("plant-1", "Ficus")
         val rule = daoRule("rule-1", plant.id, 200L)
+        val backdatedDay = 100L
+        val backdatedBounds = dayBounds(backdatedDay)
+        val latestDay = backdatedDay + 1
+        val latestTime = dayBounds(latestDay).first + 10_000L
         database.plantDao().insertPlant(plant)
         database.reminderRuleDao().upsertRule(rule)
         database.noticeDao().insertNotice(
             daoNotice("notice-1", rule.id, requireNotNull(rule.nextDueEpochDay)),
         )
-        database.careEventDao().insertEvent(careEvent("latest", plant.id, 10_000L))
+        database.careEventDao().insertEvent(careEvent("latest", plant.id, latestTime))
 
-        database.careEventDao().insertEventAndAdvanceReminder(
-            careEvent("backdated", plant.id, 9_000L),
-            performedEpochDay = 100L,
+        database.careEventDao().recordEventsIfNotRecorded(
+            events = listOf(careEvent("backdated", plant.id, backdatedBounds.first + 9_000L)),
+            dayStartInclusive = backdatedBounds.first,
+            dayEndExclusive = backdatedBounds.second,
+            performedEpochDay = backdatedDay,
         )
         assertEquals(200L, database.reminderRuleDao().getRule(rule.id)?.nextDueEpochDay)
         assertEquals(1, database.noticeDao().observeUnreadCount().first())
 
-        database.careEventDao().insertEventAndAdvanceReminder(
-            careEvent("newest", plant.id, 11_000L),
-            performedEpochDay = 201L,
+        val newestDay = 201L
+        val newestBounds = dayBounds(newestDay)
+        database.careEventDao().recordEventsIfNotRecorded(
+            events = listOf(careEvent("newest", plant.id, newestBounds.first + 11_000L)),
+            dayStartInclusive = newestBounds.first,
+            dayEndExclusive = newestBounds.second,
+            performedEpochDay = newestDay,
         )
         assertEquals(208L, database.reminderRuleDao().getRule(rule.id)?.nextDueEpochDay)
         assertEquals(0, database.noticeDao().observeUnreadCount().first())
@@ -139,20 +149,24 @@ class ReminderDaoTest {
             ),
         )
 
-        val resolved = database.careEventDao().insertEventAndAdvanceReminder(
-            CareEventEntity(
+        val performedEpochDay = java.time.LocalDate.of(2026, 4, 10).toEpochDay()
+        val seasonalBounds = dayBounds(performedEpochDay)
+        val resolved = database.careEventDao().recordEventsIfNotRecorded(
+            events = listOf(CareEventEntity(
                 id = "season-care",
                 plantId = plant.id,
                 careType = rule.careType,
-                performedAt = 2L,
+                performedAt = seasonalBounds.first + 2L,
                 note = null,
-                createdAt = 2L,
-                updatedAt = 2L,
-            ),
-            performedEpochDay = java.time.LocalDate.of(2026, 4, 10).toEpochDay(),
+                createdAt = seasonalBounds.first + 2L,
+                updatedAt = seasonalBounds.first + 2L,
+            )),
+            dayStartInclusive = seasonalBounds.first,
+            dayEndExclusive = seasonalBounds.second,
+            performedEpochDay = performedEpochDay,
         )
 
-        assertEquals(listOf("season-notice"), resolved)
+        assertEquals(listOf("season-notice"), resolved.resolvedNoticeIds)
         assertEquals(0, database.noticeDao().observeUnreadCount().first())
     }
 
@@ -190,6 +204,13 @@ class ReminderDaoTest {
         createdAt = performedAt,
         updatedAt = performedAt,
     )
+}
+
+private fun dayBounds(epochDay: Long): Pair<Long, Long> {
+    val date = java.time.LocalDate.ofEpochDay(epochDay)
+    val zone = java.time.ZoneOffset.UTC
+    return date.atStartOfDay(zone).toInstant().toEpochMilli() to
+        date.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
 }
 
 private fun daoRule(id: String, plantId: String, due: Long) = ReminderRuleEntity(

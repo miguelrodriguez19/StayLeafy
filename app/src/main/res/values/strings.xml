@@ -84,6 +84,7 @@
     <string name="care_watering">Watering</string>
     <string name="care_pruning">Pruning</string>
     <string name="care_fertilizing">Fertilizing</string>
+    <string name="care_already_recorded">This care was already recorded for this date.</string>
     <string name="care_never">Never</string>
     <string name="care_last_time">Last time: %1$s</string>
     <string name="add_watering">Water</string>
@@ -105,6 +106,36 @@
     <string name="unread_count_overflow">99+</string>
     <string name="upcoming_filter">Upcoming</string>
     <string name="overdue_filter">Overdue</string>
+    <string name="bulk_care_action_description">Record care for multiple plants</string>
+    <string name="bulk_care_select_plants">Select plants</string>
+    <string name="bulk_care_select_visible">Select all visible</string>
+    <string name="bulk_care_clear_selection">Clear selection</string>
+    <string name="bulk_care_selection_count">Selected: %1$d</string>
+    <string name="bulk_care_continue_count">Continue (%1$d)</string>
+    <string name="bulk_care_form_title">Record care</string>
+    <string name="bulk_care_section_care">Care</string>
+    <string name="bulk_care_type_water">Watering</string>
+    <string name="bulk_care_type_prune">Pruning</string>
+    <string name="bulk_care_type_fertilize">Fertilizing</string>
+    <string name="bulk_care_performed_date">Care date</string>
+    <string name="bulk_care_selected_plants">Selected plants</string>
+    <string name="bulk_care_confirm_title">Record care?</string>
+    <string name="bulk_care_confirm_summary">Type: %1$s\nDate: %2$s\nPlants: %3$d</string>
+    <string name="bulk_care_record">Record</string>
+    <string name="bulk_care_loading">Recording…</string>
+    <string name="bulk_care_error">We couldn’t record care. Review the selected plants and retry; if any selected plant no longer exists, the whole batch is canceled.</string>
+    <string name="bulk_care_retry">Retry</string>
+    <string name="bulk_care_dismiss_result">Dismiss care result</string>
+    <string name="bulk_care_completion_context">%1$s · %2$s</string>
+    <string name="bulk_care_duplicates_only">Every selected plant already had this care recorded for that date.</string>
+    <plurals name="bulk_care_recorded_count">
+        <item quantity="one">Recorded care for %d plant</item>
+        <item quantity="other">Recorded care for %d plants</item>
+    </plurals>
+    <plurals name="bulk_care_skipped_count">
+        <item quantity="one">Skipped %d plant because care was already recorded.</item>
+        <item quantity="other">Skipped %d plants because care was already recorded.</item>
+    </plurals>
     <string name="compact_care_status">%1$s · %2$s</string>
     <string name="more_care_rules">+%1$d</string>
     <string name="configure_care">Configure care</string>
