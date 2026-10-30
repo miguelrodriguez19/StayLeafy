@@ -23,6 +23,8 @@ manage.
 
 ## Open questions
 
+The daily duplicate-prevention scope is implemented by [I-006](I-006-bulk-care-quick-actions.md), for both individual and bulk creation. It interprets days in the current device timezone, supports past dates, and preserves historical/restored duplicates. The remaining improvements below are still ideas.
+
 - How should local-day interpretation, retroactive entries, and existing duplicate care events be
   handled?
 - Which per-row interaction should delete an event, and how should deletion affect reminder state?

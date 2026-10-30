@@ -45,6 +45,8 @@ Recording matching care performs one Room transaction:
 
 A retroactive event older than the latest matching event remains in history but never moves the next due date backwards. The UI reflects the committed Room state and does not generate an immediate notification for care just completed.
 
+I-006 applies the same completion rules to care recorded in bulk. All newly inserted events, interval/seasonal updates, and Notice resolutions in a batch share one Room transaction. The repository skips plants with matching care already recorded on the chosen local day; skipped plants do not change due dates or Notice state. A failed batch rolls back all of these writes. Notification cancellation is attempted only after commit, and cancellation failure does not report durable care as unsaved. Individual care creation uses the same daily duplicate protection. Existing historical duplicates remain untouched.
+
 Clearing history remains constrained to the selected care type and current Plant. It deliberately preserves the current rule and `nextDueEpochDay`; no other Plant or care type is affected.
 
 ### Due states and plant filters

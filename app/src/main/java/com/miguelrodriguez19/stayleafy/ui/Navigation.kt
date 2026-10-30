@@ -51,6 +51,7 @@ import androidx.navigation3.ui.NavDisplay
 import com.miguelrodriguez19.stayleafy.R
 import com.miguelrodriguez19.stayleafy.ui.plant.PlantDetailRoute
 import com.miguelrodriguez19.stayleafy.ui.plant.PlantListRoute
+import com.miguelrodriguez19.stayleafy.ui.plant.BulkCareViewModel
 import com.miguelrodriguez19.stayleafy.ui.plant.PlantNoteEditorRoute
 import com.miguelrodriguez19.stayleafy.ui.backup.BackupRoute
 import com.miguelrodriguez19.stayleafy.ui.reminder.CareConfigurationRoute
@@ -100,6 +101,7 @@ fun MainNavigation(
     val noticesViewModelStoreDecorator = rememberViewModelStoreNavEntryDecorator<NavKey>()
     var selectedTab by rememberSaveable { mutableStateOf(RootTab.Plants) }
     val rootViewModel: RootNavigationViewModel = hiltViewModel()
+    val bulkCareViewModel: BulkCareViewModel = hiltViewModel()
     val noticeListViewModel: NoticeListViewModel = hiltViewModel()
     val unreadCount by rootViewModel.unreadCount.collectAsStateWithLifecycle()
     var permissionRefresh by rememberSaveable { mutableIntStateOf(0) }
@@ -134,6 +136,7 @@ fun MainNavigation(
     }
 
     fun openNotice(noticeId: String) {
+        bulkCareViewModel.leavePlants()
         while (noticesBackStack.size > 1) noticesBackStack.removeLastOrNull()
         noticesBackStack.add(NoticeDetail(noticeId))
         selectedTab = RootTab.Notices
@@ -141,6 +144,9 @@ fun MainNavigation(
 
     fun selectRoot(tab: RootTab) {
         if (tab != selectedTab) {
+            if (selectedTab == RootTab.Plants && tab == RootTab.Notices) {
+                bulkCareViewModel.leavePlants()
+            }
             selectedTab = tab
             return
         }
@@ -178,6 +184,7 @@ fun MainNavigation(
                                 onAddPlant = { plantsBackStack.add(PlantDetail()) },
                                 onSettingsClick = { plantsBackStack.add(Settings) },
                                 onPlantClick = { plantId -> plantsBackStack.add(PlantDetail(plantId)) },
+                                bulkCareViewModel = bulkCareViewModel,
                             )
                         }
                         entry<Settings> {

@@ -298,6 +298,9 @@ private class ReminderCareEventDao(
     private val latest: Map<String, Long> = emptyMap(),
     private val events: List<CareEventEntity> = emptyList(),
 ) : CareEventDao {
+    override suspend fun getExistingPlantIds(plantIds: List<String>): List<String> =
+        plantIds.filter { it == PLANT_ID }
+
     override fun observeEvents(plantId: String): Flow<List<CareEventEntity>> =
         flowOf(events.filter { it.plantId == plantId })
     override fun observeEvent(plantId: String, eventId: String): Flow<CareEventEntity?> = flowOf(null)

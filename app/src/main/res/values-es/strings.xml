@@ -84,6 +84,7 @@
     <string name="care_watering">Riego</string>
     <string name="care_pruning">Poda</string>
     <string name="care_fertilizing">Abonado</string>
+    <string name="care_already_recorded">Este cuidado ya estaba registrado para esta fecha.</string>
     <string name="care_never">Nunca</string>
     <string name="care_last_time">Última vez: %1$s</string>
     <string name="add_watering">Regar</string>
@@ -105,6 +106,36 @@
     <string name="unread_count_overflow">99+</string>
     <string name="upcoming_filter">Próximas</string>
     <string name="overdue_filter">Vencidas</string>
+    <string name="bulk_care_action_description">Registrar cuidado en varias plantas</string>
+    <string name="bulk_care_select_plants">Seleccionar plantas</string>
+    <string name="bulk_care_select_visible">Seleccionar las visibles</string>
+    <string name="bulk_care_clear_selection">Borrar selección</string>
+    <string name="bulk_care_selection_count">Seleccionadas: %1$d</string>
+    <string name="bulk_care_continue_count">Continuar (%1$d)</string>
+    <string name="bulk_care_form_title">Registrar cuidado</string>
+    <string name="bulk_care_section_care">Cuidado</string>
+    <string name="bulk_care_type_water">Riego</string>
+    <string name="bulk_care_type_prune">Poda</string>
+    <string name="bulk_care_type_fertilize">Fertilización</string>
+    <string name="bulk_care_performed_date">Fecha del cuidado</string>
+    <string name="bulk_care_selected_plants">Plantas seleccionadas</string>
+    <string name="bulk_care_confirm_title">¿Registrar cuidado?</string>
+    <string name="bulk_care_confirm_summary">Tipo: %1$s\nFecha: %2$s\nPlantas: %3$d</string>
+    <string name="bulk_care_record">Registrar</string>
+    <string name="bulk_care_loading">Registrando…</string>
+    <string name="bulk_care_error">No se pudo registrar el cuidado. Revisa las plantas seleccionadas y vuelve a intentarlo; si alguna ya no existe, se cancelará todo el lote.</string>
+    <string name="bulk_care_retry">Reintentar</string>
+    <string name="bulk_care_dismiss_result">Cerrar resultado del cuidado</string>
+    <string name="bulk_care_completion_context">%1$s · %2$s</string>
+    <string name="bulk_care_duplicates_only">Todas las plantas seleccionadas ya tenían este cuidado registrado para esa fecha.</string>
+    <plurals name="bulk_care_recorded_count">
+        <item quantity="one">Cuidado registrado para %d planta</item>
+        <item quantity="other">Cuidado registrado para %d plantas</item>
+    </plurals>
+    <plurals name="bulk_care_skipped_count">
+        <item quantity="one">Se omitió %d planta porque el cuidado ya estaba registrado.</item>
+        <item quantity="other">Se omitieron %d plantas porque el cuidado ya estaba registrado.</item>
+    </plurals>
     <string name="compact_care_status">%1$s · %2$s</string>
     <string name="more_care_rules">+%1$d</string>
     <string name="configure_care">Configurar cuidados</string>

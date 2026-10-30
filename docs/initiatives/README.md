@@ -17,7 +17,7 @@ starting new implementation.
 | I-003 | [Keep notification status readable in Settings](I-003-settings-notification-status-layout.md) | Done   | Bug         |
 | I-004 | [Small care, Notice, and inventory improvements](I-004-care-notice-inventory-improvements.md) | Idea   | Improvement |
 | I-005 | [AI writing-assistance spike](I-005-ai-writing-assistance-spike.md)                           | Idea   | Spike       |
-| I-006 | [Bulk care quick actions](I-006-bulk-care-quick-actions.md)                                   | Idea   | Feature     |
+| I-006 | [Bulk care quick actions](I-006-bulk-care-quick-actions.md)                                   | Done   | Feature     |
 | I-007 | [Unread-only Notices filter](I-007-unread-notices-filter.md)                                  | Done   | Feature     |
 
 ## Creating and maintaining an initiative

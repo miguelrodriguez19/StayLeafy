@@ -100,6 +100,10 @@ The foreign key references `Plant.id` with `ON DELETE CASCADE`. Required indexes
 
 Supported `careType` values are `WATERING`, `PRUNING`, and `FERTILIZING`. A short press records the injected current time, while a long press records the selected local date using the current local time. New inline events have no note; the nullable column remains compatible with events created before this interaction was simplified. Type history is queried from the plant-scoped newest-first stream, and clearing uses both `plantId` and `careType`. Phase 4 adds transactional interval rescheduling while preserving the stored due date when this scoped history is cleared.
 
+I-006 adds a transactional duplicate check for new individual and bulk records: the same Plant and care type may not receive another event within the selected local calendar day in the current device timezone. Bounds are the starts of consecutive local dates, rather than a fixed 24-hour duration. Existing and restored duplicates are preserved; any matching event causes a new record to be skipped. No unique index, persisted day column, schema migration, or backup-format change is introduced.
+
+Bulk recording validates every distinct selected Plant ID and inserts all non-duplicate events in one Room transaction under the existing collection operation gate. Each inserted event uses the same captured clock and timezone, with the current local time applied to the chosen non-future date. Its interval/seasonal reminder and Notice effects share that transaction. Missing plants or database failures abort the entire batch; skipped duplicates have no reminder effects. Android notification cancellation follows the commit and does not roll back durable care.
+
 ## ReminderRule — implemented in schema v7
 
 Represents user-configured interval or annual seasonal care. There is at most one row for each Plant, care type, and schedule type. Exactly one schedule type may be enabled for a Plant/care pair; switching modes retains the inactive row's settings. A card that has never been configured and remains disabled does not require a row.

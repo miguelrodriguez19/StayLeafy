@@ -310,9 +310,16 @@ class BackupRecoveryTest {
         assertEquals(1, gateway.published)
         assertEquals(1, database.backupDao().getNotices().count { it.ruleId == annual.id })
         val careTime = clock.instant().toEpochMilli()
-        database.careEventDao().insertEventAndAdvanceReminder(
-            CareEventEntity("annual-care", "old-plant", "FERTILIZING", careTime, null, careTime, careTime),
-            day.toEpochDay(),
+        val careEpochDay = day.toEpochDay()
+        val careDayStart = day.atStartOfDay(ZoneId.of("UTC")).toInstant().toEpochMilli()
+        val nextDayStart = day.plusDays(1).atStartOfDay(ZoneId.of("UTC")).toInstant().toEpochMilli()
+        database.careEventDao().recordEventsIfNotRecorded(
+            events = listOf(
+                CareEventEntity("annual-care", "old-plant", "FERTILIZING", careTime, null, careTime, careTime),
+            ),
+            dayStartInclusive = careDayStart,
+            dayEndExclusive = nextDayStart,
+            performedEpochDay = careEpochDay,
         )
         assertTrue(store.preparePendingDeliveries(day.toEpochDay()).isEmpty())
         assertNotNull(database.backupDao().getNotices().single { it.ruleId == annual.id }.readAt)

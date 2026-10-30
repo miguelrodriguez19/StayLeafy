@@ -3,6 +3,8 @@ package com.miguelrodriguez19.stayleafy.ui.plant
 import com.miguelrodriguez19.stayleafy.data.CareEventRepository
 import com.miguelrodriguez19.stayleafy.data.EpochMillisProvider
 import com.miguelrodriguez19.stayleafy.model.CareEvent
+import com.miguelrodriguez19.stayleafy.model.BulkCareResult
+import com.miguelrodriguez19.stayleafy.model.CareEventCreateResult
 import com.miguelrodriguez19.stayleafy.model.CareEventDraft
 import com.miguelrodriguez19.stayleafy.model.CareType
 import com.miguelrodriguez19.stayleafy.test.MainDispatcherRule
@@ -15,6 +17,7 @@ import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.async
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -111,6 +114,22 @@ class PlantCareViewModelTest {
     }
 
     @Test
+    fun record_duplicateEmitsOneTimeNotice() = runTest {
+        val repository = FakeCareRepository().apply {
+            createResult = CareEventCreateResult.AlreadyRecorded
+        }
+        val viewModel = viewModel(repository)
+        val notice = backgroundScope.async { viewModel.duplicateCareEvents.first() }
+
+        viewModel.record(CareType.WATERING)
+        advanceUntilIdle()
+
+        notice.await()
+        assertFalse(viewModel.isMutating.value)
+        assertEquals(null, viewModel.mutationError.value)
+    }
+
+    @Test
     fun clearHistory_targetsOnlyPlantAndTypeAndReportsFailure() = runTest {
         val repository = FakeCareRepository()
         val viewModel = viewModel(repository)
@@ -145,6 +164,7 @@ private class FakeCareRepository(
         private set
     var createError: Throwable? = null
     var deleteError: Throwable? = null
+    var createResult: CareEventCreateResult = CareEventCreateResult.Created("created-event")
 
     override fun observeEvents(plantId: String): Flow<List<CareEvent>> = flow {
         observeCalls += 1
@@ -154,11 +174,17 @@ private class FakeCareRepository(
 
     override fun observeEvent(plantId: String, eventId: String): Flow<CareEvent?> = flowOf(null)
 
-    override suspend fun createEvent(plantId: String, draft: CareEventDraft): String {
+    override suspend fun createEvent(plantId: String, draft: CareEventDraft): CareEventCreateResult {
         createError?.let { throw it }
         createdEvents += plantId to draft
-        return "created-event"
+        return createResult
     }
+
+    override suspend fun recordBulkCare(
+        plantIds: List<String>,
+        careType: CareType,
+        performedEpochDay: Long,
+    ): BulkCareResult = error("Not used")
 
     override suspend fun updateEvent(plantId: String, eventId: String, draft: CareEventDraft) = Unit
 

@@ -317,3 +317,12 @@ Restored inbox read/unread state is retained, but past/current pending delivery 
 Room remains schema v7 and the project stays single-module with its existing UI/data split. The archive/journal are private operational details, documented in [BACKUP.md](BACKUP.md). The implementation candidate is `0.11.0`/`27`; a separate `!` Conventional Commit PR will advance to `1.0.0` only after owner-operated 24–48 hour reminder/battery, backup, localization, and accessibility acceptance. Post-MVP initiatives remain excluded.
 
 On Android 13+, locale restoration uses the application-context [LocaleManager](https://developer.android.com/reference/android/app/LocaleManager) so startup recovery does not require an attached Activity. Earlier versions retain AppCompat locale handling and DataStore storage. AppCompat's [locale API lifecycle contract](https://developer.android.com/reference/androidx/appcompat/app/AppCompatDelegate#setApplicationLocales(androidx.core.os.LocaleListCompat)) normally requires Activity creation, which is too late for fail-closed startup recovery on Android 13+.
+
+## D-032 — Transactional daily deduplication and bulk care
+
+- **Date:** 2026-10-29
+- **Status:** Accepted
+
+I-006 records one care type and local date for a selected set of plants. Both individual and bulk creation check for an existing event of the same Plant/type between consecutive starts of the selected local day in the current device timezone. The check and insert share a Room transaction; a batch validates all selected plants and applies all new events and reminder/Notice changes atomically. The existing collection gate also coordinates these writes with backup replacement. Notification cancellation follows commit and remains best effort.
+
+Daily uniqueness is a creation rule rather than a new persisted constraint: existing and imported duplicates remain valid history, timestamps retain their original meaning, and changing device timezone does not rewrite rows. Room remains schema v7 and logical backups retain their existing format. A duplicate is an explicit successful no-op, with localized feedback for individual actions and recorded/skipped counts for batches. The remaining I-004 ideas are independent of this decision.
