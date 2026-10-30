@@ -59,3 +59,9 @@ Notices often arrive together, and the user commonly cares for several plants in
 - The existing `Medium_Phone_API_36.1` AVD (Android 16) passed 63 data/non-Compose tests, but all 119 Compose tests failed before rendering because the current Espresso runner reflects on the unavailable `InputManager.getInstance()` API. The UI suite was therefore rerun successfully on API 30; this does not establish automated UI compatibility on the newer AVD. Manual Spanish-form visual verification was performed on that AVD.
 - Run lint separately from instrumented packaging, or use a single Gradle worker: parallel lint/Hilt generation can race on generated Android-test component files. No lint checks were disabled.
 - Independent review findings about noun labels, long names, and repeated duplicate-message context were addressed.
+
+### Empty-state follow-up — 2026-10-30
+
+- Plants empty states remain non-scrollable. Filtered empty results retain only the filter-bar Clear filters action, removing the duplicate primary button below the illustration.
+- The illustration retains its 196dp preferred size and scales down within the remaining height when filters or a bulk-care completion card leave less space. This adaptive behavior is opt-in for Plants; other shared empty-state consumers retain their existing layout.
+- All 28 PlantScreen instrumented tests passed on the Android 11 emulator, including absence of vertical scrolling, a single working Clear filters action, the default illustration size, reduced illustration height with Overdue and completion feedback, and unclipped empty-state text. `./gradlew test lint assembleDebug --max-workers=1` also passed.

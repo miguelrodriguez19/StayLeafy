@@ -10,6 +10,9 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsNotSelected
@@ -30,7 +33,6 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onLast
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextReplacement
-import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -100,12 +102,92 @@ class PlantScreenTest {
         )
 
         composeTestRule.onNodeWithText(string(R.string.no_matching_plants)).assertIsDisplayed()
-        composeTestRule
-            .onAllNodesWithText(string(R.string.clear_filters))
-            .onLast()
-            .performClick()
+        composeTestRule.onAllNodesWithText(string(R.string.clear_filters)).assertCountEquals(1)
+        composeTestRule.onAllNodes(
+            SemanticsMatcher.keyIsDefined(SemanticsProperties.VerticalScrollAxisRange),
+        ).assertCountEquals(0)
+        composeTestRule.onNodeWithText(string(R.string.clear_filters)).performClick()
 
         assertEquals(1, clearClicks)
+    }
+
+    @Test
+    fun emptyIllustration_remains196dpWhenSpaceIsAvailable() {
+        composeTestRule.setContent {
+            StayLeafyTheme(dynamicColor = false) {
+                Box(androidx.compose.ui.Modifier.width(360.dp).height(720.dp)) {
+                    PlantListScreen(
+                        state = PlantListUiState.Empty(isFiltered = false),
+                        filterQuery = "",
+                        favoritesOnly = false,
+                        mutationError = null,
+                        onQueryChange = {},
+                        onFavoritesOnlyChange = {},
+                        onClearFilters = {},
+                        onRetry = {},
+                        onAddPlant = {},
+                        onPlantClick = {},
+                        onFavoriteClick = { _, _ -> },
+                        onDismissMutationError = {},
+                    )
+                }
+            }
+        }
+
+        composeTestRule.onNodeWithTag("leafy_empty_illustration").assertHeightIsEqualTo(196.dp)
+    }
+
+    @Test
+    fun emptyIllustration_shrinksForCompletionBannerAndKeepsTextInsideAvailableBody() {
+        composeTestRule.setContent {
+            StayLeafyTheme(dynamicColor = false) {
+                Box(androidx.compose.ui.Modifier.width(360.dp).height(480.dp)) {
+                    PlantListScreen(
+                        state = PlantListUiState.Empty(isFiltered = true),
+                        filterQuery = "",
+                        favoritesOnly = false,
+                        mutationError = null,
+                        onQueryChange = {},
+                        onFavoritesOnlyChange = {},
+                        onClearFilters = {},
+                        onRetry = {},
+                        onAddPlant = {},
+                        onPlantClick = {},
+                        onFavoriteClick = { _, _ -> },
+                        onDismissMutationError = {},
+                        overdueOnly = true,
+                        bulkCare = BulkCareUiState(
+                            completion = BulkCareCompletion(
+                                careType = CareType.WATERING,
+                                performedEpochDay = 20_000,
+                                result = BulkCareResult(listOf("aloe"), listOf("fern")),
+                            ),
+                        ),
+                    )
+                }
+            }
+        }
+
+        val bodyBounds = composeTestRule
+            .onNodeWithTag("plants_empty_state_content")
+            .getUnclippedBoundsInRoot()
+        val illustrationBounds = composeTestRule
+            .onNodeWithTag("leafy_empty_illustration")
+            .getUnclippedBoundsInRoot()
+        assertTrue("Illustration should shrink when the body is short", illustrationBounds.bottom - illustrationBounds.top < 196.dp)
+
+        listOf(R.string.no_matching_plants, R.string.try_different_filter).forEach { resourceId ->
+            val textBounds = composeTestRule
+                .onNodeWithText(string(resourceId))
+                .assertIsDisplayed()
+                .getUnclippedBoundsInRoot()
+            assertTrue("Empty-state text must stay inside its bounded body", textBounds.top >= bodyBounds.top)
+            assertTrue("Empty-state text must stay inside its bounded body", textBounds.bottom <= bodyBounds.bottom)
+        }
+        composeTestRule.onAllNodesWithText(string(R.string.clear_filters)).assertCountEquals(1)
+        composeTestRule.onAllNodes(
+            SemanticsMatcher.keyIsDefined(SemanticsProperties.VerticalScrollAxisRange),
+        ).assertCountEquals(0)
     }
 
     @Test

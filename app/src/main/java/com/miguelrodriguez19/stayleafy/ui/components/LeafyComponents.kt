@@ -28,6 +28,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -189,6 +190,7 @@ fun LeafyEmptyState(
     action: String? = null,
     onAction: () -> Unit = {},
     illustration: Int = rememberEmptyIllustration(),
+    adaptiveIllustration: Boolean = false,
 ) {
     Column(
         modifier = modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 20.dp),
@@ -198,7 +200,14 @@ fun LeafyEmptyState(
         Image(
             painter = painterResource(illustration),
             contentDescription = null,
-            modifier = Modifier.size(196.dp),
+            modifier = if (adaptiveIllustration) {
+                Modifier
+                    .weight(1f, fill = false)
+                    .size(196.dp)
+                    .testTag("leafy_empty_illustration")
+            } else {
+                Modifier.size(196.dp)
+            },
             contentScale = ContentScale.Fit,
         )
         Text(

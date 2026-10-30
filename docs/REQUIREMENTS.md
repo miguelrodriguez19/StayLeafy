@@ -35,6 +35,7 @@ Phase delivery note: Phases 1–7 and the independent plant-screen correction ar
 - **FR-PLANT-017** — Leaving Plant create or edit with unsaved changes through the back arrow asks for confirmation before discarding them.
 - **FR-PLANT-018** — In Plant detail preview, tapping a primary photo expands it with an animated layout change that preserves the complete image; tapping again restores the compact size.
 - **FR-PLANT-019** — Returning from plant detail or edit with the app-bar back arrow or system Back restores the Plants list's first visible item index and scroll offset. This position survives configuration changes and transient loading. If editing changes sort order or filter membership, restoration keeps the numeric position and clamps it to a valid item when the list is shorter. Manually changing or clearing search or filters starts the list at the beginning. Position is held only for the current app session and is not persisted across a future app launch.
+- **FR-PLANT-020** — The empty Plants view does not scroll. Its decorative illustration uses the existing 196dp size when space permits and shrinks to fit the remaining height after filters, result feedback, and text. Filtered empty results have no additional primary Clear filters button; the filter-bar Clear filters action remains available.
 
 ### Primary photo
 

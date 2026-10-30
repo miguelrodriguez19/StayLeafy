@@ -516,12 +516,18 @@ fun PlantListScreen(
                     onAction = onRetry,
                 )
 
-                is PlantListUiState.Empty -> EmptyPlantList(
-                    isFiltered = state.isFiltered,
-                    onAddPlant = onAddPlant,
-                    onClearFilters = onClearFilters,
-                    allowAdd = !bulkCare.isSelectionMode,
-                )
+                is PlantListUiState.Empty -> Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .testTag("plants_empty_state_content"),
+                ) {
+                    EmptyPlantList(
+                        isFiltered = state.isFiltered,
+                        onAddPlant = onAddPlant,
+                        allowAdd = !bulkCare.isSelectionMode,
+                    )
+                }
 
                 is PlantListUiState.Content -> PlantListContent(
                     plants = state.plants,
@@ -813,8 +819,8 @@ internal fun LoadingContent(modifier: Modifier = Modifier) {
 private fun EmptyPlantList(
     isFiltered: Boolean,
     onAddPlant: () -> Unit,
-    onClearFilters: () -> Unit,
     allowAdd: Boolean = true,
+    modifier: Modifier = Modifier,
 ) {
     LeafyEmptyState(
         title = stringResource(
@@ -823,13 +829,10 @@ private fun EmptyPlantList(
         supporting = stringResource(
             if (isFiltered) R.string.try_different_filter else R.string.add_first_plant_hint,
         ),
-        modifier = Modifier.fillMaxWidth(),
-        action = when {
-            isFiltered -> stringResource(R.string.clear_filters)
-            allowAdd -> stringResource(R.string.add_plant)
-            else -> null
-        },
-        onAction = if (isFiltered) onClearFilters else onAddPlant,
+        modifier = modifier.fillMaxWidth(),
+        action = if (!isFiltered && allowAdd) stringResource(R.string.add_plant) else null,
+        onAction = onAddPlant,
+        adaptiveIllustration = true,
     )
 }
 
